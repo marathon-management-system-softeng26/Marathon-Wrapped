@@ -1,0 +1,45 @@
+# ---- Marathon Wrapped · Next.js + Supabase ----
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+build/
+dist/
+
+# Environment variables — NEVER commit these (they hold secret keys)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Supabase local
+.supabase/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Testing / coverage
+/coverage
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
