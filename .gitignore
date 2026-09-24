@@ -46,3 +46,8 @@ next-env.d.ts
 
 # Keys / certificates
 *.pem
+
+# AI tool instruction files — Next.js (`next dev`) auto-creates these.
+# Keep them out of the repo.
+AGENTS.md
+CLAUDE.md
