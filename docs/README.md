@@ -9,4 +9,4 @@
 | `SRS.md` + final report | Harry | 22 |
 | `demo-script.md` | Bella | 25 |
 
-> Note: `SRS.md` is from the earlier registration-system plan and needs rewriting for Marathon Wrapped (issue 22).
+> `SRS.md` v1.0 (Sep 24, 2026) — source: the team Google Doc. Keep both in sync when requirements change.

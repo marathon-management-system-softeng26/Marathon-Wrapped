@@ -1,218 +1,243 @@
-# MNC Marathon Simulation System — Requirements & Design Document
+# Software Requirements Specification (SRS)
 
-### Project Overview
+## Marathon Wrapped
 
-A web-based marathon event registration and check-in management system that simulates the end-to-end race registration process.
-
-Admins can create events with track details and race categories, while prospective runners register, scan a generated QRIS code as a simulated payment gateway, upload eligibility certificates and manual QRIS payment proof, and await administrative verification. Once approved, runners are assigned an "Official Runner" status and an automatic bib number and then can connect their Strava accounts to have race activities and running status tracked.
-
----
-
-### Actors
-
-| Actor | Description |
-| --- | --- |
-| **Admin** | Event organizer, creates events, reviews and approves payments, manages runner status |
-| **Prospective Runner** | Potential runner who signs up, registers for a marathon event, uploads documents, awaits approval |
-| **Official Runner** | Approved runner, has a bib, can connect Strava for race tracking, and shows up on race day |
-| **System** | Background run, handles status transitions, Strava data pulls, notifications |
+**Course:** Software Engineering — Sampoerna University × University of Arizona  
+**Demo Scenario:** Soekarno Run 2027  
+**Version:** 1.0  
+**Date:** September 24, 2026
 
 ---
 
-## User Flows
+## 1. Introduction
 
-### Admin Flow
+### 1.1 Purpose
 
-1. Login as admin
-2. Create event and fill out the details: name, date, location, track/route detail (map/GPX or description), distance categories (5K/10K/21K/42K), quota per category, price, eligibility rules (e.g. full marathon requires proof of prior finish)
-3. View dashboard of registrations: Pending Payment Review / Official / Rejected
-4. Open a registration → view uploaded certificate + QRIS payment proof
-5. Approve or reject:
-   - **Approve** → status becomes "Official", system generates bib number
-   - **Reject** → status becomes "Rejected", runner notified with reason
-6. View event summary (registered, official, pending, revenue estimate)
+This document specifies the requirements for **Marathon Wrapped**, a prototype web application that generates a personal, shareable, Spotify-Wrapped-style race recap for each runner in the **Soekarno Run** marathon event. It is intended for the project team, including development, QA, and documentation teams, as well as for course evaluation.
 
-### Runner Registration Flow
+### 1.2 Scope
 
-1. Sign up / login using email + phone number
-2. Browse open events → select event + category
-3. Fill registration form (personal info, emergency contact)
-4. Upload certificate of previous marathon (required for categories with eligibility rules)
-5. Make payment via QRIS (static QR shown, no live gateway yet)
-6. Upload payment proof (screenshot/photo)
-7. Status: "Pending Review" — waits for admin
-8. Once approved: status "Official", bib number issued, notified (email)
-9. Connect Strava account via OAuth for race tracking
+Marathon Wrapped provides every registered runner with a personalized recap card generated from baseline timing-chip data, including finish time, pace, category rank, and split performance. Runners who want a richer recap can optionally connect **Strava** to enrich their card with health metrics such as heart rate, elevation, cadence, and calories. Race photos are surfaced through a simulated **FotoYu**-style photo marketplace and matched to runners using their bib numbers. Runners can export and share their completed recap card as an image.
 
-### Runner Race Day Flow
+This is a **prototype**, not a production system:
 
-The goal here is that the organizer knows when each runner finishes — without buying RFID chips or timing mats. Strava's V3 API + Webhook Events API make this achievable on a free tier. See section "Race Day Design" below for the full design; the flow at a glance:
+* Timing-chip data is **seeded** and is not read from real race-day hardware.
+* FotoYu is **simulated**; sample photos are manually mapped to bib numbers, and no facial recognition is implemented.
+* Strava integration uses the **real, free-tier Strava V3 API**.
+* The deliverable consists of a working prototype, a live demo, and this documentation; it is not intended to be a deployed production service.
 
-1. Official runner connects Strava (OAuth2) any time before race day — the system stores their tokens + Strava athlete ID
-2. On race day, runner records their run normally in the Strava app (starts at gun, stops at finish line)
-3. When the runner saves/uploads the activity, Strava fires a create webhook event to our callback endpoint — this is the "finish" signal
-4. System receives the webhook, fetches the activity detail, and checks it matches the event (date window + distance ≈ category distance)
-5. On a match, system records the runner's finish time, distance, duration, and pace, sets a per-runner status to "Finished", and timestamps it
-6. Organizer's race-day dashboard updates live — showing who has finished, their time, and who is still out on course
-7. Admin can treat this as a soft/unofficial result — a low-cost proxy for chip timing, not a certified time
+### 1.3 Intended Audience
+
+The intended audience includes project team members (PM, database, logic, UI/UX, content/docs, and QA), course instructors, and graders.
+
+### 1.4 Definitions
+
+| Term | Meaning |
+| ----- | ----- |
+| Wrapped | The personalized recap card and experience generated for each runner |
+| Chip result | Baseline timing data obtained from the simulated bib chip |
+| FotoYu | Simulated race-photo marketplace with photos mapped to bib numbers |
+| Hero runner | A seeded runner with complete, rich data used for demonstration purposes |
+| DNF | Did Not Finish |
 
 ---
 
-## Functional Requirements
+## 2. Overall Description
 
-**Accounts & Auth**
+### 2.1 Product Perspective
 
-- FR1: System shall allow runners to sign up with email + phone number
-- FR2: System shall allow login via email/phone + password (OTP optional, flag as future improvement if time-constrained)
-- FR3: Admin shall have a separate role/login with elevated permissions
+Marathon Wrapped is a standalone web application that is not integrated with a live race-timing system. It is demonstrated using a simulated event, Soekarno Run 2027, with two race categories: 5K and 10K.
 
-**Event Management (Admin)**
+### 2.2 Product Functions (Summary)
 
-- FR4: Admin shall create/edit/delete events with name, date, location, track detail, categories, quota, price
-- FR5: Admin shall define eligibility rules per category (e.g. certificate required)
+The system shall:
 
-**Registration (Runner)**
+* Generate a personalized Wrapped card from chip timing data for every runner.
+* Allow a runner to optionally connect their Strava account for additional data.
+* Surface race photos matched to the runner's bib number through a simulated FotoYu marketplace.
+* Allow a runner to export and share their Wrapped card as an image.
 
-- FR6: Runner shall register for one category within an event
-- FR7: System shall block registration once category quota is full
-- FR8: Runner shall upload a certificate file (PDF/image) as proof of prior marathon completion
-- FR9: Runner shall upload payment proof (image) after viewing QRIS code
-- FR10: System shall set registration status to "Pending Review" after proof upload
+### 2.3 User Classes
 
-**Payment Review (Admin)**
+| User | Description |
+| ----- | ----- |
+| Runner | Registered participant who can view their own Wrapped and optionally connect Strava |
+| Organizer | User who can view aggregate data and manage seeded events, categories, and hero runners within the prototype scope |
 
-- FR11: Admin shall view certificate + payment proof per registration
-- FR12: Admin shall approve or reject a registration with optional note
-- FR13: On approval, system shall auto-generate a unique bib number and set status "Official"
+### 2.4 Operating Environment
 
-**Race Tracking (Strava)**
+The application is a web application built with a Next.js frontend and backend, a Supabase database, and Vercel hosting. It runs in modern web browsers and supports both desktop and mobile screen widths.
 
-- FR14: Official runner shall be able to connect/disconnect their Strava account via OAuth2
-- FR15: System shall subscribe to Strava webhook events and receive a notification when a connected runner uploads a new activity
-- FR16: On a webhook event, system shall fetch the activity detail and determine whether it matches the event (date/time window AND distance within a tolerance of the registered category distance)
-- FR17: On a matched activity, system shall record the runner's finish time, distance, duration, and pace, and set their race status to "Finished"
-- FR18: System shall provide the organizer a race-day dashboard showing, per event: runners finished (with time/pace), runners still active, and runners not yet started
-- FR19: System shall handle the case where a runner has no Strava connection or no matching activity (status stays "No Result") without breaking the dashboard
-- FR20 (fallback): Admin shall be able to manually enter/override a runner's finish time in case Strava data is missing or wrong
+### 2.5 Design & Implementation Constraints
 
-**Notifications**
+* The project uses low-budget, free-tier tooling only, including the Supabase free tier, Vercel free tier, and Strava free API tier.
+* The system does not include a real payment gateway, real RFID/chip hardware, or facial recognition.
+* The prototype is limited to a single event, **Soekarno Run 2027**, with two categories: 5K and 10K.
 
-- FR21: System shall notify runner by email on approval/rejection
-- FR22: System shall notify runner by email when their finish is recorded (optional, nice-to-have)
+### 2.6 Assumptions & Dependencies
+
+* Strava's free-tier API remains available and within its applicable rate limits throughout the demo.
+* Sample/seed data is used as a substitute for real race-day data capture.
+* Hero runners are pre-seeded with complete data to ensure a reliable live demonstration.
 
 ---
 
-## Data Model
+## 3. Data Requirements
 
-- **users** — id, name, email, phone, password_hash, role (admin/runner)
-- **events** — id, name, date, location, track_detail, created_by
-- **categories** — id, event_id, distance, price, quota, requires_certificate (bool)
-- **registrations** — id, user_id, category_id, status (pending/official/rejected), bib_number, created_at
-- **certificates** — id, registration_id, file_url, uploaded_at
-- **payment_proofs** — id, registration_id, file_url, uploaded_at, reviewed_by, review_note
-- **strava_connections** — id, user_id, access_token, refresh_token, expires_at, athlete_id, connected_at
-- **race_results** — id, registration_id, strava_activity_id, finish_status (no_result/finished/manual), start_time, finish_time, elapsed_time, distance, avg_pace, recorded_at, is_manual_override
-- **webhook_events** — id, event_object_id (Strava activity id), athlete_id, aspect_type (create/update/delete), received_at, processed (bool) — raw log so you can debug and reprocess
+Real-world registration and eligibility rules are based on the Soekarno Run series (see `REFERENCES.md`) and are scoped to the two categories used in this project.
 
----
+### 3.1 Runner Registration Data
 
-## Race Day Design — Strava Integration (Detailed)
+| Field | Type | Notes |
+| ----- | ----- | ----- |
+| Full legal name | text | Must match the runner's ID; immutable after registration closes |
+| Date of birth | date | Used to calculate age and determine category eligibility |
+| Gender | enum (M/F) | Immutable after registration closes |
+| Email address | text | Used for registration confirmation |
+| Phone number | text | Used for contact |
+| ID type | enum | KTP, SIM, Passport, KK, KITAS, or Student ID |
+| ID number | text | Verified against the selected ID type during race pack collection |
+| Race category | enum | 5K or 10K |
+| Jersey size | enum | S–XXL; immutable after registration closes |
+| Parental consent | boolean/file | Required if the runner is under 17 (5K allows runners aged 13+) |
+| BIB number | text (unique) | Assigned after registration and is non-transferable |
 
-This is the core race-day mechanism. The design choice that makes it work on a free tier is **using webhooks instead of polling**.
+**Age eligibility:**
 
-### Why webhooks, not polling
+* 5K: minimum age 13
+* 10K: minimum age 17
 
-- **Polling** = the system repeatedly asks Strava "any new activities?" for every runner. With hundreds of runners this burns through Strava's rate limit fast (free apps get roughly 200 requests / 15 min and 2,000 / day) and still has lag.
-- **Webhooks** = Strava *pushes* a small notification to your server the instant a runner saves their activity. One event per finish, near-real-time, barely touches the rate limit. This is the right design for "know when they finish."
-- Verify current rate limits and webhook behavior against Strava's official developer docs before building — the numbers above are the well-known defaults but can change.
+### 3.2 Baseline / Optional Data
 
-### One-time setup (Admin / developer)
+| Data Type | Source | Required? |
+| ----- | ----- | ----- |
+| Chip timing (start, finish, splits) | Simulated bib chip | Required for every finisher |
+| Strava metrics (HR, elevation, cadence, calories) | Strava V3 API (opt-in) | Optional |
+| FotoYu photos | Simulated marketplace, mapped by bib number | Optional |
 
-1. Register the app in the Strava developer portal → get client_id + client_secret
-2. Create one webhook subscription for the app, pointing at your public callback URL (e.g. a Vercel serverless function /api/strava/webhook)
-3. Strava sends a GET verification challenge to that URL once — your endpoint must echo it back to confirm the subscription
+### 3.3 Entity Overview
 
-### Runner connect (OAuth2, before race day)
+* **events** — event_id, name, event_date, location
+* **categories** — category_id, event_id (FK), name (5K/10K), distance_km, min_age
+* **runners** — runner_id, category_id (FK), bib_number (unique), name, gender, date_of_birth, id_type, id_number, email, phone
+* **chip_results** — result_id, runner_id (FK, unique), start_time, finish_time, elapsed_seconds, avg_pace_sec_km, category_rank, overall_rank, finisher (bool)
+* **chip_splits** — split_id, runner_id (FK), km_marker, split_seconds
+* **strava_metrics** — metric_id, runner_id (FK, unique), avg_heartrate, max_heartrate, elevation_gain_m, calories, avg_cadence
+* **fotoyu_photos** — photo_id, bib_number (FK), photo_url, photographer, captured_km, captured_at
 
-1. Runner clicks "Connect Strava" → redirected to Strava authorization page
-2. Requests scope activity:read (enough to read their activities)
-3. Strava redirects back with a code → system exchanges it for access_token + refresh_token
-4. Store tokens in strava_connections; refresh the access token when expires_at passes (tokens are short-lived — the refresh token is what you keep)
+### 3.4 Relationships (ERD Basis)
 
-### Finish detection (race day, event-driven)
+* One **event** → many **categories** (1:N)
+* One **category** → many **runners** (1:N)
+* One **runner** → exactly one **chip_results** record (1:1)
+* One **runner** → many **chip_splits** records, one per kilometer (1:N)
+* One **runner** → zero or one **strava_metrics** record (1:0..1, optional)
+* One **runner**, identified via bib_number → zero or many **fotoyu_photos** records (1:0..N, optional)
 
-1. Runner stops & saves run in Strava app
-2. Strava fires webhook → POST /api/strava/webhook (aspect_type: "create") — respond 200 fast, then process async
-3. Log to webhook_events
-4. Look up which runner owns this athlete_id
-5. GET /activities/{id} using that runner's access_token
-6. Match check: activity start within event window? distance ≈ category distance (± tolerance)?
-7. If match → write race_results (finish_time, elapsed_time, pace, status=finished)
-8. Organizer dashboard reflects the finish (live)
-
-### What counts as "finish time"
-
-- Strava gives start_date and elapsed_time for an activity.
-- **Finish time** = start_date + elapsed_time. Use elapsed_time (wall-clock) rather than moving_time so pauses at water stations still count — closer to a real race clock.
-- Store both start and finish so the dashboard can show elapsed duration per runner.
-
-### Important realism caveats (state these in your report)
-
-- The "finish" signal depends on the runner saving their activity — a runner who forgets to hit save won't register a finish until they do. This is why FR20 (manual admin override) exists as a fallback.
-- Strava webhooks are near-real-time but not instantaneous like a physical timing mat — acceptable for a simulation, not for certified results.
-- Distance won't match the course exactly (GPS drift, extra walking) — use a tolerance (e.g. ±1–2 km) rather than an exact match.
-- Handle update and delete webhook aspect types gracefully (a runner can edit/delete an activity after uploading).
+Full schema: see `db/schema.sql`.
 
 ---
 
-## Non-Functional Requirements
+## 4. Functional Requirements
 
-- **NFR1 (Budget):** All third-party services used must have a workable free tier (no paid infra required to run the simulation)
-- **NFR2 (Security):** Certificate and payment proof files shall be stored privately, not publicly listable; accessible only to the uploader and admins
-- **NFR3 (Data integrity):** Once a registration is approved and a bib is issued, the bib number shall not change
-- **NFR4 (Usability):** Registration flow (upload certificate → upload payment proof) completable in under 5 steps
-- **NFR5 (Auditability):** Every approve/reject action shall be logged with admin id + timestamp
+### **Chip Timing (Baseline, Every Runner)**
 
----
+* **FR1:** The system shall record a start time and finish time for each runner.
+* **FR2:** The system shall calculate elapsed time and average pace for each runner.
+* **FR3:** The system shall calculate the category rank and overall rank for each runner.
+* **FR4:** The system shall record per-kilometer splits for each runner.
+* **FR5:** The system shall generate insight text from split data, including the fastest kilometer, negative/positive split performance, and points at which the runner slowed down.
+* **FR6:** The system shall handle a non-finisher (DNF) without causing the Wrapped card to fail.
 
-## Recommended Tech Stack (Low-Budget & Practical)
+### **Strava Enrichment (Opt-In)**
 
-| Layer | Recommendation | Why |
-| --- | --- | --- |
-| Frontend | Next.js + Tailwind | Fast to build, works well with Claude Code, free hosting on Vercel |
-| Backend | Next.js API routes | No separate backend service needed |
-| Database | Supabase (Postgres) | Generous free tier, built-in auth + storage |
-| Auth | Supabase Auth (email/phone) | Avoids building auth from scratch |
-| File storage | Supabase Storage | Private buckets for certificates/payment proof |
-| Strava integration | Strava V3 API (OAuth2) + Webhook Events API | Free tier; webhook callback runs as a Vercel serverless function — no extra infra |
-| Hosting | Vercel (free tier) | Pairs naturally with Next.js |
-| Email notifications | Resend or Supabase built-in email | Free tier sufficient for small event scale |
-| QRIS | Static QR image (manual, no gateway) | Zero-cost placeholder until payment gateway is added |
+* **FR7:** A runner shall be able to connect their Strava account through OAuth 2.0.
+* **FR8:** The system shall retrieve heart rate, elevation, calories, and cadence data for a connected runner through the Strava V3 API.
+* **FR9:** The Wrapped card shall display Strava metrics when they are available and shall render correctly when they are absent.
+* **FR10:** A runner shall be able to disconnect their Strava account.
 
----
+### **FotoYu Photo Marketplace (Simulated)**
 
-## Out of Scope / Future Improvements
+* **FR11:** The system shall map race photos to a runner's bib number.
+* **FR12:** The Wrapped card shall display a gallery of photos matched to the runner's bib number.
+* **FR13:** The system shall handle runners with zero matched photos without causing the Wrapped card to fail.
 
-- Real payment gateway integration (Midtrans/Xendit) to replace manual QRIS review
-- Official RFID/chip timing at physical checkpoints
-- OTP-based phone verification (nice-to-have, not required for v1)
-- Push notifications (email is sufficient for v1)
-- Multi-organization / multi-tenant support
-- Strict Strava route-matching against the official GPX track (v1 matches on date window + distance tolerance only)
-- Live leaderboard ranking of finishers by category (v1 shows finish times; ranking/sorting is a small add-on)
-- Auto-refreshing Strava tokens as a scheduled job vs. refresh-on-demand
+### **Wrapped Card & Sharing**
+
+* **FR14:** The system shall render a personalized Wrapped card that combines chip data, Strava data (if available), and photo data.
+* **FR15:** A runner shall be able to export and share their Wrapped card as an image.
+
+### **Admin / Organizer (Prototype Scope)**
+
+* **FR16:** An admin shall be able to view all runners' results for an event.
+* **FR17:** An admin shall be able to seed and manage hero runners with complete demonstration data.
 
 ---
 
-## Open Questions / Assumptions (please confirm or adjust)
+## 5. Non-Functional Requirements
 
-1. **Certificate file types:** assumed PDF or image — confirm if you want to restrict to one.
-2. **"Gate"** in the project name — assumed to mean the registration/approval gate (who gets to become an official runner), not a physical race-day QR scan gate. If a physical check-in/gate scan on race day is also wanted, that's a separate flow worth adding.
-3. **Phone number use:** assumed profile field only for v1, not OTP-verified — flag if OTP is required.
-4. **Strava matching logic:** v1 matches an activity on date/time window + distance tolerance, not exact route. Confirm the distance tolerance wanted (e.g. ±1 km) and the event time window (e.g. activity must start within race start ± a few hours).
-5. **Public callback URL:** the Strava webhook needs a publicly reachable HTTPS endpoint — this is why hosting on Vercel (or similar) matters even during development. Local-only builds will need a tunnel (e.g. ngrok) to test webhooks.
-6. **"Finished" without Strava:** confirm the manual admin override (FR20) is acceptable as the fallback for runners who don't use Strava, rather than requiring every runner to connect it.
+* **NFR1 (Budget):** All third-party services shall provide a workable free tier.
+* **NFR2 (Usability):** The Wrapped card shall be viewable and shareable on both desktop and mobile screen widths.
+* **NFR3 (Resilience):** The card shall degrade gracefully; missing Strava or photo data shall not prevent the card from rendering correctly.
+* **NFR4 (Performance):** A Wrapped card shall load within 3 seconds on a typical broadband connection for the seeded data volumes.
+* **NFR5 (Data Integrity):** A `bib_number` shall be unique and immutable once assigned, in accordance with real-world non-transferability rules.
+* **NFR6 (Demonstrability):** At least 3–5 "hero" runners shall have complete data (chip + Strava + photos) to ensure a strong live demonstration.
 
 ---
 
-*Source: MASTER | Software Engineering Group B (Google Doc), SRS & User Flow tab.*
+## 6. Tech Stack
+
+| Layer | Choice |
+| ----- | ----- |
+| Frontend | Next.js + Tailwind CSS |
+| Backend | Next.js API routes |
+| Database | Supabase (Postgres) |
+| Photo storage | Supabase Storage |
+| Enrichment | Strava V3 API |
+| Hosting | Vercel |
+
+---
+
+## 7. Team & Responsibilities
+
+| Member | Role | Owns |
+| ----- | ----- | ----- |
+| Bella | PM | Requirements, scope, planning & demos; data contract between members; integration; risk log |
+| Rakha | Database | Schema, seed data, hero runners |
+| Embun | Logic | Wrapped computation, ranking, and merging of chip/Strava/photo data |
+| Indra | UI/UX | The Wrapped card experience, gallery, and share/export functionality |
+| Harry | Content & Docs | Sample data, microcopy, SRS/report |
+| Shaun | QA | Per-sprint testing and edge cases |
+
+---
+
+## 8. Timeline
+
+The project consists of **three 3-week sprints and a demo week**, running from **September 28 to December 4, 2026**.
+
+| Sprint | Dates | Goal |
+| ----- | ----- | ----- |
+| Sprint 1 — Core | Sep 28 – Oct 16 | Lock the data contract; complete the schema and seed data; render cards with baseline chip statistics |
+| Sprint 2 — Polishing | Oct 19 – Nov 6 | Integrate FotoYu photos and Strava opt-in functionality; implement share/export functionality |
+| Sprint 3 — Hardening | Nov 9 – Nov 27 | Complete the visual polish pass; seed hero runners; draft the report |
+| Demo Week | Nov 30 – Dec 4 | Finalize the report, conduct a dress rehearsal, and present on Friday, Dec 4 |
+
+Full breakdown, ownership per sprint, and risk log: see `ROADMAP.md`.
+
+---
+
+## 9. Out of Scope
+
+The following are outside the scope of the prototype:
+
+* Real RFID/GPS timing hardware
+* Real payment/registration gateway
+* Facial recognition for photo matching
+* Categories beyond 5K and 10K
+* Multi-event or multi-organization support
+
+---
+
+## 10. References
+
+See `REFERENCES.md` for the full list of sourced links, including Soekarno Run registration and eligibility rules, Strava API documentation, and comparable race-technology systems.
