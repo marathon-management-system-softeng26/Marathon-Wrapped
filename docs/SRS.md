@@ -189,6 +189,7 @@ Full schema: see `db/schema.sql`.
 
 | Layer | Choice |
 | ----- | ----- |
+| UI/UX design | Figma (wireframes and card designs) |
 | Frontend | Next.js + Tailwind CSS |
 | Backend | Next.js API routes |
 | Database | Supabase (Postgres) |
