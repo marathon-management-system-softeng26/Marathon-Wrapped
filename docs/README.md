@@ -2,7 +2,7 @@
 
 | Document | Owner | Issue |
 |---|---|---|
-| `SCOPE_OF_WORK.md` — agreement with the client PIC (Mr. Rafie): deliverables, scope, timeline, approval | Bella | 01 |
+| [Scope of Work (Google Doc)](https://docs.google.com/document/d/1tnyXhw357BYRqA3LcjCMbydfaWKiQdQRLMv7Hse0L0w/edit) — agreement with the client PIC (Mr. Rafie), signed there | Bella | 01 |
 | `meetings/` — client meeting notes, one file per meeting | Bella | — |
 | `DATA_REQUIREMENTS.md` — registration fields, eligibility rules, ERD entities & relationships | Bella | 02 / 03 |
 | `data-contract.md` — per-runner data shape shared by db → lib → app | Bella | 02 |
