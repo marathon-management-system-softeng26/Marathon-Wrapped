@@ -15,3 +15,6 @@ drop table if exists chip_results    cascade;
 drop table if exists runners         cascade;
 drop table if exists categories      cascade;
 drop table if exists events          cascade;
+drop function if exists check_runner_eligibility();
+drop function if exists lock_bib_number();
+drop function if exists age_on(date, date);
