@@ -1,8 +1,8 @@
-# Entity Relationship Diagram (ERD)
+# Entity Relationship Diagram (ERD) — v1
 
-Owner: **Bella** · Issue 03
+Owner: **Bella** · Issue 03 · **Version 1** (Sep 24, 2026)
 
-![Marathon Wrapped ERD](erd.png)
+![Marathon Wrapped ERD v1](erd-v1.png)
 
 ## Relationships
 
@@ -21,7 +21,7 @@ Owner: **Bella** · Issue 03
 - `strava_metrics` is optional and only created if the runner connects their Strava account.
 - `fotoyu_photos` are manually mapped to the runner's `bib_number`.
 
-## Differences from `db/schema.sql`
+## Differences from `db/schema.sql` (to fix in v2)
 
 The diagram shows the core entities. The schema (source of truth) has these differences — update one or the other so they match:
 
