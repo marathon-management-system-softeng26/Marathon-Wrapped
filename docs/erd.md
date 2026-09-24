@@ -1,8 +1,8 @@
-# Entity Relationship Diagram (ERD) — v2
+# Entity Relationship Diagram (ERD) — v3
 
-Owner: **Bella** · Issue 03 · **Version 2** (Sep 24, 2026)
+Owner: **Bella** · Issue 03 · **Version 3** (Sep 24, 2026)
 
-![Marathon Wrapped ERD v2](erd-v2.png)
+![Marathon Wrapped ERD v3](erd-v3.png)
 
 ## Relationships
 
@@ -23,20 +23,17 @@ Owner: **Bella** · Issue 03 · **Version 2** (Sep 24, 2026)
 
 ## Differences from `db/schema.sql`
 
-The diagram shows the core entities. The schema (source of truth) has these differences — update one or the other so they match:
+v3 matches the schema (source of truth) except:
 
-| Table | Diagram (v2) | `db/schema.sql` |
+| Table | Diagram (v3) | `db/schema.sql` |
 |---|---|---|
-| `categories` | — | adds `min_age` |
-| `runners` | `age` | `date_of_birth` (age computed), gender `M/F`, `bib_number` unique, plus `email`, `phone`, `id_type`, `id_number`, `jersey_size`, `parental_consent` |
-| `chip_results` | — | `runner_id` unique; adds `start_status` (`on-time` / `late` / `dns`) |
-| `strava_metrics` | — | `runner_id` unique |
-| `fotoyu_photos` | FK `runner_id`; `image_url`, `taken_at`, `photo_type`, `created_at` | FK `bib_number`; `photo_url`, `photographer`, `captured_km`, `captured_at` |
+| `runners` | — | adds `id_type` and `id_number` (ID checked at race pack collection) |
 
 ## Version history
 
 | Version | Image | Changes |
 |---|---|---|
+| v3 | [`erd-v3.png`](erd-v3.png) | Aligned with `db/schema.sql`: `categories.min_age`; `runners.date_of_birth` (replaces `age`), gender `M/F`, `email`, `phone`, `jersey_size`, `parental_consent`; `chip_results.start_status`; `(unique)` labels restored; `fotoyu_photos` now keyed by `bib_number` with `photo_url`, `photographer`, `captured_km`, `captured_at`. |
 | v2 | [`erd-v2.png`](erd-v2.png) | Diagram only — legend and key-relationships panel removed. `gender` and `bib_number` shown as plain `text`; `(unique)` labels dropped from `runners.bib_number`, `chip_results.runner_id` and `strava_metrics.runner_id`. |
 | v1 | [`erd-v1.png`](erd-v1.png) | First version, with relationship legend and key-relationships panel. |
 
