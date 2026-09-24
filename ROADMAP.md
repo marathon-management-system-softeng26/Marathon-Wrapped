@@ -66,7 +66,10 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 ## Project Closing (Dec 5 – Dec 10)
 
-Final bug fixes across the team. Harry finalizes the report — **submit Tue Dec 8**. Bella + Shaun dress-rehearse the demo on the hero runners. **Live demo Thu Dec 10.**
+Final bug fixes across the team. Harry finalizes the report — **submit Tue Dec 8**. **Live demo Thu Dec 10.**
+
+- **Shaun** — final demo QA (issue 24)
+- **Bella** — finish the demo script; dress-rehearse with Shaun on the hero runners (issue 25)
 
 ## Risk log
 
