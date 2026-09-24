@@ -22,20 +22,20 @@ A Spotify-Wrapped-style web app that turns each runner's marathon into a persona
 | Backend | Next.js API routes |
 | Database | Supabase (Postgres) |
 | Photo storage | Supabase Storage |
-| Enrichment | Strava V3 API (free) or mocked |
-| Hosting | Vercel (free) |
+| Enrichment | Strava V3 API |
+| Hosting | Vercel|
 
 ## Structure
 
 ```
 marathon-wrapped/
-├── ROADMAP.md   → sprint plan, roles, risks
-├── /app         → UI: Wrapped cards, gallery, share  (Indra)
-├── /lib         → logic: stats, ranking, merging      (Embun)
-├── /db          → schema + seed scripts               (Rakha)
-├── /public      → sample photos & assets              (Harry)
-├── /docs        → report & documentation              (Harry)
-└── /tests       → test plan & QA notes                (Shaun)
+├── ROADMAP.md   → sprint plan and user roles
+├── /app         → UI for Wrapped cards and gallery
+├── /lib         → logic for displaying stats, ranking, merging      
+├── /db          → database schema and seed scripts              
+├── /public      → sample photos & assets          
+├── /docs        → documentation report & references         
+└── /tests       → test plan and QA notes               
 ```
 
 ## Getting started
