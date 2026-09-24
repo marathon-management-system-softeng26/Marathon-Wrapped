@@ -1,8 +1,10 @@
 # Marathon Wrapped 🏃‍♀️✨
 
-A Spotify-Wrapped-style web app that turns each runner's marathon into a personal, shareable recap. Every runner gets baseline stats from the **timing chip on their bib**; those who want more can **opt in to Strava** for health metrics, and race photos are pulled in through a simulated **FotoYu-style photo marketplace**.
+A Spotify-Wrapped-style web app that turns each runner's marathon into a personal, shareable recap. Every runner gets baseline stats from the **timing chip on their bib**; those who want more can **opt in to Strava** for health metrics, and race photos are pulled in through a simulated **FotoYu-style photo marketplace**. 
 
-> **Prototype for Sampoerna University x University of Arizona - Software Engineering course**, not production grade. Chip data is seeded, FotoYu is simulated (photos manually mapped to bibs, no facial recognition), and Strava is real-free-API.
+The demo is meant for Soekarno Run 2027. Soekarno Run is a series of annual running events held in Indonesia that combine sport, community culture, and the commemorative spirit of Indonesia's first president.
+
+> **Prototype for Sampoerna University x University of Arizona - Software Engineering course**, not production grade.Chip data is seeded, FotoYu is simulated (photos manually mapped to bibs, no facial recognition), and Strava is real-free-API.
 > **Deliverable: working prototype + live demo + documentation report**
 
 ## What it does
