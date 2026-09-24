@@ -2,7 +2,7 @@
 
 Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wrapped-style runner recap app, demoed for **Soekarno Run 2027**.
 
-> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 28 – Dec 4, 2026**, three 3-week sprints plus a demo week.
+> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 28 – Dec 4, 2026**, three sprints (3, 4 and 3 weeks); the last week of Sprint 3 is demo week.
 
 ## Team & roles
 
@@ -22,9 +22,9 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 | Sprint | Dates | Goal |
 |---|---|---|
 | Sprint 1 — Foundation + Core | Sep 28 – Oct 16 | Data contract locked; schema + seed; cards render baseline chip stats |
-| Sprint 2 — Enrichment + Share | Oct 19 – Nov 6 | FotoYu photos + Strava opt-in layered in; share/export works |
-| Sprint 3 — Polish + Hardening | Nov 9 – Nov 27 | Visual polish pass; hero runners seeded; report drafted |
-| Demo week | Nov 30 – Dec 4 | Finalize report, dress-rehearse, present Fri Dec 4 |
+| Sprint 2 — Enrichment + Share | Oct 19 – Nov 13 | FotoYu photos + Strava opt-in layered in; share/export works |
+| Sprint 3 — Polish + Hardening | Nov 16 – Dec 4 | Visual polish pass; hero runners seeded; report drafted |
+| Demo week (last week of Sprint 3) | Nov 30 – Dec 4 | Finalize report, dress-rehearse, present Fri Dec 4 |
 
 ## Sprint 1 — Foundation + Core (Sep 28 – Oct 16)
 
@@ -39,7 +39,7 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 **QA gate:** seed data sane; stats correct vs. seed; cards render per runner.
 
-## Sprint 2 — Enrichment + Share (Oct 19 – Nov 6)
+## Sprint 2 — Enrichment + Share (Oct 19 – Nov 13)
 
 **Goal:** FotoYu photos + Strava opt-in layered in; share/export works.
 
@@ -51,7 +51,7 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 **QA gate:** card degrades gracefully when photos/Strava absent; share output looks good.
 
-## Sprint 3 — Polish + Hardening (Nov 9 – Nov 27)
+## Sprint 3 — Polish + Hardening (Nov 16 – Dec 4)
 
 **Goal:** visual polish; hero runners seeded; report drafted.
 
@@ -64,7 +64,7 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 **QA gate:** full regression; end-to-end flow clean.
 
-## Demo week (Nov 30 – Dec 4)
+## Demo week — last week of Sprint 3 (Nov 30 – Dec 4)
 
 Final bug fixes across the team. Harry finalizes the report. Bella + Shaun dress-rehearse the demo on the hero runners. **Present Fri Dec 4.**
 
