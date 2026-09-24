@@ -214,14 +214,14 @@ Full schema: see `db/schema.sql`.
 
 ## 8. Timeline
 
-The project consists of **three sprints (3, 4 and 3 weeks), with the last week of Sprint 3 as demo week**, running from **September 28 to December 4, 2026**.
+The project consists of **three sprints (4, 4 and 3 weeks) followed by Project Closing**, running from **September 22 to December 10, 2026**.
 
 | Sprint | Dates | Goal |
 | ----- | ----- | ----- |
-| Sprint 1 — Core | Sep 28 – Oct 16 | Lock the data contract; complete the schema and seed data; render cards with baseline chip statistics |
+| Sprint 1 — Core | Sep 22 – Oct 18 | Lock the data contract; complete the schema and seed data; render cards with baseline chip statistics |
 | Sprint 2 — Polishing | Oct 19 – Nov 13 | Integrate FotoYu photos and Strava opt-in functionality; implement share/export functionality |
-| Sprint 3 — Hardening | Nov 16 – Dec 4 | Complete the visual polish pass; seed hero runners; draft the report |
-| Demo Week (last week of Sprint 3) | Nov 30 – Dec 4 | Finalize the report, conduct a dress rehearsal, and present on Friday, Dec 4 |
+| Sprint 3 — Hardening | Nov 14 – Dec 4 | Complete the visual polish pass; seed hero runners; draft the report |
+| Project Closing | Dec 5 – Dec 10 | Final fixes and a dress rehearsal; submit the final report on Tuesday, Dec 8; live demonstration on Thursday, Dec 10 |
 
 Full breakdown, ownership per sprint, and risk log: see `ROADMAP.md`.
 
