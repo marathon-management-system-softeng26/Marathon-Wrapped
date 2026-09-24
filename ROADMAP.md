@@ -2,7 +2,7 @@
 
 Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wrapped-style runner recap app, demoed for **Soekarno Run 2027**.
 
-> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 28 – Dec 4, 2026**, three sprints (3, 4 and 3 weeks); the last week of Sprint 3 is demo week.
+> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 22 – Dec 4, 2026**, three sprints (4, 4 and 3 weeks); the last week of Sprint 3 is demo week.
 
 ## Team & roles
 
@@ -21,12 +21,12 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 | Sprint | Dates | Goal |
 |---|---|---|
-| Sprint 1 — Foundation + Core | Sep 28 – Oct 16 | Data contract locked; schema + seed; cards render baseline chip stats |
+| Sprint 1 — Foundation + Core | Sep 22 – Oct 18 | Data contract locked; schema + seed; cards render baseline chip stats |
 | Sprint 2 — Enrichment + Share | Oct 19 – Nov 13 | FotoYu photos + Strava opt-in layered in; share/export works |
-| Sprint 3 — Polish + Hardening | Nov 16 – Dec 4 | Visual polish pass; hero runners seeded; report drafted |
+| Sprint 3 — Polish + Hardening | Nov 14 – Dec 4 | Visual polish pass; hero runners seeded; report drafted |
 | Demo week (last week of Sprint 3) | Nov 30 – Dec 4 | Finalize report, dress-rehearse, present Fri Dec 4 |
 
-## Sprint 1 — Foundation + Core (Sep 28 – Oct 16)
+## Sprint 1 — Foundation + Core (Sep 22 – Oct 18)
 
 **Goal:** data contract locked; schema + seed exist; cards render baseline chip stats.
 
@@ -51,7 +51,7 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 **QA gate:** card degrades gracefully when photos/Strava absent; share output looks good.
 
-## Sprint 3 — Polish + Hardening (Nov 16 – Dec 4)
+## Sprint 3 — Polish + Hardening (Nov 14 – Dec 4)
 
 **Goal:** visual polish; hero runners seeded; report drafted.
 
