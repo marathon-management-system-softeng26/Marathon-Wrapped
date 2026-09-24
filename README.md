@@ -67,4 +67,4 @@ Work on feature branches, merge to `main` via pull request, one quick review bef
 
 ## Timeline
 
-3 sprints (4, 4 and 3 weeks), ending with demo week, **Sep 22 – Dec 4, 2026**. Full breakdown in `ROADMAP.md`.
+3 sprints (4, 4 and 3 weeks) plus Project Closing (Dec 5 – Dec 10), **Sep 22 – Dec 10, 2026**. Full breakdown in `ROADMAP.md`.

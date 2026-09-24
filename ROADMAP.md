@@ -2,7 +2,7 @@
 
 Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wrapped-style runner recap app, demoed for **Soekarno Run 2027**.
 
-> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 22 – Dec 4, 2026**, three sprints (4, 4 and 3 weeks); the last week of Sprint 3 is demo week.
+> Prototype for the **Sampoerna University × University of Arizona** Software Engineering course — not production grade. Deliverable: working prototype + live demo + documentation report. Timeline: **Sep 22 – Dec 10, 2026**: three sprints (4, 4 and 3 weeks), then Project Closing (Dec 5 – Dec 10) for report submission and the live demo.
 
 ## Team & roles
 
@@ -24,7 +24,7 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 | Sprint 1 — Foundation + Core | Sep 22 – Oct 18 | Data contract locked; schema + seed; cards render baseline chip stats |
 | Sprint 2 — Enrichment + Share | Oct 19 – Nov 13 | FotoYu photos + Strava opt-in layered in; share/export works |
 | Sprint 3 — Polish + Hardening | Nov 14 – Dec 4 | Visual polish pass; hero runners seeded; report drafted |
-| Demo week (last week of Sprint 3) | Nov 30 – Dec 4 | Finalize report, dress-rehearse, present Fri Dec 4 |
+| Project Closing | Dec 5 – Dec 10 | Final fixes and dress rehearsal; submit report Tue Dec 8; live demo Thu Dec 10 |
 
 ## Sprint 1 — Foundation + Core (Sep 22 – Oct 18)
 
@@ -64,9 +64,9 @@ Sprint plan, team roles, and risk log for **Marathon Wrapped** — a Spotify-Wra
 
 **QA gate:** full regression; end-to-end flow clean.
 
-## Demo week — last week of Sprint 3 (Nov 30 – Dec 4)
+## Project Closing (Dec 5 – Dec 10)
 
-Final bug fixes across the team. Harry finalizes the report. Bella + Shaun dress-rehearse the demo on the hero runners. **Present Fri Dec 4.**
+Final bug fixes across the team. Harry finalizes the report — **submit Tue Dec 8**. Bella + Shaun dress-rehearse the demo on the hero runners. **Live demo Thu Dec 10.**
 
 ## Risk log
 
