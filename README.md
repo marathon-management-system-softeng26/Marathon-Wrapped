@@ -33,10 +33,10 @@ The demo is meant for Soekarno Run 2027. Soekarno Run is a series of annual runn
 marathon-wrapped/
 ├── ROADMAP.md   → sprint plan and user roles
 ├── /app         → UI for Wrapped cards and gallery
-├── /lib         → logic for displaying stats, ranking, merging      
+├── /lib         → logic for stats, ranking, merging      
 ├── /db          → database schema and seed scripts              
-├── /public      → sample photos & assets          
-├── /docs        → documentation report & references         
+├── /public      → sample photos and public assets          
+├── /docs        → SRS and documentation reports       
 └── /tests       → test plan and QA notes               
 ```
 
