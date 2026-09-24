@@ -1,8 +1,8 @@
-# Entity Relationship Diagram (ERD) — v3
+# Entity Relationship Diagram (ERD) — v4
 
-Owner: **Bella** · Issue 03 · **Version 3** (Sep 24, 2026)
+Owner: **Bella** · Issue 03 · **Version 4** (Sep 24, 2026)
 
-![Marathon Wrapped ERD v3](erd-v3.png)
+![Marathon Wrapped ERD v4](erd-v4.png)
 
 ## Relationships
 
@@ -21,18 +21,15 @@ Owner: **Bella** · Issue 03 · **Version 3** (Sep 24, 2026)
 - `strava_metrics` is optional and only created if the runner connects their Strava account.
 - `fotoyu_photos` are manually mapped to the runner's `bib_number`.
 
-## Differences from `db/schema.sql`
+## Schema alignment
 
-v3 matches the schema (source of truth) except:
-
-| Table | Diagram (v3) | `db/schema.sql` |
-|---|---|---|
-| `runners` | — | adds `id_type` and `id_number` (ID checked at race pack collection) |
+v4 matches `db/schema.sql` (the source of truth) — every table, column and type. When the schema changes, update the diagram as a new version.
 
 ## Version history
 
 | Version | Image | Changes |
 |---|---|---|
+| v4 | [`erd-v4.png`](erd-v4.png) | Added `runners.id_type` and `runners.id_number` — ERD now fully matches `db/schema.sql`. |
 | v3 | [`erd-v3.png`](erd-v3.png) | Aligned with `db/schema.sql`: `categories.min_age`; `runners.date_of_birth` (replaces `age`), gender `M/F`, `email`, `phone`, `jersey_size`, `parental_consent`; `chip_results.start_status`; `(unique)` labels restored; `fotoyu_photos` now keyed by `bib_number` with `photo_url`, `photographer`, `captured_km`, `captured_at`. |
 | v2 | [`erd-v2.png`](erd-v2.png) | Diagram only — legend and key-relationships panel removed. `gender` and `bib_number` shown as plain `text`; `(unique)` labels dropped from `runners.bib_number`, `chip_results.runner_id` and `strava_metrics.runner_id`. |
 | v1 | [`erd-v1.png`](erd-v1.png) | First version, with relationship legend and key-relationships panel. |
