@@ -8,6 +8,11 @@
 -- Run this in the Supabase SQL editor (or psql) to create all
 -- tables. Seed data lives in db/seed.sql.
 -- To start over, run db/reset.sql first (it wipes all data).
+--
+-- IDs: runners and every runner table (chip_results, chip_splits,
+-- strava_metrics, fotoyu_photos) use uuid ids from gen_random_uuid()
+-- (built into Postgres 13+ / Supabase). events and categories keep
+-- bigint identity ids.
 -- ============================================================
 
 -- ============================================================
@@ -48,7 +53,7 @@ create table categories (
 --     category minimum — enforced by a trigger below
 -- ============================================================
 create table runners (
-    id               bigint generated always as identity primary key,
+    id               uuid primary key default gen_random_uuid(),
     category_id      bigint  not null references categories(id) on delete cascade,
     bib_number       text    unique,           -- assigned after registration; FotoYu photos map to it
     name             text    not null,         -- full legal name, as on the ID
@@ -125,8 +130,8 @@ create trigger runners_lock_bib
 -- A finisher must have a complete result.
 -- ============================================================
 create table chip_results (
-    id                bigint generated always as identity primary key,
-    runner_id         bigint  not null unique references runners(id) on delete cascade,
+    id                uuid primary key default gen_random_uuid(),
+    runner_id         uuid    not null unique references runners(id) on delete cascade,
     start_status      text    not null default 'on-time'
                           check (start_status in ('on-time', 'late', 'dns')),
     start_time        timestamptz,              -- gun/chip start
@@ -150,8 +155,8 @@ create table chip_results (
 -- "where you slowed" insights.
 -- ============================================================
 create table chip_splits (
-    id            bigint generated always as identity primary key,
-    runner_id     bigint not null references runners(id) on delete cascade,
+    id            uuid primary key default gen_random_uuid(),
+    runner_id     uuid   not null references runners(id) on delete cascade,
     km_marker     int    not null check (km_marker > 0),   -- 1, 2, 3, ...
     split_seconds numeric(6,2) not null check (split_seconds > 0),  -- time for THIS km
     unique (runner_id, km_marker)
@@ -162,8 +167,8 @@ create table chip_splits (
 -- Nullable everywhere: a runner may have none of this.
 -- ============================================================
 create table strava_metrics (
-    id                bigint generated always as identity primary key,
-    runner_id         bigint not null unique references runners(id) on delete cascade,
+    id                uuid primary key default gen_random_uuid(),
+    runner_id         uuid   not null unique references runners(id) on delete cascade,
     avg_heartrate     int,
     max_heartrate     int,
     elevation_gain_m  numeric(7,2),
@@ -178,7 +183,7 @@ create table strava_metrics (
 -- recognition in the prototype). A runner can have many photos.
 -- ============================================================
 create table fotoyu_photos (
-    id            bigint generated always as identity primary key,
+    id            uuid primary key default gen_random_uuid(),
     bib_number    text   not null references runners(bib_number) on delete cascade,
     photo_url     text   not null,
     photographer  text,
