@@ -1,13 +1,14 @@
-# Week 2 — Internal Documentation & Scope of Work (SOW) Integration
+# Week 1 — Internal Documentation & Scope of Work (SOW) Integration
 
-**Documentation Owner:** Harry Analta | **Project Manager:** Marbella Elpantja  
+**Documentation Owner:** Harry Analta 
 **Context:** Capstone Project — Software Engineering 2026/2027 (Sampoerna University × University of Arizona)
+**Week 1: Monday, 20 September - Saturday, 27 September 2026
 
 ---
 
 ### 1. Scope of Work (SOW) Baseline
 
-The official Scope of Work (SOW) signed on September 24, 2026, defines the contractual framework, deliverables, and boundary conditions for the project.
+The official Scope of Work (SOW) signed on September 24, 2026, defines the contractual framework, deliverables, and boundary conditions for the project.  Here are the baseline deliverables, roles, and SOW for our project.
 
 #### Project Stakeholders & Roles
 * **Client PIC:** Mr. Rafie (PIC for Soekarno Run)
@@ -54,10 +55,6 @@ The database schema implemented in `db/schema.sql` reflects ERD v5 (PostgreSQL o
 * `chip_splits` (uuid primary key) — 1:N split times per kilometer. Drives pacing insights and fastest km calculations.
 * `strava_metrics` (uuid primary key) — 1:0..1 optional heart rate, elevation, cadence, and calorie metrics via Strava OAuth.
 * `fotoyu_photos` (uuid primary key) — 1:0..N race photos matched to runners via `bib_number` string identifier.
-
-#### Key SQL Functions & Views
-* **Triggers:** `check_runner_eligibility()` validates minimum age limits (13 for 5K, 17 for 10K) and parental consent; `lock_bib_number()` enforces immutable BIB assignments.
-* **Analytical View:** `runner_wrapped` consolidates runner statistics, photo counts, Strava flags, and category percentiles (via `percent_rank()`) into a single query payload.
 
 ---
 
