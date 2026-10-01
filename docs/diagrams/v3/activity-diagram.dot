@@ -1,0 +1,47 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="UML activity: an honest recap, then a safe export";
+
+rankdir=TB;
+node [fontsize=15];
+initial [shape=circle, style=filled, fillcolor="#291B1D", color="#291B1D", width=0.18, height=0.18, label=""];
+select [label="Runner: select own result"];
+retrieve [label="Application: retrieve matching result"];
+found [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Result exists?"];
+notfound [label="Application: show result unavailable"];
+return [label="Runner: return to selection or retry"];
+finish [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Known valid\nfinisher?"];
+calculate [label="Application: calculate baseline statistics\nand supported split insights"];
+dnf [label="Application: prepare DNF content\nOmit fabricated finish time / pace"];
+merge [shape=diamond, style=filled, fillcolor="#D8F24B", width=0.35, height=0.3, label=""];
+optional [label="Application: add available optional data\nShow no-photo state if no matches"];
+render [label="Application: render selected runner’s recap"];
+export [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Runner chooses\nexport?"];
+generate [label="Application: generate recap image"];
+success [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Export succeeds?"];
+share [label="Runner: save / share generated image"];
+error [label="Application: show actionable export error\nPreserve recap and stored result data"];
+retry [label="Runner: retry export"];
+final [shape=doublecircle, style=filled, fillcolor="#291B1D", color="#291B1D", width=0.2, height=0.2, label=""];
+initial -> select -> retrieve -> found;
+found -> finish [label="[matching result]"];
+found -> notfound [label="[no matching result]"];
+notfound -> return;
+return -> select [constraint=false];
+finish -> calculate [label="[finisher]"];
+finish -> dnf [label="[known DNF]"];
+{rank=same; calculate; dnf;}
+calculate -> merge; dnf -> merge;
+merge -> optional -> render -> export;
+export -> generate [label="[export selected]"];
+export -> final [label="[continue viewing]"];
+generate -> success;
+success -> share [label="[success]"];
+success -> error [label="[failure]"];
+error -> retry;
+retry -> generate [constraint=false];
+share -> final;
+
+}

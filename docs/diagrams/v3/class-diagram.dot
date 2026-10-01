@@ -1,0 +1,27 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="UML classes: the information behind a personal recap";
+
+rankdir=TB;
+node [shape=record, style=filled, fontsize=16, fillcolor="#FAF6EB"];
+event [label="{Event|Name\lDate\lLocation\l}", fillcolor="#BA3143", fontcolor="#FAF6EB"];
+category [label="{RaceCategory|5K or 10K\lDistance\lMinimum age\l}"];
+runner [label="{Runner|Name and contact details\lAssigned BIB (unique, stable)\lRegistration details\l}", fillcolor="#D8F24B"];
+result [label="{RaceResult|Start / finish time\lElapsed time and pace\lCategory / overall rank\lFinisher or DNF\l}"];
+split [label="{KilometerSplit|Kilometer marker\lTime for this kilometer\l}"];
+metrics [label="{StravaMetrics|Heart rate\lElevation gain\lCalories and cadence\l}"];
+photo [label="{RacePhoto|Runner BIB\lImage location\lPhotographer and capture details\l}"];
+edge [dir=none, fontsize=13, labeldistance=2.0];
+event -> category [taillabel="1", headlabel="0..*", minlen=2, labelangle=35];
+category -> runner [taillabel="1", headlabel="0..*", minlen=2, labelangle=35];
+runner -> result [taillabel="1", headlabel="1", label="seeded runner’s result"];
+runner -> split [taillabel="1", headlabel="0..*", label="recorded kilometers"];
+runner -> metrics [taillabel="1", headlabel="0..1", label="optional detail"];
+runner -> photo [taillabel="1", headlabel="0..*", label="matched by BIB"];
+{rank=same; result; split; metrics; photo;}
+note [shape=plaintext, fontsize=14, label="Conceptual classes, not a database schema.\n0..1 = optional, at most one · 0..* = zero or more.\nFinishers have one split per kilometer; DNF may have partial splits.\nExactly one result per seeded demo runner; lifecycle is OD-01."];
+split -> note [style=invis];
+
+}

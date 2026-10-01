@@ -1,0 +1,37 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="Strava is your choice: extra detail, never a prerequisite";
+
+rankdir=TB;
+base [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Baseline recap is already available"];
+choose [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Choose Connect\nStrava?"];
+consent [label="Review Strava’s permission request"];
+approved [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Authorize the\nconnection?"];
+request [label="Request available running metrics"];
+returned [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Usable metrics\nreturned?"];
+show [label="Add the available metrics\nDo not invent missing values"];
+fallback [label="Continue with the baseline recap\nSkip, denied consent or service failure\nnever removes your race results"];
+connected [label="View your enriched recap", fillcolor="#BA3143", fontcolor="#FAF6EB"];
+disconnect [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Choose\nDisconnect?"];
+remove [label="Remove or invalidate connection data\nStop displaying connected metrics\nKeep baseline results available"];
+end [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Continue viewing your recap"];
+base -> choose;
+choose -> consent [label="Yes"];
+choose -> fallback [label="No / skip"];
+consent -> approved;
+approved -> request [label="Yes"];
+approved -> fallback [label="No / deny"];
+request -> returned;
+returned -> show [label="Yes, even if partial"];
+returned -> fallback [label="No / failed request"];
+show -> connected -> disconnect;
+disconnect -> remove [label="Yes: successful disconnection"];
+disconnect -> end [label="No"];
+remove -> end;
+fallback -> end;
+note [shape=plaintext, fontsize=13, label="Failed disconnection retry behavior remains OD-05.\nStrava credentials never appear in the recap or export."];
+end -> note [style=invis];
+
+}
