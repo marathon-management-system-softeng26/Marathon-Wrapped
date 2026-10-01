@@ -1,0 +1,27 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="Organizer journey: keep the demonstration ready";
+
+rankdir=TB;
+start [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Open the organizer view"];
+results [label="View all seeded event results\nSoekarno Run 2027 · 5K and 10K"];
+manage [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Create or update\na demo runner?"];
+edit [label="Enter or edit the runner’s demo data\nResults · splits · optional metrics / photos"];
+valid [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Save accepted?"];
+error [label="Read the rejection reason\nCorrect the data and try again\nA failed save is not reported as success"];
+saved [label="Saved data appears in the event results\nAssigned BIB remains unchanged", fillcolor="#BA3143", fontcolor="#FAF6EB"];
+end [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Ready for the demonstration"];
+start -> results -> manage;
+manage -> edit [label="Yes"];
+manage -> end [label="No"];
+edit -> valid;
+valid -> saved [label="Yes"];
+valid -> error [label="No"];
+error -> edit [label="Correct / retry", constraint=false];
+saved -> end;
+note [shape=plaintext, fontsize=14, label="Dataset: at least 3 complete hero runners\nplus DNF, no-Strava and no-photo test cases.\nBIB uniqueness and valid record relationships apply.\nAccess enforcement remains OD-04; save atomicity remains OD-07."];
+end -> note [style=invis];
+
+}

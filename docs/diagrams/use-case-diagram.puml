@@ -1,0 +1,46 @@
+@startuml
+!define CREAM #FAF6EB
+!define RED #BA3143
+!define LIME #D8F24B
+!define INK #291B1D
+skinparam backgroundColor CREAM
+skinparam defaultFontName Arial
+skinparam defaultFontColor INK
+skinparam ArrowColor RED
+skinparam actorBorderColor RED
+skinparam actorFontColor INK
+skinparam usecaseBackgroundColor CREAM
+skinparam usecaseBorderColor RED
+skinparam rectangleBorderColor RED
+skinparam noteBackgroundColor LIME
+skinparam noteBorderColor RED
+left to right direction
+title Marathon Wrapped — user goals (SRS V3)
+actor Runner
+actor Organizer
+actor "Strava service\nExternal, opt-in" as Strava
+rectangle "Marathon Wrapped prototype" {
+  usecase "View my personal race recap\nUR-F1, UR-F7" as Recap
+  usecase "Understand my split performance\nUR-F2" as Insights
+  usecase "Connect Strava for extra detail\nUR-F3" as Connect
+  usecase "Disconnect Strava\nUR-F4" as Disconnect
+  usecase "View my matched race photos\nUR-F5" as Photos
+  usecase "Export / share my recap image\nUR-F6" as Export
+  usecase "View event results\nUR-F8" as Results
+  usecase "Manage hero-runner demo data\nCreate / update / replace\nUR-F9" as Manage
+}
+Runner -- Recap
+Runner -- Insights
+Runner -- Connect
+Runner -- Disconnect
+Runner -- Photos
+Runner -- Export
+Organizer -- Results
+Organizer -- Manage
+Strava -- Connect
+note bottom of Recap
+  DNF has an honest recap with no invented finish values.
+  Optional metrics and photos are not prerequisites.
+  Alternative outcomes are specified in FS-01–FS-08.
+end note
+@enduml

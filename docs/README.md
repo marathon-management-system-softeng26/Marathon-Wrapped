@@ -1,5 +1,16 @@
 # /docs — Documentation
 
+## Project documentation
+
+- [SRS V3](SRS_v3.md)
+- [Diagrams](diagrams/v3/README.md)
+- [Documentation conventions](DOCUMENTATION_GUIDELINES.md)
+- [Requirement register](requirements-register.md) · [Validation record](SRS_VALIDATION.md)
+- [Lecture notes](lecture-notes/2026-10-01-requirements-engineering.md)
+- Templates: [weekly log](templates/weekly-working-documentation.md) · [change request](templates/requirements-change-request.md) · [test case](templates/requirement-test-case.md)
+
+## Existing document ownership
+
 | Document | Owner | Issue |
 |---|---|---|
 | `DATA_REQUIREMENTS.md` — registration fields, eligibility rules, ERD entities & relationships | Bella | 02 / 03 |

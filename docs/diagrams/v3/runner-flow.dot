@@ -1,0 +1,39 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="Runner journey: find, understand and share your race";
+
+rankdir=TB;
+start [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Open Marathon Wrapped"];
+select [label="Select your runner result\nusing its identifier / BIB"];
+found [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Matching result\navailable?"];
+missing [label="Result unavailable\nReturn to selection or retry\nNo other runner’s data is shown"];
+finish [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Recorded as a\nvalid finisher?"];
+normal [label="See your finish time, pace and ranks\nExplore recorded split highlights"];
+dnf [label="See your DNF recap\nNo invented finish time or pace\nShow only available information"];
+view [label="Your baseline recap is available", fillcolor="#BA3143", fontcolor="#FAF6EB"];
+optional [label="Optional: add available Strava detail\nor explore BIB-matched photos\nYou can continue without either"];
+export [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Export an image?"];
+create [label="Generate your recap image"];
+success [shape=diamond, style=filled, fillcolor="#D8F24B", margin="0.12,0.1", label="Image generated?"];
+error [label="See an export error and retry\nYour recap and stored results remain"];
+save [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Save or share your image"];
+end [shape=oval, fillcolor="#BA3143", fontcolor="#FAF6EB", label="Keep viewing your recap"];
+start -> select -> found;
+found -> finish [label="Yes"];
+found -> missing [label="No"];
+missing -> select [label="Return / retry", constraint=false];
+finish -> normal [label="Yes"];
+finish -> dnf [label="No: known DNF"];
+{rank=same; normal; dnf;}
+normal -> view; dnf -> view;
+view -> optional -> export;
+export -> create [label="Yes"];
+export -> end [label="No"];
+create -> success;
+success -> save [label="Yes"];
+success -> error [label="No"];
+error -> create [label="Retry", constraint=false];
+
+}

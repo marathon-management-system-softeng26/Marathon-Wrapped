@@ -1,0 +1,195 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1345pt" height="3031pt" viewBox="0.00 0.00 1345.00 3031.00" role="img" aria-labelledby="strava-flow-title strava-flow-desc">
+<title id="strava-flow-title">Strava is your choice: extra detail, never a prerequisite</title><desc id="strava-flow-desc">The runner may skip Strava, deny permission, or authorize available metrics. Failed requests fall back to the baseline. Connected runners may disconnect; successful disconnection removes or invalidates the connection while preserving timing results. Failure recovery for disconnection remains an open decision.</desc><g id="graph0" class="graph" transform="scale(2 2) rotate(0) translate(28.8 1486.48)">
+<title>G</title>
+<polygon fill="#faf6eb" stroke="none" points="-28.8,28.8 -28.8,-1486.48 643.92,-1486.48 643.92,28.8 -28.8,28.8" />
+<text xml:space="preserve" text-anchor="middle" x="300.12" y="-1430.88" font-family="Arial" font-size="24.00" fill="#ba3143">Strava is your choice: extra detail, never a prerequisite</text>
+
+<g id="node1" class="node">
+<title>base</title>
+<ellipse fill="#ba3143" stroke="#ba3143" stroke-width="1.3" cx="415.59" cy="-1394.15" rx="199.53" ry="28.53" />
+<text xml:space="preserve" text-anchor="middle" x="415.59" y="-1388.32" font-family="Arial" font-size="16.00" fill="#faf6eb">Baseline recap is already available</text>
+</g>
+
+<g id="node2" class="node">
+<title>choose</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="415.59,-1320.61 278.31,-1268.71 415.59,-1216.81 552.87,-1268.71 415.59,-1320.61" />
+<text xml:space="preserve" text-anchor="middle" x="415.59" y="-1272.26" font-family="Arial" font-size="16.00" fill="#291b1d">Choose Connect</text>
+<text xml:space="preserve" text-anchor="middle" x="415.59" y="-1253.51" font-family="Arial" font-size="16.00" fill="#291b1d">Strava?</text>
+</g>
+
+<g id="edge1" class="edge">
+<title>base-&gt;choose</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M415.59,-1365.14C415.59,-1354.61 415.59,-1342.18 415.59,-1329.85" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="418.04,-1329.88 415.59,-1322.88 413.14,-1329.88 418.04,-1329.88" />
+</g>
+
+<g id="node3" class="node">
+<title>consent</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M450.68,-1157.81C450.68,-1157.81 186.5,-1157.81 186.5,-1157.81 180.5,-1157.81 174.5,-1151.81 174.5,-1145.81 174.5,-1145.81 174.5,-1129.46 174.5,-1129.46 174.5,-1123.46 180.5,-1117.46 186.5,-1117.46 186.5,-1117.46 450.68,-1117.46 450.68,-1117.46 456.68,-1117.46 462.68,-1123.46 462.68,-1129.46 462.68,-1129.46 462.68,-1145.81 462.68,-1145.81 462.68,-1151.81 456.68,-1157.81 450.68,-1157.81" />
+<text xml:space="preserve" text-anchor="middle" x="318.59" y="-1131.81" font-family="Arial" font-size="16.00" fill="#291b1d">Review Strava’s permission request</text>
+</g>
+
+<g id="edge2" class="edge">
+<title>choose-&gt;consent</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M385.43,-1227.58C370.11,-1207.2 351.93,-1183 338.4,-1165" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="340.62,-1163.88 334.46,-1159.75 336.7,-1166.82 340.62,-1163.88" />
+<text xml:space="preserve" text-anchor="middle" x="369.28" y="-1182.46" font-family="Arial" font-size="13.00" fill="#291b1d">Yes</text>
+</g>
+
+<g id="node8" class="node">
+<title>fallback</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M576.68,-647.51C576.68,-647.51 294.5,-647.51 294.5,-647.51 288.5,-647.51 282.5,-641.51 282.5,-635.51 282.5,-635.51 282.5,-581.66 282.5,-581.66 282.5,-575.66 288.5,-569.66 294.5,-569.66 294.5,-569.66 576.68,-569.66 576.68,-569.66 582.68,-569.66 588.68,-575.66 588.68,-581.66 588.68,-581.66 588.68,-635.51 588.68,-635.51 588.68,-641.51 582.68,-647.51 576.68,-647.51" />
+<text xml:space="preserve" text-anchor="middle" x="435.59" y="-621.51" font-family="Arial" font-size="16.00" fill="#291b1d">Continue with the baseline recap</text>
+<text xml:space="preserve" text-anchor="middle" x="435.59" y="-602.76" font-family="Arial" font-size="16.00" fill="#291b1d">Skip, denied consent or service failure</text>
+<text xml:space="preserve" text-anchor="middle" x="435.59" y="-584.01" font-family="Arial" font-size="16.00" fill="#291b1d">never removes your race results</text>
+</g>
+
+<g id="edge3" class="edge">
+<title>choose-&gt;fallback</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M445.44,-1227.58C473.62,-1189.69 511.59,-1138.64 511.59,-1138.64 511.59,-1138.64 511.59,-1138.64 511.59,-757.41 511.59,-757.41 481.71,-699.3 459.42,-655.95" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="461.64,-654.9 456.26,-649.79 457.28,-657.14 461.64,-654.9" />
+<text xml:space="preserve" text-anchor="middle" x="537.84" y="-934.31" font-family="Arial" font-size="13.00" fill="#291b1d">No / skip</text>
+</g>
+
+<g id="node4" class="node">
+<title>approved</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="318.59,-1072.46 206.06,-1020.56 318.59,-968.66 431.12,-1020.56 318.59,-1072.46" />
+<text xml:space="preserve" text-anchor="middle" x="318.59" y="-1024.11" font-family="Arial" font-size="16.00" fill="#291b1d">Authorize the</text>
+<text xml:space="preserve" text-anchor="middle" x="318.59" y="-1005.36" font-family="Arial" font-size="16.00" fill="#291b1d">connection?</text>
+</g>
+
+<g id="edge4" class="edge">
+<title>consent-&gt;approved</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M318.59,-1116.86C318.59,-1106.94 318.59,-1094.33 318.59,-1081.57" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="321.04,-1081.71 318.59,-1074.71 316.14,-1081.71 321.04,-1081.71" />
+</g>
+
+<g id="node5" class="node">
+<title>request</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M370.68,-909.66C370.68,-909.66 118.5,-909.66 118.5,-909.66 112.5,-909.66 106.5,-903.66 106.5,-897.66 106.5,-897.66 106.5,-881.31 106.5,-881.31 106.5,-875.31 112.5,-869.31 118.5,-869.31 118.5,-869.31 370.68,-869.31 370.68,-869.31 376.68,-869.31 382.68,-875.31 382.68,-881.31 382.68,-881.31 382.68,-897.66 382.68,-897.66 382.68,-903.66 376.68,-909.66 370.68,-909.66" />
+<text xml:space="preserve" text-anchor="middle" x="244.59" y="-883.66" font-family="Arial" font-size="16.00" fill="#291b1d">Request available running metrics</text>
+</g>
+
+<g id="edge5" class="edge">
+<title>approved-&gt;request</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M295.38,-979.08C283.98,-959.2 270.55,-935.78 260.37,-918.01" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="262.52,-916.83 256.91,-911.98 258.27,-919.27 262.52,-916.83" />
+<text xml:space="preserve" text-anchor="middle" x="285.84" y="-934.31" font-family="Arial" font-size="13.00" fill="#291b1d">Yes</text>
+</g>
+
+<g id="edge6" class="edge">
+<title>approved-&gt;fallback</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M346.57,-981.13C369.64,-949.43 398.59,-909.66 398.59,-909.66 398.59,-909.66 419.35,-741.29 429.77,-656.79" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="432.2,-657.1 430.63,-649.85 427.34,-656.5 432.2,-657.1" />
+<text xml:space="preserve" text-anchor="middle" x="436.93" y="-834.96" font-family="Arial" font-size="13.00" fill="#291b1d">No / deny</text>
+</g>
+
+<g id="node6" class="node">
+<title>returned</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="244.59,-810.31 120.06,-758.41 244.59,-706.51 369.12,-758.41 244.59,-810.31" />
+<text xml:space="preserve" text-anchor="middle" x="244.59" y="-761.96" font-family="Arial" font-size="16.00" fill="#291b1d">Usable metrics</text>
+<text xml:space="preserve" text-anchor="middle" x="244.59" y="-743.21" font-family="Arial" font-size="16.00" fill="#291b1d">returned?</text>
+</g>
+
+<g id="edge7" class="edge">
+<title>request-&gt;returned</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M244.59,-868.88C244.59,-855.61 244.59,-837.31 244.59,-819.46" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="247.04,-819.73 244.59,-812.73 242.14,-819.73 247.04,-819.73" />
+</g>
+
+<g id="node7" class="node">
+<title>show</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M238.93,-638.14C238.93,-638.14 24.25,-638.14 24.25,-638.14 18.25,-638.14 12.25,-632.14 12.25,-626.14 12.25,-626.14 12.25,-591.04 12.25,-591.04 12.25,-585.04 18.25,-579.04 24.25,-579.04 24.25,-579.04 238.93,-579.04 238.93,-579.04 244.93,-579.04 250.93,-585.04 250.93,-591.04 250.93,-591.04 250.93,-626.14 250.93,-626.14 250.93,-632.14 244.93,-638.14 238.93,-638.14" />
+<text xml:space="preserve" text-anchor="middle" x="131.59" y="-612.14" font-family="Arial" font-size="16.00" fill="#291b1d">Add the available metrics</text>
+<text xml:space="preserve" text-anchor="middle" x="131.59" y="-593.39" font-family="Arial" font-size="16.00" fill="#291b1d">Do not invent missing values</text>
+</g>
+
+<g id="edge8" class="edge">
+<title>returned-&gt;show</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M200.4,-724.38C174.61,-705.09 147.09,-684.51 147.09,-684.51 147.09,-684.51 143.28,-666.1 139.44,-647.53" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="141.84,-647.06 138.03,-640.7 137.04,-648.05 141.84,-647.06" />
+<text xml:space="preserve" text-anchor="middle" x="201.84" y="-672.16" font-family="Arial" font-size="13.00" fill="#291b1d">Yes, even if partial</text>
+</g>
+
+<g id="edge9" class="edge">
+<title>returned-&gt;fallback</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M269.15,-716.29C282.81,-693.42 297.09,-669.51 297.09,-669.51 297.09,-669.51 315.36,-661.61 338.64,-651.54" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="339.44,-653.86 344.89,-648.83 337.5,-649.36 339.44,-653.86" />
+<text xml:space="preserve" text-anchor="middle" x="351.84" y="-672.16" font-family="Arial" font-size="13.00" fill="#291b1d">No / failed request</text>
+</g>
+
+<g id="node9" class="node">
+<title>connected</title>
+<path fill="#ba3143" stroke="#ba3143" stroke-width="1.3" d="M230.56,-524.66C230.56,-524.66 40.62,-524.66 40.62,-524.66 34.62,-524.66 28.62,-518.66 28.62,-512.66 28.62,-512.66 28.62,-496.31 28.62,-496.31 28.62,-490.31 34.62,-484.31 40.62,-484.31 40.62,-484.31 230.56,-484.31 230.56,-484.31 236.56,-484.31 242.56,-490.31 242.56,-496.31 242.56,-496.31 242.56,-512.66 242.56,-512.66 242.56,-518.66 236.56,-524.66 230.56,-524.66" />
+<text xml:space="preserve" text-anchor="middle" x="135.59" y="-498.66" font-family="Arial" font-size="16.00" fill="#faf6eb">View your enriched recap</text>
+</g>
+
+<g id="edge10" class="edge">
+<title>show-&gt;connected</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M132.73,-578.6C133.28,-564.58 133.93,-547.8 134.48,-533.86" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="136.92,-534.22 134.74,-527.13 132.02,-534.03 136.92,-534.22" />
+</g>
+
+<g id="node12" class="node">
+<title>end</title>
+<ellipse fill="#ba3143" stroke="#ba3143" stroke-width="1.3" cx="367.59" cy="-125.13" rx="166.65" ry="28.53" />
+<text xml:space="preserve" text-anchor="middle" x="367.59" y="-119.31" font-family="Arial" font-size="16.00" fill="#faf6eb">Continue viewing your recap</text>
+</g>
+
+<g id="edge15" class="edge">
+<title>fallback-&gt;end</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M435.21,-569.28C434.93,-540.31 434.59,-505.49 434.59,-505.49 434.59,-505.49 434.59,-505.49 434.59,-236.59 434.59,-236.59 408.67,-193.85 389.07,-161.55" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="391.24,-160.4 385.52,-155.69 387.05,-162.94 391.24,-160.4" />
+</g>
+
+<g id="node10" class="node">
+<title>disconnect</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="151.59,-439.31 45.06,-387.41 151.59,-335.51 258.12,-387.41 151.59,-439.31" />
+<text xml:space="preserve" text-anchor="middle" x="151.59" y="-390.96" font-family="Arial" font-size="16.00" fill="#291b1d">Choose</text>
+<text xml:space="preserve" text-anchor="middle" x="151.59" y="-372.21" font-family="Arial" font-size="16.00" fill="#291b1d">Disconnect?</text>
+</g>
+
+<g id="edge11" class="edge">
+<title>connected-&gt;disconnect</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M138.34,-483.71C139.84,-472.96 141.77,-459.06 143.69,-445.22" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="146.08,-445.86 144.61,-438.58 141.22,-445.18 146.08,-445.86" />
+</g>
+
+<g id="node11" class="node">
+<title>remove</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M291.18,-276.51C291.18,-276.51 12,-276.51 12,-276.51 6,-276.51 0,-270.51 0,-264.51 0,-264.51 0,-210.66 0,-210.66 0,-204.66 6,-198.66 12,-198.66 12,-198.66 291.18,-198.66 291.18,-198.66 297.18,-198.66 303.18,-204.66 303.18,-210.66 303.18,-210.66 303.18,-264.51 303.18,-264.51 303.18,-270.51 297.18,-276.51 291.18,-276.51" />
+<text xml:space="preserve" text-anchor="middle" x="151.59" y="-250.51" font-family="Arial" font-size="16.00" fill="#291b1d">Remove or invalidate connection data</text>
+<text xml:space="preserve" text-anchor="middle" x="151.59" y="-231.76" font-family="Arial" font-size="16.00" fill="#291b1d">Stop displaying connected metrics</text>
+<text xml:space="preserve" text-anchor="middle" x="151.59" y="-213.01" font-family="Arial" font-size="16.00" fill="#291b1d">Keep baseline results available</text>
+</g>
+
+<g id="edge12" class="edge">
+<title>disconnect-&gt;remove</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M151.59,-335.13C151.59,-318.94 151.59,-301.16 151.59,-285.31" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="154.04,-285.7 151.59,-278.7 149.14,-285.7 154.04,-285.7" />
+<text xml:space="preserve" text-anchor="middle" x="240.84" y="-301.16" font-family="Arial" font-size="13.00" fill="#291b1d">Yes: successful disconnection</text>
+</g>
+
+<g id="edge13" class="edge">
+<title>disconnect-&gt;end</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M210.24,-363.55C265.09,-342.17 338.59,-313.51 338.59,-313.51 338.59,-313.51 353.46,-217.45 361.9,-162.89" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="364.3,-163.42 362.95,-156.13 359.46,-162.67 364.3,-163.42" />
+<text xml:space="preserve" text-anchor="middle" x="364.83" y="-232.74" font-family="Arial" font-size="13.00" fill="#291b1d">No</text>
+</g>
+
+<g id="edge14" class="edge">
+<title>remove-&gt;end</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M226.83,-198.11C253.2,-184.63 282.44,-169.67 307.41,-156.9" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="308.49,-159.1 313.61,-153.74 306.26,-154.74 308.49,-159.1" />
+</g>
+
+<g id="node13" class="node">
+<title>note</title>
+<path fill="#faf6eb" stroke="none" stroke-width="1.3" d="M534.56,-51.6C534.56,-51.6 200.62,-51.6 200.62,-51.6 194.62,-51.6 188.63,-45.6 188.63,-39.6 188.63,-39.6 188.63,-12 188.63,-12 188.63,-6 194.63,0 200.63,0 200.63,0 534.56,0 534.56,0 540.56,0 546.56,-6 546.56,-12 546.56,-12 546.56,-39.6 546.56,-39.6 546.56,-45.6 540.56,-51.6 534.56,-51.6" />
+<text xml:space="preserve" text-anchor="middle" x="367.59" y="-28.45" font-family="Arial" font-size="13.00" fill="#291b1d">Failed disconnection retry behavior remains OD-05.</text>
+<text xml:space="preserve" text-anchor="middle" x="367.59" y="-13.45" font-family="Arial" font-size="13.00" fill="#291b1d">Strava credentials never appear in the recap or export.</text>
+</g>
+
+</g>
+</svg>

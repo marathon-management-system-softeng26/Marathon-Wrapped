@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1120" viewBox="0 0 1100 1120" role="img" aria-labelledby="uc-title uc-desc"><title id="uc-title">Marathon Wrapped use cases</title><desc id="uc-desc">Runner and organizer goals inside the application boundary, with Strava as an external optional service. Associations indicate participation, not sequence.</desc><rect width="1100" height="1120" fill="#FAF6EB"/>
+<text x="40" y="48" font-family="Arial,Helvetica,sans-serif" font-size="27" fill="#BA3143" text-anchor="start">Use cases: what runners and organizers need to do</text>
+<text x="40" y="80" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#291B1D" text-anchor="start">Marathon Wrapped • SRS V3 • goals and roles, not an action sequence</text>
+<rect x="280" y="110" width="530" height="910" rx="8" fill="none" stroke="#BA3143" stroke-width="1.5"/>
+<text x="305" y="145" font-family="Arial,Helvetica,sans-serif" font-size="20" fill="#291B1D" text-anchor="start">Marathon Wrapped prototype</text>
+<line x1="150" y1="471" x2="310" y2="205" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="150" y1="471" x2="310" y2="315" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="150" y1="471" x2="310" y2="425" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="150" y1="471" x2="310" y2="535" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="150" y1="471" x2="310" y2="645" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="150" y1="471" x2="310" y2="755" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="945" y1="881" x2="780" y2="865" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="945" y1="881" x2="780" y2="955" stroke="#BA3143" stroke-width="1.5"/>
+<line x1="945" y1="396" x2="780" y2="425" stroke="#BA3143" stroke-width="1.5"/>
+<ellipse cx="545" cy="205" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="202" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">View my personal race recap</text>
+<text x="545" y="227" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F1 · UR-F7</text>
+<ellipse cx="545" cy="315" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="312" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Understand my split performance</text>
+<text x="545" y="337" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F2</text>
+<ellipse cx="545" cy="425" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="422" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Connect Strava for extra detail</text>
+<text x="545" y="447" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F3</text>
+<ellipse cx="545" cy="535" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="532" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Disconnect Strava</text>
+<text x="545" y="557" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F4</text>
+<ellipse cx="545" cy="645" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="642" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">View my matched race photos</text>
+<text x="545" y="667" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F5</text>
+<ellipse cx="545" cy="755" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="752" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Export / share my recap image</text>
+<text x="545" y="777" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F6</text>
+<ellipse cx="545" cy="865" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="862" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">View event results</text>
+<text x="545" y="887" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F8</text>
+<ellipse cx="545" cy="955" rx="235" ry="43" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="545" y="952" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Manage hero-runner demo data</text>
+<text x="545" y="977" font-family="Arial,Helvetica,sans-serif" font-size="15" fill="#291B1D" text-anchor="middle">UR-F9 · create / update / replace</text>
+<circle cx="120" cy="435" r="17" fill="#FAF6EB" stroke="#BA3143" stroke-width="2"/><path d="M120,452 v48 M90,471 h60 M120,500 l-25,36 M120,500 l25,36" stroke="#BA3143" stroke-width="2" fill="none"/>
+<text x="120" y="565" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Runner</text>
+<circle cx="975" cy="845" r="17" fill="#FAF6EB" stroke="#BA3143" stroke-width="2"/><path d="M975,862 v48 M945,881 h60 M975,910 l-25,36 M975,910 l25,36" stroke="#BA3143" stroke-width="2" fill="none"/>
+<text x="975" y="975" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Organizer</text>
+<circle cx="975" cy="360" r="17" fill="#FAF6EB" stroke="#BA3143" stroke-width="2"/><path d="M975,377 v48 M945,396 h60 M975,425 l-25,36 M975,425 l25,36" stroke="#BA3143" stroke-width="2" fill="none"/>
+<text x="975" y="490" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">Strava service</text>
+<text x="975" y="515" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="middle">External, opt-in</text>
+<text x="40" y="1060" font-family="Arial,Helvetica,sans-serif" font-size="17" fill="#291B1D" text-anchor="start">Optional data and DNF are alternative outcomes, not extra compulsory steps.</text>
+<text x="40" y="1090" font-family="Arial,Helvetica,sans-serif" font-size="17" fill="#291B1D" text-anchor="start">Read FS-01–FS-08 for inputs, conditions, side effects and failure paths.</text>
+</svg>

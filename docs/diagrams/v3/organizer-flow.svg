@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1784pt" height="2001pt" viewBox="0.00 0.00 1784.00 2001.00" role="img" aria-labelledby="organizer-flow-title organizer-flow-desc">
+<title id="organizer-flow-title">Organizer journey: keep the demonstration ready</title><desc id="organizer-flow-desc">The organizer views all event results, then optionally creates or updates demonstration runners through the interface. Rejected saves show a correction path. The dataset needs three complete hero runners and DNF, missing-Strava and missing-photo cases. Organizer access and atomic saves require further team decisions.</desc><g id="graph0" class="graph" transform="scale(2 2) rotate(0) translate(28.8 971.68)">
+<title>G</title>
+<polygon fill="#faf6eb" stroke="none" points="-28.8,28.8 -28.8,-971.68 863.36,-971.68 863.36,28.8 -28.8,28.8" />
+<text xml:space="preserve" text-anchor="middle" x="271.62" y="-916.08" font-family="Arial" font-size="24.00" fill="#ba3143">Organizer journey: keep the demonstration ready</text>
+
+<g id="node1" class="node">
+<title>start</title>
+<ellipse fill="#ba3143" stroke="#ba3143" stroke-width="1.3" cx="609.72" cy="-879.35" rx="146.5" ry="28.53" />
+<text xml:space="preserve" text-anchor="middle" x="609.72" y="-873.52" font-family="Arial" font-size="16.00" fill="#faf6eb">Open the organizer view</text>
+</g>
+
+<g id="node2" class="node">
+<title>results</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M734.31,-805.81C734.31,-805.81 485.12,-805.81 485.12,-805.81 479.12,-805.81 473.12,-799.81 473.12,-793.81 473.12,-793.81 473.12,-758.71 473.12,-758.71 473.12,-752.71 479.12,-746.71 485.12,-746.71 485.12,-746.71 734.31,-746.71 734.31,-746.71 740.31,-746.71 746.31,-752.71 746.31,-758.71 746.31,-758.71 746.31,-793.81 746.31,-793.81 746.31,-799.81 740.31,-805.81 734.31,-805.81" />
+<text xml:space="preserve" text-anchor="middle" x="609.72" y="-779.81" font-family="Arial" font-size="16.00" fill="#291b1d">View all seeded event results</text>
+<text xml:space="preserve" text-anchor="middle" x="609.72" y="-761.06" font-family="Arial" font-size="16.00" fill="#291b1d">Soekarno Run 2027 · 5K and 10K</text>
+</g>
+
+<g id="edge1" class="edge">
+<title>start-&gt;results</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M609.72,-850.19C609.72,-839.3 609.72,-826.66 609.72,-815.01" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="612.17,-815.29 609.72,-808.29 607.27,-815.29 612.17,-815.29" />
+</g>
+
+<g id="node3" class="node">
+<title>manage</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="609.72,-701.71 471.69,-649.81 609.72,-597.91 747.75,-649.81 609.72,-701.71" />
+<text xml:space="preserve" text-anchor="middle" x="609.72" y="-653.36" font-family="Arial" font-size="16.00" fill="#291b1d">Create or update</text>
+<text xml:space="preserve" text-anchor="middle" x="609.72" y="-634.61" font-family="Arial" font-size="16.00" fill="#291b1d">a demo runner?</text>
+</g>
+
+<g id="edge2" class="edge">
+<title>results-&gt;manage</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M609.72,-746.09C609.72,-735.56 609.72,-723.27 609.72,-711.07" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="612.17,-711.2 609.72,-704.2 607.27,-711.2 612.17,-711.2" />
+</g>
+
+<g id="node4" class="node">
+<title>edit</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M621.68,-538.91C621.68,-538.91 317.75,-538.91 317.75,-538.91 311.75,-538.91 305.75,-532.91 305.75,-526.91 305.75,-526.91 305.75,-491.81 305.75,-491.81 305.75,-485.81 311.75,-479.81 317.75,-479.81 317.75,-479.81 621.68,-479.81 621.68,-479.81 627.68,-479.81 633.68,-485.81 633.68,-491.81 633.68,-491.81 633.68,-526.91 633.68,-526.91 633.68,-532.91 627.68,-538.91 621.68,-538.91" />
+<text xml:space="preserve" text-anchor="middle" x="469.72" y="-512.91" font-family="Arial" font-size="16.00" fill="#291b1d">Enter or edit the runner’s demo data</text>
+<text xml:space="preserve" text-anchor="middle" x="469.72" y="-494.16" font-family="Arial" font-size="16.00" fill="#291b1d">Results · splits · optional metrics / photos</text>
+</g>
+
+<g id="edge3" class="edge">
+<title>manage-&gt;edit</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M572.2,-611.71C551.35,-591.1 525.57,-565.6 505.08,-545.33" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="507,-543.79 500.3,-540.61 503.55,-547.27 507,-543.79" />
+<text xml:space="preserve" text-anchor="middle" x="546.39" y="-563.56" font-family="Arial" font-size="13.00" fill="#291b1d">Yes</text>
+</g>
+
+<g id="node8" class="node">
+<title>end</title>
+<ellipse fill="#ba3143" stroke="#ba3143" stroke-width="1.3" cx="611.72" cy="-158.13" rx="166.65" ry="28.53" />
+<text xml:space="preserve" text-anchor="middle" x="611.72" y="-152.31" font-family="Arial" font-size="16.00" fill="#faf6eb">Ready for the demonstration</text>
+</g>
+
+<g id="edge4" class="edge">
+<title>manage-&gt;end</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M640.37,-608.77C671.68,-567.88 715.72,-510.36 715.72,-510.36 715.72,-510.36 715.72,-510.36 715.72,-269.59 715.72,-269.59 682.72,-231.66 682.72,-231.66 682.72,-231.66 663.3,-211.83 644.78,-192.91" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="646.58,-191.25 639.93,-187.96 643.08,-194.68 646.58,-191.25" />
+<text xml:space="preserve" text-anchor="middle" x="724.34" y="-396.81" font-family="Arial" font-size="13.00" fill="#291b1d">No</text>
+</g>
+
+<g id="node5" class="node">
+<title>valid</title>
+<polygon fill="#d8f24b" stroke="#ba3143" stroke-width="1.3" points="370.72,-434.81 237.19,-401.66 370.71,-368.51 504.25,-401.66 370.72,-434.81" />
+<text xml:space="preserve" text-anchor="middle" x="370.72" y="-395.84" font-family="Arial" font-size="16.00" fill="#291b1d">Save accepted?</text>
+</g>
+
+<g id="edge5" class="edge">
+<title>edit-&gt;valid</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M442.4,-479.2C429.69,-465.64 414.53,-449.44 401.43,-435.45" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="403.49,-434.07 396.91,-430.64 399.91,-437.42 403.49,-434.07" />
+</g>
+
+<g id="node6" class="node">
+<title>error</title>
+<path fill="#faf6eb" stroke="#ba3143" stroke-width="1.3" d="M305.43,-309.51C305.43,-309.51 12,-309.51 12,-309.51 6,-309.51 0,-303.51 0,-297.51 0,-297.51 0,-243.66 0,-243.66 0,-237.66 6,-231.66 12,-231.66 12,-231.66 305.43,-231.66 305.43,-231.66 311.43,-231.66 317.43,-237.66 317.43,-243.66 317.43,-243.66 317.43,-297.51 317.43,-297.51 317.43,-303.51 311.43,-309.51 305.43,-309.51" />
+<text xml:space="preserve" text-anchor="middle" x="158.72" y="-283.51" font-family="Arial" font-size="16.00" fill="#291b1d">Read the rejection reason</text>
+<text xml:space="preserve" text-anchor="middle" x="158.72" y="-264.76" font-family="Arial" font-size="16.00" fill="#291b1d">Correct the data and try again</text>
+<text xml:space="preserve" text-anchor="middle" x="158.72" y="-246.01" font-family="Arial" font-size="16.00" fill="#291b1d">A failed save is not reported as success</text>
+</g>
+
+<g id="edge7" class="edge">
+<title>valid-&gt;error</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M332.81,-377.59C304.13,-360.12 263.9,-335.63 229.34,-314.59" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="230.99,-312.72 223.74,-311.18 228.44,-316.91 230.99,-312.72" />
+<text xml:space="preserve" text-anchor="middle" x="286.03" y="-334.16" font-family="Arial" font-size="13.00" fill="#291b1d">No</text>
+</g>
+
+<g id="node7" class="node">
+<title>saved</title>
+<path fill="#ba3143" stroke="#ba3143" stroke-width="1.3" d="M654.43,-300.14C654.43,-300.14 361,-300.14 361,-300.14 355,-300.14 349,-294.14 349,-288.14 349,-288.14 349,-253.04 349,-253.04 349,-247.04 355,-241.04 361,-241.04 361,-241.04 654.43,-241.04 654.43,-241.04 660.43,-241.04 666.43,-247.04 666.43,-253.04 666.43,-253.04 666.43,-288.14 666.43,-288.14 666.43,-294.14 660.43,-300.14 654.43,-300.14" />
+<text xml:space="preserve" text-anchor="middle" x="507.72" y="-274.14" font-family="Arial" font-size="16.00" fill="#faf6eb">Saved data appears in the event results</text>
+<text xml:space="preserve" text-anchor="middle" x="507.72" y="-255.39" font-family="Arial" font-size="16.00" fill="#faf6eb">Assigned BIB remains unchanged</text>
+</g>
+
+<g id="edge6" class="edge">
+<title>valid-&gt;saved</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M398.11,-374.85C418.95,-355.22 447.85,-327.99 470.74,-306.42" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="472.18,-308.44 475.59,-301.85 468.82,-304.87 472.18,-308.44" />
+<text xml:space="preserve" text-anchor="middle" x="454.2" y="-334.16" font-family="Arial" font-size="13.00" fill="#291b1d">Yes</text>
+</g>
+
+<g id="edge8" class="edge">
+<title>error-&gt;edit</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M317.88,-306.28C327.1,-308.29 332.72,-309.51 332.72,-309.51 332.72,-309.51 472.72,-331.51 472.72,-331.51 472.72,-331.51 520.72,-368.51 520.72,-368.51 520.72,-368.51 520.72,-434.81 520.72,-434.81 520.72,-434.81 507.79,-453.46 494.95,-471.97" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="492.97,-470.53 490.99,-477.68 496.99,-473.32 492.97,-470.53" />
+<text xml:space="preserve" text-anchor="middle" x="561.97" y="-396.81" font-family="Arial" font-size="13.00" fill="#291b1d">Correct / retry</text>
+</g>
+
+<g id="edge9" class="edge">
+<title>saved-&gt;end</title>
+<path fill="none" stroke="#ba3143" stroke-width="1.3" d="M535.04,-240.57C548.73,-226.03 565.39,-208.33 579.68,-193.15" />
+<polygon fill="#ba3143" stroke="#ba3143" stroke-width="1.3" points="581.28,-195.03 584.3,-188.25 577.72,-191.67 581.28,-195.03" />
+</g>
+
+<g id="node9" class="node">
+<title>note</title>
+<path fill="#faf6eb" stroke="none" stroke-width="1.3" d="M822.56,-84.6C822.56,-84.6 400.88,-84.6 400.88,-84.6 394.88,-84.6 388.88,-78.6 388.88,-72.6 388.88,-72.6 388.88,-12 388.88,-12 388.88,-6 394.88,0 400.88,0 400.88,0 822.56,0 822.56,0 828.56,0 834.56,-6 834.56,-12 834.56,-12 834.56,-72.6 834.56,-72.6 834.56,-78.6 828.56,-84.6 822.56,-84.6" />
+<text xml:space="preserve" text-anchor="middle" x="611.72" y="-60.5" font-family="Arial" font-size="14.00" fill="#291b1d">Dataset: at least 3 complete hero runners</text>
+<text xml:space="preserve" text-anchor="middle" x="611.72" y="-44.75" font-family="Arial" font-size="14.00" fill="#291b1d">plus DNF, no-Strava and no-photo test cases.</text>
+<text xml:space="preserve" text-anchor="middle" x="611.72" y="-29" font-family="Arial" font-size="14.00" fill="#291b1d">BIB uniqueness and valid record relationships apply.</text>
+<text xml:space="preserve" text-anchor="middle" x="611.72" y="-13.25" font-family="Arial" font-size="14.00" fill="#291b1d">Access enforcement remains OD-04; save atomicity remains OD-07.</text>
+</g>
+
+</g>
+</svg>

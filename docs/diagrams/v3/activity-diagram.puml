@@ -1,0 +1,41 @@
+@startuml
+skinparam backgroundColor #FAF6EB
+skinparam defaultFontName Arial
+skinparam defaultFontColor #291B1D
+skinparam ArrowColor #BA3143
+skinparam activityBackgroundColor #FAF6EB
+skinparam activityBorderColor #BA3143
+skinparam activityDiamondBackgroundColor #D8F24B
+skinparam activityDiamondBorderColor #BA3143
+title Marathon Wrapped — recap and export activity (SRS V3)
+start
+:Runner: select own result;
+:Application: retrieve matching result;
+while (Matching result exists?) is (no)
+  :Application: show result unavailable;
+  :Runner: return to selection or retry;
+  :Application: retrieve matching result;
+endwhile (yes)
+if (Known valid finisher?) then (finisher)
+  :Application: calculate baseline statistics
+  and supported split insights;
+else (known DNF)
+  :Application: prepare DNF content
+  without fabricated finish time or pace;
+endif
+:Application: add available optional data;
+:Application: show no-photo state if no matches;
+:Application: render selected runner's recap;
+if (Runner chooses export?) then (yes)
+  repeat
+    :Application: generate recap image;
+    if (Export succeeds?) then (no)
+      :Application: show actionable error
+      and preserve recap / stored results;
+      :Runner: retry export;
+    endif
+  repeat while (Export failed?) is (yes) not (no)
+  :Runner: save / share generated image;
+endif
+stop
+@enduml
