@@ -6,6 +6,7 @@ import {
   citraDnfInput,
   dewaDnsInput,
   evenSplits,
+  fastestKmTieSplits,
   incompleteSplits,
 } from "./fixtures/runners";
 import {
@@ -75,13 +76,20 @@ describe("analyzeSplits", () => {
     });
   });
 
-  it("treats halves within 1s/km as even and breaks fastest-km ties low", () => {
+  it("treats halves within 1s/km as even split", () => {
     expect(analyzeSplits(evenSplits, 5)).toEqual({
       fastest_km: { km_marker: 5, split_seconds: 299 },
       split_type: "even",
       first_half_seconds: 600,
       second_half_seconds: 600,
       slowed_after_km: 3,
+    });
+  });
+
+  it("breaks fastest-km ties by lower km_marker", () => {
+    expect(analyzeSplits(fastestKmTieSplits, 5).fastest_km).toEqual({
+      km_marker: 2,
+      split_seconds: 299,
     });
   });
 });
@@ -141,6 +149,9 @@ describe("buildWrappedStats", () => {
     expect(wrapped.finisher).toBe(false);
     expect(wrapped.elapsed_seconds).toBeNull();
     expect(wrapped.avg_pace_sec_km).toBeNull();
+    expect(wrapped.category_rank).toBeNull();
+    expect(wrapped.overall_rank).toBeNull();
+    expect(wrapped.category_percentile).toBeNull();
     expect(wrapped.split_type).toBeNull();
     expect(wrapped.insights[0]).toBe("Did not finish — no official finish time");
   });

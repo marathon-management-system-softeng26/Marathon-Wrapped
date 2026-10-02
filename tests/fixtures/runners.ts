@@ -34,7 +34,16 @@ export const evenSplits: ChipSplit[] = [
   { km_marker: 5, split_seconds: 299 },
 ];
 // first = 600; second = 600; |0| <= 2 → even
-// fastest tie 299 vs 300s → km 5; slowdown km3→4 (+1) → slowed_after_km = 3
+// fastest km 5 at 299s (sole minimum); slowdown km3→4 (+1) → slowed_after_km = 3
+
+export const fastestKmTieSplits: ChipSplit[] = [
+  { km_marker: 1, split_seconds: 300 },
+  { km_marker: 2, split_seconds: 299 },
+  { km_marker: 3, split_seconds: 299 },
+  { km_marker: 4, split_seconds: 301 },
+  { km_marker: 5, split_seconds: 301 },
+];
+// tied fastest 299s at km 2 and 3 → lower km_marker wins (km 2)
 
 export const incompleteSplits: ChipSplit[] = [
   { km_marker: 1, split_seconds: 312 },

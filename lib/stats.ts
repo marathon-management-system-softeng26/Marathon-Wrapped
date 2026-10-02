@@ -27,6 +27,7 @@ export function rankAmong(
   return 1 + faster;
 }
 
+/** @param peerElapsedSeconds Full finisher field in the category, including this runner's elapsed time. */
 export function categoryPercentile(
   elapsedSeconds: number,
   peerElapsedSeconds: number[],
