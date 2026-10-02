@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { ainaSplits, budiSplits, evenSplits } from "./fixtures/runners";
+import {
+  ainaSplits,
+  budiSplits,
+  citraDnfInput,
+  evenSplits,
+  incompleteSplits,
+} from "./fixtures/runners";
 import {
   analyzeSplits,
   categoryPercentile,
@@ -74,5 +80,36 @@ describe("analyzeSplits", () => {
       second_half_seconds: 600,
       slowed_after_km: 3,
     });
+  });
+});
+
+describe("analyzeSplits incomplete and empty", () => {
+  it("keeps fastest km but will not classify a half-race split", () => {
+    expect(analyzeSplits(incompleteSplits, 5)).toEqual({
+      fastest_km: { km_marker: 4, split_seconds: 298 },
+      split_type: null,
+      first_half_seconds: null,
+      second_half_seconds: null,
+      slowed_after_km: null,
+    });
+  });
+
+  it("returns all-null analysis when there are no splits", () => {
+    expect(analyzeSplits([], 10)).toEqual({
+      fastest_km: null,
+      split_type: null,
+      first_half_seconds: null,
+      second_half_seconds: null,
+      slowed_after_km: null,
+    });
+  });
+});
+
+describe("DNF chip fields (SR-F6)", () => {
+  it("does not provide a finish time or pace on the fixture", () => {
+    const citra = citraDnfInput();
+    expect(citra.finisher).toBe(false);
+    expect(citra.elapsed_seconds).toBeNull();
+    expect(citra.avg_pace_sec_km).toBeNull();
   });
 });

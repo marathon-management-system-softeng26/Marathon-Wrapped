@@ -36,6 +36,57 @@ export const evenSplits: ChipSplit[] = [
 // first = 600; second = 600; |0| <= 2 → even
 // fastest tie 299 vs 300s → km 5; slowdown km3→4 (+1) → slowed_after_km = 3
 
+export const incompleteSplits: ChipSplit[] = [
+  { km_marker: 1, split_seconds: 312 },
+  { km_marker: 2, split_seconds: 305 },
+  { km_marker: 4, split_seconds: 298 },
+];
+
+export function citraDnfInput(): RunnerChipInput {
+  return {
+    runner_id: "22222222-2222-2222-2222-222222222222",
+    bib_number: "A1002",
+    name: "Citra Lestari",
+    gender: "F",
+    age: 29,
+    event: "Soekarno Run 2027",
+    category: "5K",
+    distance_km: 5,
+    start_status: "on-time",
+    elapsed_seconds: null,
+    avg_pace_sec_km: null,
+    category_rank: null,
+    overall_rank: null,
+    category_percentile: null,
+    finisher: false,
+    splits: [
+      { km_marker: 1, split_seconds: 320 },
+      { km_marker: 2, split_seconds: 330 },
+    ],
+  };
+}
+
+export function dewaDnsInput(): RunnerChipInput {
+  return {
+    runner_id: "33333333-3333-3333-3333-333333333333",
+    bib_number: "A1003",
+    name: "Dewa Ngurah",
+    gender: "M",
+    age: 31,
+    event: "Soekarno Run 2027",
+    category: "10K",
+    distance_km: 10,
+    start_status: "dns",
+    elapsed_seconds: null,
+    avg_pace_sec_km: null,
+    category_rank: null,
+    overall_rank: null,
+    category_percentile: null,
+    finisher: false,
+    splits: [],
+  };
+}
+
 export function ainaInput(): RunnerChipInput {
   return {
     runner_id: "11111111-1111-1111-1111-111111111111",
