@@ -12,7 +12,7 @@ Pure TypeScript functions that turn a runner's data into Wrapped stats. No UI co
 - `format.ts` — `formatMmSs`
 - `index.ts` — public exports
 
-Indra: `import { buildWrappedStats } from "@/lib"` and render `WrappedStats`.
+Indra: `import { buildWrappedStats } from "@/lib"` and render `WrappedStats`. How-to: `docs/wrapped-statistics.md`.
 Shaun: `npm test` checks the formulas against `tests/fixtures/runners.ts`.
 
 ## Later
