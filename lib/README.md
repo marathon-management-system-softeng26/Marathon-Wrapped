@@ -4,11 +4,18 @@ Owner: **Embun** (logic)
 
 Pure TypeScript functions that turn a runner's data into Wrapped stats. No UI code here.
 
-Planned:
+## Sprint 1 (issue #30)
 
-- `stats.ts` — ranking / percentile, pace, split analysis (fastest km, negative vs. positive split)
-- `insights.ts` — the stat lines shown on cards
-- `merge.ts` — combine chip data + optional Strava + FotoYu photos into one runner payload
+- `types.ts` — `RunnerChipInput` / `WrappedStats` (see `docs/data-contract.md`)
+- `stats.ts` — elapsed, pace, rank, percentile, split analysis, `buildWrappedStats`
+- `insights.ts` — card stat lines
+- `format.ts` — `formatMmSs`
+- `index.ts` — public exports
+
+Indra: `import { buildWrappedStats } from "@/lib"` and render `WrappedStats`.
+Shaun: `npm test` checks the formulas against `tests/fixtures/runners.ts`.
+
+## Later
+
+- `merge.ts` — chip + optional Strava + FotoYu (issue #37)
 - `supabase.ts` — Supabase client
-
-The runner payload shape comes from `docs/data-contract.md` — don't invent field names, follow the contract.
