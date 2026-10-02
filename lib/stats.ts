@@ -1,4 +1,11 @@
-import type { ChipSplit, SplitAnalysis, SplitType } from "./types";
+import { buildInsights } from "./insights";
+import type {
+  ChipSplit,
+  RunnerChipInput,
+  SplitAnalysis,
+  SplitType,
+  WrappedStats,
+} from "./types";
 
 export function computeElapsedSeconds(start: Date, finish: Date): number {
   return Math.round((finish.getTime() - start.getTime()) / 1000);
@@ -106,4 +113,22 @@ function sumRange(
     total += lookup.get(km) ?? 0;
   }
   return total;
+}
+
+export function buildWrappedStats(input: RunnerChipInput): WrappedStats {
+  const analysis = analyzeSplits(input.splits, input.distance_km);
+
+  const avg_pace_sec_km =
+    input.finisher &&
+    input.elapsed_seconds != null &&
+    input.avg_pace_sec_km == null
+      ? computeAvgPaceSecKm(input.elapsed_seconds, input.distance_km)
+      : input.avg_pace_sec_km;
+
+  return {
+    ...input,
+    avg_pace_sec_km,
+    ...analysis,
+    insights: buildInsights({ ...input, avg_pace_sec_km }, analysis),
+  };
 }

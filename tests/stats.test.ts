@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  ainaInput,
   ainaSplits,
   budiSplits,
   citraDnfInput,
+  dewaDnsInput,
   evenSplits,
   incompleteSplits,
 } from "./fixtures/runners";
 import {
   analyzeSplits,
+  buildWrappedStats,
   categoryPercentile,
   computeAvgPaceSecKm,
   computeElapsedSeconds,
@@ -111,5 +114,40 @@ describe("DNF chip fields (SR-F6)", () => {
     expect(citra.finisher).toBe(false);
     expect(citra.elapsed_seconds).toBeNull();
     expect(citra.avg_pace_sec_km).toBeNull();
+  });
+});
+
+describe("buildWrappedStats", () => {
+  it("returns Aina's chip fields plus split analysis and insights", () => {
+    const wrapped = buildWrappedStats(ainaInput());
+    expect(wrapped.elapsed_seconds).toBe(1523);
+    expect(wrapped.avg_pace_sec_km).toBe(304.6);
+    expect(wrapped.fastest_km).toEqual({ km_marker: 5, split_seconds: 290 });
+    expect(wrapped.split_type).toBe("negative");
+    expect(wrapped.insights[0]).toBe("Finish time 25:23");
+    expect(wrapped.insights).toContain(
+      "Negative split — second half faster than the first",
+    );
+  });
+
+  it("fills missing finisher pace from elapsed and distance", () => {
+    const input = ainaInput();
+    input.avg_pace_sec_km = null;
+    expect(buildWrappedStats(input).avg_pace_sec_km).toBe(304.6);
+  });
+
+  it("does not fabricate a DNF finish or pace", () => {
+    const wrapped = buildWrappedStats(citraDnfInput());
+    expect(wrapped.finisher).toBe(false);
+    expect(wrapped.elapsed_seconds).toBeNull();
+    expect(wrapped.avg_pace_sec_km).toBeNull();
+    expect(wrapped.split_type).toBeNull();
+    expect(wrapped.insights[0]).toBe("Did not finish — no official finish time");
+  });
+
+  it("keeps DNS to a single status line", () => {
+    const wrapped = buildWrappedStats(dewaDnsInput());
+    expect(wrapped.start_status).toBe("dns");
+    expect(wrapped.insights).toEqual(["Did not start"]);
   });
 });
