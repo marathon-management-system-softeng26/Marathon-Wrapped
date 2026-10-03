@@ -1,0 +1,164 @@
+import { describe, expect, it } from "vitest";
+import {
+  ainaInput,
+  ainaSplits,
+  budiSplits,
+  citraDnfInput,
+  dewaDnsInput,
+  evenSplits,
+  fastestKmTieSplits,
+  incompleteSplits,
+} from "./fixtures/runners";
+import {
+  analyzeSplits,
+  buildWrappedStats,
+  categoryPercentile,
+  computeAvgPaceSecKm,
+  computeElapsedSeconds,
+  rankAmong,
+} from "@/lib/stats";
+
+describe("computeElapsedSeconds", () => {
+  it("returns finish minus start in whole seconds (SR-F2)", () => {
+    const start = new Date("2027-08-17T06:00:00.000Z");
+    const finish = new Date("2027-08-17T06:25:23.000Z");
+    expect(computeElapsedSeconds(start, finish)).toBe(1523);
+  });
+});
+
+describe("computeAvgPaceSecKm", () => {
+  it("divides elapsed seconds by category distance (SR-F3)", () => {
+    expect(computeAvgPaceSecKm(1523, 5)).toBe(304.6);
+    expect(computeAvgPaceSecKm(3600, 10)).toBe(360);
+  });
+});
+
+describe("rankAmong", () => {
+  it("ranks lower elapsed ahead and shares the min rank on ties (SR-F5)", () => {
+    const field = [2100, 1800, 1523, 1523];
+    expect(rankAmong(1523, field)).toBe(1);
+    expect(rankAmong(1800, field)).toBe(3);
+    expect(rankAmong(2100, field)).toBe(4);
+  });
+});
+
+describe("categoryPercentile", () => {
+  it("matches runner_wrapped percent_rank ordered by elapsed DESC", () => {
+    const peers = [2100, 1800, 1523];
+    expect(categoryPercentile(2100, peers)).toBe(0);
+    expect(categoryPercentile(1800, peers)).toBe(0.5);
+    expect(categoryPercentile(1523, peers)).toBe(1);
+  });
+
+  it("returns 0 for a single finisher", () => {
+    expect(categoryPercentile(1523, [1523])).toBe(0);
+  });
+});
+
+describe("analyzeSplits", () => {
+  it("finds fastest km, negative split, and where Aina slowed", () => {
+    expect(analyzeSplits(ainaSplits, 5)).toEqual({
+      fastest_km: { km_marker: 5, split_seconds: 290 },
+      split_type: "negative",
+      first_half_seconds: 617,
+      second_half_seconds: 588,
+      slowed_after_km: 2,
+    });
+  });
+
+  it("detects a positive 10K split", () => {
+    expect(analyzeSplits(budiSplits, 10)).toEqual({
+      fastest_km: { km_marker: 5, split_seconds: 332 },
+      split_type: "positive",
+      first_half_seconds: 1680,
+      second_half_seconds: 1800,
+      slowed_after_km: 5,
+    });
+  });
+
+  it("treats halves within 1s/km as even split", () => {
+    expect(analyzeSplits(evenSplits, 5)).toEqual({
+      fastest_km: { km_marker: 5, split_seconds: 299 },
+      split_type: "even",
+      first_half_seconds: 600,
+      second_half_seconds: 600,
+      slowed_after_km: 3,
+    });
+  });
+
+  it("breaks fastest-km ties by lower km_marker", () => {
+    expect(analyzeSplits(fastestKmTieSplits, 5).fastest_km).toEqual({
+      km_marker: 2,
+      split_seconds: 299,
+    });
+  });
+});
+
+describe("analyzeSplits incomplete and empty", () => {
+  it("keeps fastest km but will not classify a half-race split", () => {
+    expect(analyzeSplits(incompleteSplits, 5)).toEqual({
+      fastest_km: { km_marker: 4, split_seconds: 298 },
+      split_type: null,
+      first_half_seconds: null,
+      second_half_seconds: null,
+      slowed_after_km: null,
+    });
+  });
+
+  it("returns all-null analysis when there are no splits", () => {
+    expect(analyzeSplits([], 10)).toEqual({
+      fastest_km: null,
+      split_type: null,
+      first_half_seconds: null,
+      second_half_seconds: null,
+      slowed_after_km: null,
+    });
+  });
+});
+
+describe("DNF chip fields (SR-F6)", () => {
+  it("does not provide a finish time or pace on the fixture", () => {
+    const citra = citraDnfInput();
+    expect(citra.finisher).toBe(false);
+    expect(citra.elapsed_seconds).toBeNull();
+    expect(citra.avg_pace_sec_km).toBeNull();
+  });
+});
+
+describe("buildWrappedStats", () => {
+  it("returns Aina's chip fields plus split analysis and insights", () => {
+    const wrapped = buildWrappedStats(ainaInput());
+    expect(wrapped.elapsed_seconds).toBe(1523);
+    expect(wrapped.avg_pace_sec_km).toBe(304.6);
+    expect(wrapped.fastest_km).toEqual({ km_marker: 5, split_seconds: 290 });
+    expect(wrapped.split_type).toBe("negative");
+    expect(wrapped.insights[0]).toBe("Finish time 25:23");
+    expect(wrapped.insights).toContain(
+      "Negative split — second half faster than the first",
+    );
+  });
+
+  it("fills missing finisher pace from elapsed and distance", () => {
+    const input = ainaInput();
+    input.avg_pace_sec_km = null;
+    expect(buildWrappedStats(input).avg_pace_sec_km).toBe(304.6);
+  });
+
+  it("does not fabricate a DNF finish or pace", () => {
+    const wrapped = buildWrappedStats(citraDnfInput());
+    expect(wrapped.finisher).toBe(false);
+    expect(wrapped.elapsed_seconds).toBeNull();
+    expect(wrapped.avg_pace_sec_km).toBeNull();
+    expect(wrapped.category_rank).toBeNull();
+    expect(wrapped.overall_rank).toBeNull();
+    expect(wrapped.category_percentile).toBeNull();
+    expect(wrapped.split_type).toBeNull();
+    expect(wrapped.insights[0]).toBe("Did not finish — no official finish time");
+  });
+
+  it("keeps DNS to a single status line", () => {
+    const wrapped = buildWrappedStats(dewaDnsInput());
+    expect(wrapped.start_status).toBe("dns");
+    expect(wrapped.insights).toEqual(["Did not start"]);
+  });
+});
