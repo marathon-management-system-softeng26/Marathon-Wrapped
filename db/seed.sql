@@ -55,4 +55,10 @@ begin
     end if;
   end loop;
 end $$;
+-- This shared group photo is an explicit stock demo, not identification of
+-- Aina/Budi/Sari or a claim that they attended the pictured Prague race.
+insert into public.fotoyu_photos(bib_number,photo_url,photographer)
+  select r.bib_number,'/photos/demo-race.jpg','Martin Vorel (CC0; demo stock)'
+  from public.runners r where r.bib_number in ('HERO-5K-001','HERO-10K-001','HERO-10K-002')
+  and not exists(select 1 from public.fotoyu_photos p where p.bib_number=r.bib_number and p.photographer='Martin Vorel (CC0; demo stock)');
 commit;

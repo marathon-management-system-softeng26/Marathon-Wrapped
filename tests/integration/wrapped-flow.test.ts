@@ -1,17 +1,22 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 
 describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → authenticated HTTP → computed recap", () => {
   let ids: Record<string, string>;
   let cookies: Record<string, string>;
+  let admin: SupabaseClient;
+  let eventId: number;
   const origin = process.env.TEST_APP_URL ?? "http://127.0.0.1:3007";
   beforeAll(async () => {
     const url = process.env.SUPABASE_URL!;
     const ref = process.env.SUPABASE_DEMO_PROJECT_REF;
     if (!ref || new URL(url).hostname !== `${ref}.supabase.co`) throw new Error("Dedicated test project opt-in required.");
     if (!["127.0.0.1", "localhost"].includes(new URL(origin).hostname)) throw new Error("HTTP tests require a local app server.");
-    const admin = createClient(url, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false, autoRefreshToken: false } });
+    admin = createClient(url, (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!, { auth: { persistSession: false, autoRefreshToken: false } });
+    const event = await admin.from("events").select("id").eq("name", "Soekarno Run 2027").single();
+    if (event.error || !event.data) throw new Error("Dedicated event fixture missing.");
+    eventId = event.data.id;
     const runners = await admin.from("runners").select("id,bib_number");
     if (runners.error || !runners.data) throw new Error("Unable to read dedicated fixtures.");
     ids = Object.fromEntries(runners.data.map(r => [r.bib_number, r.id]));
@@ -59,4 +64,34 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
     const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/runner_wrapped?select=runner_id`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY! } });
     expect([401, 403]).toContain(response.status);
   });
+  it("separates runner and organizer event results", async () => {
+    const path = `${origin}/api/organizer/events/${eventId}/results`;
+    expect((await fetch(path, { headers: { Cookie: cookies.a } })).status).toBe(403);
+    const response = await fetch(path, { headers: { Cookie: cookies.organizer } });
+    expect(response.status).toBe(200);
+    const { results } = await response.json();
+    expect(results).toHaveLength(8);
+    expect(results.find((r: { bib_number: string }) => r.bib_number === "EDGE-NO-RESULT").status).toBe("unavailable");
+  });
+  it("atomically creates and updates a disposable organizer demo runner", async () => {
+    const bib = "QA-HTTP-" + crypto.randomUUID().slice(0,8);
+    const body = { name: "HTTP management assertion", bib_number: bib, date_of_birth: "1995-04-12", gender: "F", parental_consent: false,
+      category: "5K", result: { finisher: true, start_status: "on-time", start_time: "2027-08-17T06:00:00+07:00", finish_time: "2027-08-17T06:25:00+07:00" },
+      splits: Array.from({ length: 5 }, (_, i) => ({ km_marker: i+1, split_seconds: 300 })) };
+    const headers = { Cookie: cookies.organizer, Origin: origin, "Content-Type": "application/json" };
+    let createdId: string | null = null;
+    try {
+      const created = await fetch(`${origin}/api/organizer/events/${eventId}/runners`, { method: "POST", headers, body: JSON.stringify(body) });
+      expect(created.status).toBe(201); createdId = (await created.json()).runner_id;
+      const changed = await fetch(`${origin}/api/organizer/events/${eventId}/runners/${createdId}`, { method: "PATCH", headers, body: JSON.stringify({ ...body, name: "Updated HTTP assertion" }) });
+      expect(changed.status).toBe(200);
+      const duplicate = await fetch(`${origin}/api/organizer/events/${eventId}/runners`, { method: "POST", headers, body: JSON.stringify(body) });
+      expect(duplicate.status).toBe(409);
+    } finally {
+      if (createdId) {
+        const removed = await admin.from("runners").delete().eq("id", createdId).eq("bib_number", bib);
+        if (removed.error) throw new Error("Disposable HTTP fixture cleanup failed.");
+      }
+    }
+  }, 20000);
 });

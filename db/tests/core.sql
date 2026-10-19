@@ -6,6 +6,8 @@ begin
   assert count_rows=1, 'Expected one repeatable Soekarno demo event';
   select count(*) into count_rows from public.runners where bib_number like 'HERO-%';
   assert count_rows>=3, 'Expected at least three hero chip fixtures';
+  assert (select count(*) from public.runner_wrapped where bib_number like 'HERO-%' and has_strava and photo_count>0)>=3,
+    'Three complete heroes need chip, demo metrics and usable photo mappings';
   assert not exists (select 1 from public.runners r join public.categories c on c.id=r.category_id
     join public.chip_results cr on cr.runner_id=r.id where cr.finisher
     and (select count(*) from public.chip_splits s where s.runner_id=r.id)<>c.distance_km), 'Incomplete finisher splits';

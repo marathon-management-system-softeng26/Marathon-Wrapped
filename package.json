@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:native": "node --test --experimental-strip-types tests/native/*.test.mts",
     "test:db": "node --env-file=.env.local --env-file=.env.demo.local node_modules/vitest/vitest.mjs run tests/integration",
-    "seed:users": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-users.mts"
+    "seed:users": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-users.mts",
+    "seed:photos": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-photos.mts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

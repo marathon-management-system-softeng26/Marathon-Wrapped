@@ -28,7 +28,9 @@ If the schema was already created manually in the remote database, don’t push 
 
 The dedicated cloud development project is `anbnuegocddoowagqmxw` (`marathon-wrapped`, organization `buns project`, Singapore). Its initial and follow-up migrations are applied. Use the existing token helper/CLI authentication; never commit tokens or project secret keys.
 
-`db/seed.sql` is transactional and repeatable for eight synthetic BIB fixtures in the Soekarno Run 2027 demo. It uses August 17, 2027 as a fixture date, not a confirmed real event schedule. Three hero runners have chip results and clearly marked demo Strava metrics. Matched photo assets remain a later delivery item; this is not yet a complete hero-photo dataset.
+`db/seed.sql` is transactional and repeatable for eight synthetic BIB fixtures in the Soekarno Run 2027 demo. It uses August 17, 2027 as a fixture date, not a confirmed real event schedule. Three hero runners have chip results, clearly marked demo Strava metrics and manual mappings to an actual CC0 stock photo. These are sample mappings, not real runner/photo identification; see [photo provenance](../public/photos/PROVENANCE.md).
+
+After seeding, `npm run seed:photos` uploads the local sample to the dedicated project's public `race-photos` bucket and updates exactly the three hero mappings. It refuses to change an existing private bucket's access. Reseeding retains the Storage URLs without adding duplicate sample records. The no-photo edge fixture stays empty.
 
 For Auth bootstrap, configure the documented variables in ignored `.env.local`, including an explicit matching `SUPABASE_DEMO_PROJECT_REF`, then run `npm run seed:users`. It creates two synthetic runner accounts and an event-scoped organizer, saving generated credentials to ignored `.env.demo.local`. Do not use this workflow on a production or unrelated project.
 
