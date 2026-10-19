@@ -14,6 +14,7 @@ dist/
 # Environment variables — NEVER commit these (they hold secret keys)
 .env
 .env.local
+.env.demo.local
 .env.development.local
 .env.test.local
 .env.production.local

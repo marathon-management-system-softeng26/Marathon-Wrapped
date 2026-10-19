@@ -1,21 +1,23 @@
-import { getRunnerChipInput } from "@/controllers/runnerController";
+import { requireUser, AuthenticationError } from "@/lib/auth/session";
+import { AccessDeniedError } from "@/lib/auth/access";
+import { InvalidRunnerDataError, isRunnerId } from "@/lib/runnerValidation";
+import { getWrappedForUser } from "@/lib/wrappedService";
 
-export async function GET(request: Request, { params }: {params: Promise<{ runnerId: string }>} ) {
-    const { runnerId } = await params;
+export const dynamic = "force-dynamic";
+const headers = { "Cache-Control": "private, no-store" };
+const error = (message: string, status: number) => Response.json({ error: message }, { status, headers });
 
-    try {
-        const input = await getRunnerChipInput(runnerId);
-
-        if (!input) {
-            return new Response(JSON.stringify({ error: "Runner not found" }), { status: 404 });
-        }
-
-        return new Response(JSON.stringify(input), { status: 200 });
-
-    } catch (error) {
-     console.error("Failed to fetch runner chip input:", error);
-     return new Response(JSON.stringify({ error: "Internal Server Error" }), { status: 500 });   
-    }
-
-
+export async function GET(_request: Request, { params }: { params: Promise<{ runnerId: string }> }) {
+  const { runnerId } = await params;
+  if (!isRunnerId(runnerId)) return error("Invalid runner identifier.", 400);
+  try {
+    const user = await requireUser();
+    const payload = await getWrappedForUser(user.id, runnerId);
+    return payload ? Response.json(payload, { headers }) : error("Runner not found.", 404);
+  } catch (cause) {
+    if (cause instanceof AuthenticationError) return error(cause.message, 401);
+    if (cause instanceof AccessDeniedError) return error("Runner not found.", 404);
+    if (cause instanceof InvalidRunnerDataError) return error(cause.message, 422);
+    return error("Race results are temporarily unavailable. Please retry.", 503);
+  }
 }
