@@ -175,7 +175,7 @@ The application is a web application built with a Next.js frontend and backend, 
 - One **runner** → zero or one **strava_metrics** record (1:0..1, optional)
 - One **runner**, identified via bib_number → zero or many **fotoyu_photos** records (1:0..N, optional)
 
-Exactly one result is expected per seeded demo runner. The database permits at most one result per runner; result lifecycle and DNS behavior remain OD-01. Physical field names are defined in `db/schema.sql`.
+Exactly one result is expected per seeded demo runner. The database permits at most one result per runner; result lifecycle and DNS behavior remain OD-01. Physical field names are defined in `supabase/migrations/20261019155810_initial_schema.sql`.
 
 ---
 
