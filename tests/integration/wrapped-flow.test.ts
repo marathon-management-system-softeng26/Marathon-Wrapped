@@ -34,6 +34,27 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
   }, 60000);
 
   const get = (bib: string, account?: string) => fetch(`${origin}/api/runners/${ids[bib]}/wrapped`, { headers: account ? { Cookie: cookies[account] } : {} });
+  it("persists login route cookies across catalog and nested recap requests",async()=>{
+    const response=await fetch(`${origin}/api/auth/login`,{method:"POST",headers:{Origin:origin,"Content-Type":"application/json"},body:JSON.stringify({email:process.env.DEMO_RUNNER_A_EMAIL,password:process.env.DEMO_PASSWORD})});
+    expect(response.status).toBe(200);const values=response.headers.getSetCookie();expect(values.length).toBeGreaterThan(0);expect(values.every(value=>/path=\//i.test(value))).toBe(true);
+    const cookie=values.map(value=>value.split(";")[0]).join("; ");
+    expect((await fetch(`${origin}/api/session`,{headers:{Cookie:cookie}})).status).toBe(200);
+    expect((await fetch(`${origin}/api/runners/${ids["HERO-5K-001"]}/wrapped`,{headers:{Cookie:cookie}})).status).toBe(200);
+  });
+  it("limits the catalog to verified mappings and organizer scope", async () => {
+    expect((await fetch(`${origin}/api/session`)).status).toBe(401);
+    const runner=await fetch(`${origin}/api/session`,{headers:{Cookie:cookies.a}});
+    expect(runner.status).toBe(200);
+    const own=await runner.json();expect(own.runners.map((r:{id:string})=>r.id)).toEqual([ids["HERO-5K-001"]]);expect(own.events).toEqual([]);
+    const organizer=await fetch(`${origin}/api/session`,{headers:{Cookie:cookies.organizer}});
+    const scope=await organizer.json();expect(scope.runners).toHaveLength(8);expect(scope.events.map((e:{id:number})=>e.id)).toContain(eventId);
+  });
+  it("restricts private organizer drafts to organizers",async()=>{
+    const path=`${origin}/api/organizer/events/${eventId}/runners/${ids["HERO-5K-001"]}`;
+    expect((await fetch(path,{headers:{Cookie:cookies.a}})).status).toBe(403);
+    const response=await fetch(path,{headers:{Cookie:cookies.organizer}});expect(response.status).toBe(200);const draft=await response.json();
+    expect(draft.splits).toHaveLength(5);expect(draft.date_of_birth).toMatch(/^\d{4}-\d{2}-\d{2}$/);expect(draft).not.toHaveProperty("id_number");expect(draft).not.toHaveProperty("email");
+  });
   it("blocks anonymous access", async () => expect((await get("HERO-5K-001")).status).toBe(401));
   it("serves Aina's computed result to Aina with private cache headers", async () => {
     const response = await get("HERO-5K-001", "a");

@@ -1,6 +1,8 @@
 # Marathon Wrapped delivery roadmap
 
-Date: October 20, 2026. **Execution authorized; core work in progress.** See [core verification](../../qa/core-foundation.md) for actual checks and remaining acceptance gaps.
+Date: October 20, 2026. **Execution authorized; core implemented, connected UI verification in progress.** See [core verification](../../qa/core-foundation.md) for actual checks and remaining acceptance gaps.
+
+October 20 update: the user provided a local read-only Figma export in the primary checkout's `ui reference` directory. Its App.tsx and index.css were inspected; its source and portrait were not copied. The user has no Strava API app and chose a clear disconnected state. Real OAuth acceptance remains deferred. Follow the [connected UI plan](2026-10-20-connected-ui.md) and [actual acceptance map](../../qa/acceptance-matrix.md); later planning notes below describe the original roadmap, not remaining permission requests.
 
 Read the [design proposal](../specs/2026-10-20-core-first-design.md) and [detailed core plan](2026-10-20-core-foundation.md) first. Later subsystems receive detailed task plans after the preceding interface and relevant SRS decisions are approved; this avoids writing speculative implementation code into a project-wide plan.
 
