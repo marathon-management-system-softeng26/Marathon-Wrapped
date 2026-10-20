@@ -44,9 +44,12 @@ marathon-wrapped/
 
 ```bash
 npm install
-cp .env.example .env.local   # then add your Supabase keys
 npm run dev
 ```
+
+Before starting, configure the ignored `.env.local` with `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY`. Demo seeding also uses `SUPABASE_DEMO_PROJECT_REF`. Never commit environment files or share secret values.
+
+The ignored `.env.demo.local` holds synthetic demo account credentials and live-test settings. It is used by the demo/test scripts, not loaded automatically by Next.js. Strava credentials are not configured; the demo shows a disconnected state.
 
 Open http://localhost:3000. You'll need a free Supabase project — seed scripts are in `/db`.
 

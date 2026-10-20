@@ -268,6 +268,9 @@ td small {
 .story a {
   color: var(--cream);
 }
+.story {
+  padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+}
 .story :focus-visible {
   outline-color: var(--lime);
 }
@@ -382,10 +385,15 @@ td small {
   margin-top: 8px;
 }
 .story-controls {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 0 16px;
+  padding: 18px max(24px, calc((100vw - 1020px) / 2))
+    calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--red);
 }
 .circle {
   border-radius: 50%;
@@ -528,7 +536,8 @@ td small {
 }
 .export-notice {
   position: sticky;
-  bottom: 15px;
+  bottom: calc(102px + env(safe-area-inset-bottom, 0px));
+  z-index: 11;
   background: var(--deep);
   border-radius: 8px;
   margin: 0;
@@ -663,6 +672,9 @@ td {
   .story-state {
     padding: 22px 22px;
   }
+  .story {
+    padding-bottom: calc(136px + env(safe-area-inset-bottom, 0px));
+  }
   .story-header span {
     font-size: 0.7rem;
     max-width: 150px;
@@ -752,6 +764,11 @@ td {
   }
   .story-controls {
     padding-top: 12px;
+    padding-inline: 22px;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  }
+  .export-notice {
+    bottom: calc(126px + env(safe-area-inset-bottom, 0px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
