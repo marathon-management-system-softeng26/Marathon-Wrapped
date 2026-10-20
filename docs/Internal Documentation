@@ -79,3 +79,74 @@ The main branch (`marathon-management-system-softeng26/Marathon-Wrapped`) serves
 * Execute Sprint 1 QA gate checks and automated unit tests for `/lib` in `/tests` (Shan Gilbert).
 
 Week 2 successfully achieved full alignment across client SOW commitments, internal task division, ERD v5 database definitions, main branch repository architecture, and QA testing protocols in `/tests`. The team is on schedule to deliver Sprint 1 milestones and prepare for Week 16 final presentation and deliverables.
+
+# Week 3 — Internal Documentation & Technical Progress
+
+Documentation Owner: Harry Analta | Technical Lead: Embun Kahuripan (kahur2005)
+Context: Capstone Project — Software Engineering 2026/2027 (Sampoerna University × University of Arizona)
+Week 3: Monday, 29 September – Sunday, 5 October 2026
+Specification Baseline: SRS V3
+
+---
+
+### 1. Key Progress & Repository Activity (Oct 1–2, 2026)
+
+During Week 3, the team advanced from initial architecture into concrete implementation across the SRS specification, branded documentation diagrams, Next.js frontend UI components, and pure TypeScript backend statistics logic (/lib).
+
+#### Major Commits & Deliverables
+* Build Figma-Inspired Six-Screen Race Recap Frontend (024a817): Indra Putra A.T. / Marbella Elpantja — Initialized 6-screen recap UI flow in /app according to Figma specs. (Satisfies UR-F1–UR-F6, SR-F16–SR-F18)
+* Add Streamlined SRS V3 & Branded Diagrams (444c603, 746b848): Marbella Elpantja / Harry Analta — Integrated SRS V3 with measurable requirements and standardized diagrams applying brand identity (#BA3143 red, #FAF6EB cream, #D8F24B lime). (Logged under CR-001)
+* Add Runner Data Contract & Core Stats Helpers (4f6b79d, f15148d, 905975a): Embun Kahuripan (kahur2005) — Defined TypeScript interfaces, elapsed time, pace, rank, and category percentile helpers with Vitest suite. (Satisfies SR-F2, SR-F3, SR-F5)
+* Split Analysis & Null/Edge Handling (edc61e5, 0591252, c68de50): Embun Kahuripan (kahur2005) — Implemented fastest km, half-race split analysis, incomplete split coverage, DNF chip null handling, and insight generator for Finishers, DNF, and DNS. (Satisfies SR-F6, SR-F7, SR-NF5)
+* Compose buildWrappedStats & Sprint 1 Logic Surface (c74336c, cf9785c, 4e2e323, 9ba46dd): Embun Kahuripan (kahur2005) — Assembled buildWrappedStats payload composer, tightened split-tie tests, exported /lib surface, and documented statistics integration guide for Indra and Shaun.
+
+---
+
+### 2. Requirements Engineering & Controlled Change (CR-001)
+
+Following the October 1 lecture notes, system specifications were updated under controlled Change Request CR-001 to enforce measurable obligations, traceable IDs, and brand standards:
+
+#### Change Request Summary (CR-001)
+* Reason & Scope: Streamline SRS V3 user requirements to make them measurable, integrate /lib TypeScript logic helpers for Wrapped statistics, and apply approved brand identity colors (#BA3143 Primary Red, #FAF6EB Cream Canvas, #D8F24B Lime).
+* Requirement Precision: Adopted mandatory shall and desirable should modal verbs with explicit threshold criteria across UR-F, UR-NF, SR-F, and SR-NF IDs.
+* Module Grouping: Categorized requirements into Results, Strava, Photos, Recap & Export, Organizer, and Shared Quality.
+
+---
+
+### 3. Requirements Register & Traceability Matrix
+
+The table below maps Week 3 commits (UI: 024a817, /lib: kahur2005 series) directly to system requirements in SRS_v3.md:
+
+| Module | Requirement ID | Requirement Description | Implementation / Commit | Status |
+| --- | --- | --- | --- | --- |
+| Results | SR-F2 / SR-F3 | Elapsed time and pace calculation helpers | /lib (f15148d) | Implemented |
+| Results | SR-F5 | Rankings and category percentile helpers | /lib (905975a) | Implemented |
+| Results | SR-F6 / SR-NF5 | DNF/DNS chip null coverage & valid Wrapped insight lines | /lib (0591252, c68de50) | Implemented |
+| Results | SR-F7 | Fastest km split analysis & half-race split comparison | /lib (edc61e5, 4e2e323) | Implemented |
+| Recap & Export | SR-F16 | buildWrappedStats runner payload composer | /lib (c74336c, cf9785c) | Implemented |
+| Recap & Export | UR-F1 to UR-F6 | Figma-inspired 6-screen race recap frontend | /app (024a817) | Implemented |
+| Shared Quality | SR-NF7 | Automated Vitest suite for core statistics & split logic | /lib (f15148d, 4e2e323) | Implemented |
+
+---
+
+### 4. Codebase Architecture & Repository Setup
+
+The main branch (marathon-management-system-softeng26/Marathon-Wrapped) serves as the technical realization of the SOW and ERD:
+
+* /app: Frontend Next.js App Router core housing layout, Tailwind CSS theme, and the newly committed 6-screen race recap user flow (managed by Indra Putra A.T.).
+* /db: PostgreSQL database layer on Supabase with UUID primary keys (managed by Rakhansyah).
+* /docs: Central single source of truth managed by Marbella Elpantja and Harry Analta (SRS_v3.md, DOCUMENTATION_GUIDELINES.md, CR-001, requirements register, UML diagrams).
+* /lib: Pure TypeScript logic managed by Embun Kahuripan (stats.ts, insights.ts, merge.ts, supabase.ts, buildWrappedStats payload composer, Vitest suite).
+* /public/photos: Static race media assets and photo placeholders.
+* /tests: Testing & QA suite owned by Shan Gilbert. Contains test plans (test-plan.md), sprint QA gate logs (qa-sprint-1/2/3.md), and automated unit tests for /lib (stats.test.ts).
+
+---
+
+### 5. Action Items & Summary
+
+* Connect /app 6-screen recap UI components to /lib buildWrappedStats pipeline (Indra Putra A.T. & Embun Kahuripan).
+* Verify backend Supabase view (runner_wrapped) against /lib TypeScript data contract (Rakhansyah).
+* Execute Sprint 1 QA gate checks on UI flow and /lib stats calculations using Vitest and test suites (Shan Gilbert).
+* Maintain ongoing traceability register in /docs following SRS V3 guidelines (Harry Analta).
+
+Week 3 successfully achieved the implementation of both the Figma-inspired 6-screen race recap frontend and the pure TypeScript statistics engine in /lib, fully aligned with SRS V3. The team is on schedule to deliver Sprint 1 milestones and prepare for Week 16 final presentation and deliverables.

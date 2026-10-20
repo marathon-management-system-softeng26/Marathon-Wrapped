@@ -1,0 +1,2 @@
+[db.seed]
+sql_paths = ["../db/seed.sql"]

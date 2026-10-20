@@ -20,6 +20,8 @@ dist/
 
 # Supabase local
 .supabase/
+supabase/.branches/
+supabase/.temp/
 
 # Logs
 npm-debug.log*
