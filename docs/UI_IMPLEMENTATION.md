@@ -1,22 +1,20 @@
-# Figma frontend implementation
+# Connected frontend
 
-The home page implements the six recap frames from MNC ui/ux: intro, distance, splits, hydration, gallery, and sharing. Styling follows the lower row of frames (red gradient, cream panels, lime accents). Arrow buttons, keyboard arrow navigation, direct step selection, gallery previews, PNG download, and copy-demo-link are implemented.
+The authenticated prototype now uses Supabase-backed results. Start with `npm run build`, then `npm run start -- --port 3007` (or `npm run dev` during development). Sign in using an account mapped to a runner or organizer event. Demo credentials are in the ignored `.env.demo.local`; do not commit or share them.
 
-Run `npm run dev` and open http://localhost:3000.
+The supplied local Figma Make export is a read-only reference. Its source and portrait are not copied into the repo. The implementation inherits the red/cream/lime palette, Bricolage typography, six-part story and navigation. Hydration claims are removed because no source measures them.
 
-## Demo data and design differences
+## Flows
 
-- One sample 10K runner is hardcoded in `app/page.tsx`. Finish time, pace, fastest kilometer, and half comparison are calculated from the same split array.
-- The Figma example's 48:09 finish and 5:58 pace are inconsistent for 10K. The implementation displays the calculated 4:49/km.
-- The original portrait asset is unavailable locally; a temporary runner illustration is used.
-- Gallery gradients reproduce the Figma placeholders; they are not actual matched photos.
-- Hydration is static sample data, not a chip-derived metric or an SRS v2 requirement.
-- Export generates a PNG summary. Copy link opens the demo, not a personalized runner link.
+- `/login`: Supabase password sign-in with same-origin writes and private responses.
+- `/`: authorized runner selection; organizers see only their event scope.
+- `/wrapped/[runnerId]`: intro, distance/status, recorded splits, optional Strava context, BIB-mapped photos and export. Keyboard arrows, direct page buttons and horizontal swipes navigate. DNF/DNS and unpublished results retain honest missing statistics.
+- `/organizer`: event results plus atomic create/update of runner identity, eligibility, category, chip timing, splits, optional sample metrics and photo mappings. Failed saves preserve the draft and announce the rejection as an alert; successful saves use a separate status message. BIB stays immutable. Photo URLs must belong to this project's race-photos bucket.
 
-## SRS v2 integration remaining
+The user chose a disconnected Strava state because no API application exists yet. Seeded sample metrics are labeled as samples; no OAuth success is simulated. Real connection/activity selection/refresh/revocation acceptance remains deferred.
 
-The authenticated GitHub SRS_v2.md (version 1.1, September 29, 2026) was reviewed. This frontend slice is not full SRS compliance. Still required: Supabase result retrieval, runner selection/identity isolation, category and overall rankings, DNF and absent-photo states, real Strava OAuth/metrics/disconnect, organizer management, complete hero-runner seeds, and resilience/performance testing. No connections or OAuth are simulated as real functionality.
+Photos are manually mapped stock samples, labeled as simulated matches. See `public/photos/PROVENANCE.md`. No personalized public link is exposed. The PNG preview and download share one canvas renderer at 1080 × 1350, use the selected runner's data and local fonts, and omit health metrics and cross-origin photos.
 
 ## Verification
 
-ESLint and TypeScript pass. Browser navigation and computed split text were checked against the sample array. Mobile layout was checked at 390 × 844. PNG export reaches the success state; the browser automation download-event check timed out, so the downloaded file itself was not inspected. The production build passes with `npm run build -- --webpack`; default Turbopack encounters an environment port-permission error.
+See `docs/qa/connected-ui.md` for actual command/browser evidence and remaining acceptance limits. Earlier hardcoded-demo claims in this document have been superseded.

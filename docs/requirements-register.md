@@ -4,6 +4,8 @@
 
 This register locates requirements and their function coverage. Requirement text, rationale and verification measures are in the SRS; user-to-system mapping is in section 7.4. Issue and executed-test references remain to be populated by the team; no implementation or acceptance is implied.
 
+October 20 implementation evidence is recorded separately in the [acceptance matrix](qa/acceptance-matrix.md), with verified, deferred and unverified measures distinguished. The location-only rows below retain the original baseline; they are not the current execution status.
+
 | Clause ID | Parent / existing reference | Module | Priority | Function coverage | Issue / actual test evidence |
 | --- | --- | --- | --- | --- | --- |
 | **UR-F1** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
