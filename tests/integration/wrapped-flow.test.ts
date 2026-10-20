@@ -94,6 +94,20 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
     expect(results).toHaveLength(8);
     expect(results.find((r: { bib_number: string }) => r.bib_number === "EDGE-NO-RESULT").status).toBe("unavailable");
   });
+  it("creates and clears optional demo data in the same organizer aggregate",async()=>{
+    const bib="QA-FULL-"+crypto.randomUUID().slice(0,8);
+    const body={name:"Full aggregate assertion",bib_number:bib,date_of_birth:"1995-04-12",gender:"F",parental_consent:false,category:"5K",result:null,splits:[],enrichment:{metrics:{avg_heartrate:150,max_heartrate:180,elevation_gain_m:25,calories:400,avg_cadence:82},photos:[{photo_url:process.env.SUPABASE_URL+"/storage/v1/object/public/race-photos/demo-race.jpg",photographer:"Martin Vorel (CC0; QA stock)",captured_km:null,captured_at:null}]}};
+    const headers={Cookie:cookies.organizer,Origin:origin,"Content-Type":"application/json"};let createdId:string|null=null;
+    try{
+      const response=await fetch(`${origin}/api/organizer/events/${eventId}/runners`,{method:"POST",headers,body:JSON.stringify(body)});expect(response.status).toBe(201);createdId=(await response.json()).runner_id;
+      const path=`${origin}/api/organizer/events/${eventId}/runners/${createdId}`;
+      const draft=await (await fetch(path,{headers})).json();expect(draft.enrichment.metrics.avg_heartrate).toBe(150);expect(draft.enrichment.photos).toHaveLength(1);expect(draft.enrichment.metrics).not.toHaveProperty("data_source");
+      const invalid=await fetch(path,{method:"PATCH",headers,body:JSON.stringify({...body,name:"Should not persist",enrichment:{...body.enrichment,photos:[{...body.enrichment.photos[0],captured_km:6}]}})});expect(invalid.status).toBe(422);
+      const preserved=await (await fetch(path,{headers})).json();expect(preserved.name).toBe(body.name);expect(preserved.enrichment.photos).toHaveLength(1);
+      const cleared=await fetch(path,{method:"PATCH",headers,body:JSON.stringify({...body,enrichment:{metrics:null,photos:[]}})});expect(cleared.status).toBe(200);
+      const empty=await (await fetch(path,{headers})).json();expect(empty.enrichment).toEqual({metrics:null,photos:[]});
+    }finally{if(createdId){const cleanup=await admin.from("runners").delete().eq("id",createdId).eq("bib_number",bib);if(cleanup.error)throw new Error("Full aggregate fixture cleanup failed.");}}
+  },20000);
   it("atomically creates and updates a disposable organizer demo runner", async () => {
     const bib = "QA-HTTP-" + crypto.randomUUID().slice(0,8);
     const body = { name: "HTTP management assertion", bib_number: bib, date_of_birth: "1995-04-12", gender: "F", parental_consent: false,

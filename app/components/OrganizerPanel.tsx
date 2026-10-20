@@ -6,6 +6,7 @@ import AppHeader from "./AppHeader";
 import type { HeroRunnerDraft } from "@/lib/heroValidation";
 import { formatMmSs } from "@/lib/format";
 import { changeDraftCategory } from "@/lib/organizerDraft";
+import OrganizerEnrichmentEditor from "./OrganizerEnrichmentEditor";
 type Row = {
   runner_id: string;
   name: string;
@@ -24,6 +25,7 @@ const empty: HeroRunnerDraft = {
   parental_consent: false,
   result: null,
   splits: [],
+  enrichment: { metrics: null, photos: [] },
 };
 export default function OrganizerPanel() {
   const { data, error: catalogError, retry } = useCatalog();
@@ -35,7 +37,8 @@ export default function OrganizerPanel() {
     [draft, setDraft] = useState<HeroRunnerDraft | null>(null),
     [editing, setEditing] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [messageError, setMessageError] = useState(false);
   const selected = eventId || String(data?.events[0]?.id ?? "");
   useEffect(() => {
     if (!selected) return;
@@ -65,6 +68,7 @@ export default function OrganizerPanel() {
   async function edit(id: string) {
     setBusy(true);
     setMessage("");
+    setMessageError(false);
     try {
       const response = await fetch(
         `/api/organizer/events/${selected}/runners/${id}`,
@@ -75,6 +79,7 @@ export default function OrganizerPanel() {
       setDraft(body);
       setEditing(id);
     } catch (cause) {
+      setMessageError(true);
       setMessage(
         cause instanceof Error ? cause.message : "Runner could not load.",
       );
@@ -87,6 +92,7 @@ export default function OrganizerPanel() {
     if (!draft) return;
     setBusy(true);
     setMessage("");
+    setMessageError(false);
     try {
       const response = await fetch(
         `/api/organizer/events/${selected}/runners${editing ? `/${editing}` : ""}`,
@@ -104,6 +110,7 @@ export default function OrganizerPanel() {
       setLoading(true);
       setVersion((v) => v + 1);
     } catch (cause) {
+      setMessageError(true);
       setMessage(
         cause instanceof Error
           ? cause.message
@@ -202,7 +209,10 @@ export default function OrganizerPanel() {
               </p>
             )}
             {message && (
-              <p role="status" className="save-message">
+              <p
+                role={messageError ? "alert" : "status"}
+                className={messageError ? "error" : "save-message"}
+              >
                 {message}
               </p>
             )}
@@ -391,6 +401,11 @@ export default function OrganizerPanel() {
                       </>
                     )}
                   </div>
+                  <OrganizerEnrichmentEditor
+                    value={draft.enrichment ?? { metrics: null, photos: [] }}
+                    distance={draft.category === "5K" ? 5 : 10}
+                    onChange={(value) => field("enrichment", value)}
+                  />
                   <div className="form-actions">
                     <button type="submit">
                       {busy ? "Saving…" : "Save runner"}

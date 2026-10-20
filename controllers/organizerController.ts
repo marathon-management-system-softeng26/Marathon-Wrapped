@@ -26,7 +26,7 @@ export async function getHeroDraft(
     .single();
   if (category.error) throw new Error("Category unavailable");
   if (category.data.event_id !== eventId) throw new AccessDeniedError();
-  const [chip, splits] = await Promise.all([
+  const [chip, splits, metrics, photos] = await Promise.all([
     db
       .from("chip_results")
       .select("finisher,start_status,start_time,finish_time")
@@ -37,14 +37,45 @@ export async function getHeroDraft(
       .select("km_marker,split_seconds")
       .eq("runner_id", runnerId)
       .order("km_marker"),
+    db
+      .from("strava_metrics")
+      .select(
+        "avg_heartrate,max_heartrate,elevation_gain_m,calories,avg_cadence,data_source",
+      )
+      .eq("runner_id", runnerId)
+      .maybeSingle(),
+    db
+      .from("fotoyu_photos")
+      .select("photo_url,photographer,captured_km,captured_at")
+      .eq("bib_number", row.data.bib_number),
   ]);
-  if (chip.error || splits.error) throw new Error("Result unavailable");
+  if (chip.error || splits.error || metrics.error || photos.error)
+    throw new Error("Result unavailable");
+  if (metrics.data && metrics.data.data_source !== "demo")
+    throw new Error(
+      "Live provider records cannot be edited through demo management.",
+    );
   const { category_id, ...identity } = row.data;
   void category_id;
   return {
     ...identity,
     category: category.data.name,
     result: chip.data,
+    enrichment: {
+      metrics: metrics.data
+        ? {
+            avg_heartrate: metrics.data.avg_heartrate,
+            max_heartrate: metrics.data.max_heartrate,
+            elevation_gain_m:
+              metrics.data.elevation_gain_m === null
+                ? null
+                : Number(metrics.data.elevation_gain_m),
+            calories: metrics.data.calories,
+            avg_cadence: metrics.data.avg_cadence,
+          }
+        : null,
+      photos: photos.data,
+    },
     splits: splits.data.map((split) => ({
       ...split,
       split_seconds: Number(split.split_seconds),
@@ -72,7 +103,7 @@ export async function saveHeroRunner(
   input: unknown,
 ): Promise<{ runner_id: string }> {
   await requireOrganizerAccess(userId, eventId);
-  const draft = validateHeroDraft(input);
+  const draft = validateHeroDraft(input, process.env.SUPABASE_URL);
   const { data, error } = await getSupabaseAdmin().rpc("save_hero_runner", {
     p_event_id: eventId,
     p_runner_id: runnerId,

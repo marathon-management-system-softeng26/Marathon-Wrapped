@@ -79,6 +79,13 @@ label {
 input:read-only {
   background: #f0dfd4;
 }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--deep);
+  -webkit-box-shadow: 0 0 0 1000px #fffaf4 inset;
+  caret-color: var(--red);
+}
 input[type="checkbox"] {
   width: 20px;
   min-height: 20px;
@@ -324,10 +331,6 @@ td small {
 }
 .story-content :is(h1, h2):focus {
   outline: none;
-}
-.intro-date {
-  font-size: 1rem;
-  font-weight: 700;
 }
 .story-intro {
   font-size: 1.35rem;
@@ -760,5 +763,29 @@ td {
     scroll-behavior: auto !important;
   }
 }
-.share-canvas{display:block;width:min(100%,350px);height:auto;border-radius:16px}
+.share-canvas {
+  display: block;
+  width: min(100%, 350px);
+  height: auto;
+  border-radius: 16px;
+}
 
+.enrichment-editor {
+  margin: 32px 0;
+  padding-top: 16px;
+  border-top: 1px solid #cbaaa0;
+}
+.enrichment-editor h3 {
+  margin-top: 24px;
+}
+.enrichment-editor p {
+  font-size: 0.9rem;
+}
+.photo-mapping-editor {
+  padding: 14px 0 24px;
+  border-bottom: 1px solid #cbaaa0;
+  margin-bottom: 20px;
+}
+.photo-mapping-editor h4 {
+  margin: 16px 0 0;
+}

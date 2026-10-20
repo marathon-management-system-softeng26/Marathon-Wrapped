@@ -164,7 +164,6 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       <section className="story-content" key={slide}>
         {slide === 0 && (
           <>
-            <div className="intro-date">{model.event}</div>
             <h1 ref={heading} tabIndex={-1}>
               <span>
                 {payload.status === "finisher"
@@ -215,8 +214,8 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
             </div>
             {payload.status === "finisher" ? (
               <p className="lime">
-                {model.rank} · Overall rank{" "}
-                {stats?.overall_rank ?? "unavailable"} at this distance
+                {model.rank} · Overall in {stats?.category}:{" "}
+                {stats?.overall_rank ?? "unavailable"}
               </p>
             ) : (
               <p>
@@ -352,8 +351,10 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                   ))}
                 </div>
                 <p className="subtle">
-                  {payload.photos.length} photo mapped to BIB {model.bib}. Demo
-                  stock image; not an actual match to this runner.
+                  {payload.photos.length}{" "}
+                  {payload.photos.length === 1 ? "photo" : "photos"} mapped to
+                  BIB {model.bib}. Demo stock image; not an actual match to this
+                  runner.
                 </p>
               </>
             ) : (
@@ -387,7 +388,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           onClick={() => setSlide((s) => s - 1)}
           disabled={slide === 0}
         >
-          <Arrow left/>
+          <Arrow left />
         </button>
         <span>
           {slide + 1} / {pages.length}
@@ -398,7 +399,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           onClick={() => setSlide((s) => s + 1)}
           disabled={slide === 5}
         >
-          <Arrow/>
+          <Arrow />
         </button>
       </footer>
       <p className="export-notice" role="status">
