@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620" role="img" aria-labelledby="ov-title ov-desc"><title id="ov-title">Your race becomes a story worth keeping</title><desc id="ov-desc">Race results become a personal recap, then a shareable image. Strava detail and BIB-matched photos are optional. Timing and photos use sample data.</desc><defs><marker id="ov-arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L0,8 L9,4 z" fill="#BA3143"/></marker></defs><rect width="1100" height="620" fill="#FAF6EB"/>
+<text x="40" y="50" font-family="Arial,Helvetica,sans-serif" font-size="29" fill="#BA3143" text-anchor="start">Your race becomes a story worth keeping</text>
+<text x="40" y="84" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Understand your performance, add memories, and keep a recap you can share.</text>
+<rect x="40" y="140" width="290" height="150" rx="12" fill="#D8F24B" stroke="#BA3143" stroke-width="1.5"/>
+<text x="60" y="174" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Your race results</text>
+<text x="60" y="202" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Time · pace · placing</text>
+<text x="60" y="230" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Performance per kilometer</text>
+<rect x="405" y="140" width="290" height="150" rx="12" fill="#BA3143" stroke="#BA3143" stroke-width="1.5"/>
+<text x="425" y="174" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#FAF6EB" text-anchor="start">Your personal recap</text>
+<text x="425" y="202" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#FAF6EB" text-anchor="start">Understand race highlights</text>
+<text x="425" y="230" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#FAF6EB" text-anchor="start">View on phone or computer</text>
+<rect x="770" y="140" width="290" height="150" rx="12" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="790" y="174" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Save and share</text>
+<text x="790" y="202" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Export a recap image</text>
+<text x="790" y="230" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Keep your achievement</text>
+<path d="M330,215 L405,215" stroke="#BA3143" stroke-width="1.5" fill="none" marker-end="url(#ov-arrow)"/>
+<path d="M695,215 L770,215" stroke="#BA3143" stroke-width="1.5" fill="none" marker-end="url(#ov-arrow)"/>
+<rect x="95" y="385" width="365" height="125" rx="12" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="115" y="419" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Optional: Strava detail</text>
+<text x="115" y="447" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Heart rate · elevation</text>
+<text x="115" y="475" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Cadence · calories</text>
+<rect x="640" y="385" width="365" height="125" rx="12" fill="#FAF6EB" stroke="#BA3143" stroke-width="1.5"/>
+<text x="660" y="419" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Optional: race photos</text>
+<text x="660" y="447" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Matched to your BIB number</text>
+<text x="660" y="475" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Sample marketplace photos</text>
+<path d="M300,385 L470,290" stroke="#BA3143" stroke-width="1.5" fill="none" marker-end="url(#ov-arrow)" stroke-dasharray="6 5"/>
+<path d="M800,385 L630,290" stroke="#BA3143" stroke-width="1.5" fill="none" marker-end="url(#ov-arrow)" stroke-dasharray="6 5"/>
+<text x="95" y="330" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#291B1D" text-anchor="start">With your permission</text>
+<text x="815" y="330" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#291B1D" text-anchor="start">When matches exist</text>
+<text x="40" y="560" font-family="Arial,Helvetica,sans-serif" font-size="18" fill="#291B1D" text-anchor="start">Your recap works without Strava or photos. A DNF recap never invents a finish time or pace.</text>
+<text x="40" y="594" font-family="Arial,Helvetica,sans-serif" font-size="16" fill="#291B1D" text-anchor="start">Prototype: Soekarno Run 2027 • 5K and 10K • Timing and photo matching are simulated.</text>
+</svg>

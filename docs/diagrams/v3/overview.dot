@@ -1,0 +1,21 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="Your race becomes a story worth keeping";
+
+rankdir=LR;
+timing [label="Race results\nTime · pace · placing\nKilometer-by-kilometer performance", fillcolor="#D8F24B"];
+recap [label="Your personal recap\nUnderstand your race highlights\nView on phone or computer", fillcolor="#BA3143", fontcolor="#FAF6EB"];
+image [label="Save and share\nExport your recap as an image"];
+strava [label="Optional Strava detail\nHeart rate · elevation\nCadence · calories"];
+photos [label="Optional race photos\nMatched using your BIB number"];
+timing -> recap [label="build the baseline"];
+recap -> image [label="when you choose"];
+strava -> recap [style=dashed, label="with your permission"];
+photos -> recap [style=dashed, label="when matches exist"];
+{rank=same; timing; strava; photos;}
+note [shape=plaintext, label="Soekarno Run 2027 · 5K and 10K\nTiming and photo matching use sample data.\nYour recap still works without Strava or photos.", fontsize=14];
+image -> note [style=invis];
+
+}

@@ -6,6 +6,7 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname, ".") },
   },
   test: {
+    setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.ts"],
   },
 });

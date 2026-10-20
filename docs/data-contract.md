@@ -2,7 +2,7 @@
 
 Owner: **Bella** (contract) · **Embun** (computed stats) · Issue 02 / 05
 
-Per-runner shape passed **database → `/lib` → `/app`**. Field names match `db/schema.sql`. Do not rename them in TypeScript.
+Per-runner shape passed **database → `/lib` → `/app`**. Field names follow `supabase/migrations/20261019155810_initial_schema.sql` and additive migrations. Do not rename them in TypeScript.
 
 Issue #27 closed this contract; the file was missing from the repo and is restored here from the schema + SRS v1.1.
 
@@ -65,7 +65,7 @@ Never calculated when `finisher` is false.
 
 ### Category / overall rank (SR-F5)
 
-Lower elapsed is better.
+Lower elapsed is better. The Wrapped view derives these ranks from current finisher data; manually stored rank columns are no longer authoritative. Category rank partitions by category; overall rank partitions by event and distance, across genders. The UI labels it “Overall in 5K/10K”; raw 5K and 10K times never compete. This is the October 20 implementation policy for OD-02, not a claim of earlier team agreement.
 
 `rank = 1 + (count of finishers with strictly smaller elapsed_seconds)`
 
@@ -78,7 +78,7 @@ Ties share the minimum rank. DNF / DNS are excluded from the field.
 Matches `runner_wrapped`: Postgres `percent_rank() OVER (PARTITION BY category ORDER BY elapsed_seconds DESC)`.
 
 - Slowest finisher → `0`
-- Fastest finisher → `1`
+- Fastest untied finisher → `1`; tied fastest finishers may be below `1` because tied peers are not counted as slower
 - One finisher → `0`
 - DNF / DNS → `null`
 

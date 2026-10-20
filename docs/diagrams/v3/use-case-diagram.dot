@@ -1,0 +1,35 @@
+digraph G {
+graph [bgcolor="#FAF6EB", fontname="Arial", fontsize=24, fontcolor="#BA3143", labelloc=t, labeljust=l, pad=0.4, nodesep=0.45, ranksep=0.6, splines=polyline, dpi=144];
+node [shape=box, style="rounded,filled", fillcolor="#FAF6EB", color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=16, margin="0.22,0.15", penwidth=1.3];
+edge [color="#BA3143", fontcolor="#291B1D", fontname="Arial", fontsize=13, arrowsize=0.7, penwidth=1.3];
+label="Use cases: what runners and organizers need to do";
+
+rankdir=LR;
+node [fontsize=15];
+runner [shape=box, style=filled, fillcolor="#BA3143", fontcolor="#FAF6EB", label="«actor»\nRunner"];
+organizer [shape=box, style=filled, fillcolor="#BA3143", fontcolor="#FAF6EB", label="«actor»\nOrganizer"];
+strava [shape=box, style=filled, fillcolor="#D8F24B", label="«actor»\nStrava service\nExternal, opt-in"];
+subgraph cluster_system {
+ label="Marathon Wrapped prototype"; color="#BA3143"; fontcolor="#291B1D"; fontsize=18; style=rounded; margin=24;
+ node [shape=ellipse, style=filled];
+ recap [label="View my personal race recap\nUR-F1 · UR-F7"];
+ insights [label="Understand my split performance\nUR-F2"];
+ connect [label="Connect Strava for extra detail\nUR-F3"];
+ disconnect [label="Disconnect Strava\nUR-F4"];
+ photos [label="View my matched race photos\nUR-F5"];
+ export [label="Export / share my recap image\nUR-F6"];
+ results [label="View event results\nUR-F8"];
+ manage [label="Manage hero-runner demo data\nCreate · update · replace\nUR-F9"];
+ {rank=same; recap; insights; connect; disconnect; photos; export;}
+ {rank=same; results; manage;}
+ recap -> insights -> connect -> disconnect -> photos -> export [style=invis];
+ results -> manage [style=invis];
+}
+edge [dir=none];
+runner -> recap; runner -> insights; runner -> connect; runner -> disconnect; runner -> photos; runner -> export;
+results -> organizer; manage -> organizer;
+connect -> strava;
+note [shape=plaintext, fontsize=14, label="Associations show participation, not an action sequence.\nStrava is optional; photos may be absent; DNF has a valid recap.\nAlternative outcomes are specified in FS-01 through FS-08."];
+export -> note [style=invis];
+
+}

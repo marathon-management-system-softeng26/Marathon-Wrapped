@@ -14,12 +14,15 @@ dist/
 # Environment variables — NEVER commit these (they hold secret keys)
 .env
 .env.local
+.env.demo.local
 .env.development.local
 .env.test.local
 .env.production.local
 
 # Supabase local
 .supabase/
+supabase/.branches/
+supabase/.temp/
 
 # Logs
 npm-debug.log*
@@ -36,6 +39,8 @@ Thumbs.db
 
 # Testing / coverage
 /coverage
+/.impeccable/review/
+/.impeccable/detector.json
 
 # Vercel
 .vercel

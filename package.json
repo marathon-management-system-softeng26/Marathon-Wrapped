@@ -8,12 +8,19 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:native": "node --test --experimental-strip-types tests/native/*.test.mts",
+    "test:db": "node --env-file=.env.local --env-file=.env.demo.local node_modules/vitest/vitest.mjs run tests/integration",
+    "seed:users": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-users.mts",
+    "seed:photos": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-photos.mts"
   },
   "dependencies": {
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.118.0",
     "next": "16.3.6",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

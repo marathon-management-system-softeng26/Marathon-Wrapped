@@ -1,0 +1,59 @@
+@startuml
+skinparam backgroundColor #FAF6EB
+skinparam defaultFontName Arial
+skinparam defaultFontColor #291B1D
+skinparam ArrowColor #BA3143
+skinparam classBackgroundColor #FAF6EB
+skinparam classBorderColor #BA3143
+skinparam noteBackgroundColor #D8F24B
+skinparam noteBorderColor #BA3143
+hide methods
+skinparam classAttributeIconSize 0
+title Marathon Wrapped — conceptual classes (SRS V3)
+class Event {
+  Name
+  Date
+  Location
+}
+class RaceCategory {
+  5K or 10K
+  Distance
+  Minimum age
+}
+class Runner #D8F24B {
+  Name and contact details
+  Assigned BIB: unique, stable
+  Registration details
+}
+class RaceResult {
+  Start / finish time
+  Elapsed time and pace
+  Category / overall rank
+  Finisher or DNF
+}
+class KilometerSplit {
+  Kilometer marker
+  Time for this kilometer
+}
+class StravaMetrics {
+  Heart rate
+  Elevation gain
+  Calories and cadence
+}
+class RacePhoto {
+  Runner BIB
+  Image location
+  Photographer and capture details
+}
+Event "1" -- "0..*" RaceCategory
+RaceCategory "1" -- "0..*" Runner
+Runner "1" -- "1" RaceResult : seeded runner's result
+Runner "1" -- "0..*" KilometerSplit : recorded kilometers
+Runner "1" -- "0..1" StravaMetrics : optional detail
+Runner "1" -- "0..*" RacePhoto : matched by BIB
+note bottom of Runner
+  Conceptual information model, not a physical schema.
+  Exactly one result per seeded demo runner; lifecycle is OD-01.
+  Finishers have one split per kilometer; DNF may have partial splits.
+end note
+@enduml

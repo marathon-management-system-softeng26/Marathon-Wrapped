@@ -2,8 +2,9 @@
 -- Marathon Wrapped — RESET
 --
 -- ⚠ Drops every table and view. ALL DATA IS WIPED.
--- Only run this on purpose, then re-run db/schema.sql and
--- db/seed.sql. Tell the team before running it on the shared
+-- Only run this on purpose, then run the initial migration SQL and
+-- db/seed.sql. db push won't replay an applied migration. Tell the
+-- team before running this on the shared
 -- Supabase project.
 -- ============================================================
 
