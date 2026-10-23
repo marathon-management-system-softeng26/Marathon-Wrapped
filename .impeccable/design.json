@@ -1,0 +1,333 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T00:50:48.372325+00:00",
+  "title": "Design System: Marathon Wrapped",
+  "extensions": {
+    "colorMeta": {
+      "red": {
+        "role": "primary",
+        "displayName": "Red",
+        "tonalRamp": [
+          "oklch(15% 0.1748 22.05)",
+          "oklch(27% 0.1748 22.05)",
+          "oklch(38% 0.1748 22.05)",
+          "oklch(50% 0.1748 22.05)",
+          "oklch(61% 0.1748 22.05)",
+          "oklch(73% 0.1748 22.05)",
+          "oklch(84% 0.1748 22.05)",
+          "oklch(95% 0.1748 22.05)"
+        ]
+      },
+      "deep": {
+        "role": "primary",
+        "displayName": "Deep",
+        "tonalRamp": [
+          "oklch(15% 0.1445 19.90)",
+          "oklch(27% 0.1445 19.90)",
+          "oklch(38% 0.1445 19.90)",
+          "oklch(50% 0.1445 19.90)",
+          "oklch(61% 0.1445 19.90)",
+          "oklch(73% 0.1445 19.90)",
+          "oklch(84% 0.1445 19.90)",
+          "oklch(95% 0.1445 19.90)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "tonalRamp": [
+          "oklch(15% 0.0164 70.54)",
+          "oklch(27% 0.0164 70.54)",
+          "oklch(38% 0.0164 70.54)",
+          "oklch(50% 0.0164 70.54)",
+          "oklch(61% 0.0164 70.54)",
+          "oklch(73% 0.0164 70.54)",
+          "oklch(84% 0.0164 70.54)",
+          "oklch(95% 0.0164 70.54)"
+        ]
+      },
+      "lime": {
+        "role": "secondary",
+        "displayName": "Lime",
+        "tonalRamp": [
+          "oklch(15% 0.2049 121.49)",
+          "oklch(27% 0.2049 121.49)",
+          "oklch(38% 0.2049 121.49)",
+          "oklch(50% 0.2049 121.49)",
+          "oklch(61% 0.2049 121.49)",
+          "oklch(73% 0.2049 121.49)",
+          "oklch(84% 0.2049 121.49)",
+          "oklch(95% 0.2049 121.49)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0337 20.09)",
+          "oklch(27% 0.0337 20.09)",
+          "oklch(38% 0.0337 20.09)",
+          "oklch(50% 0.0337 20.09)",
+          "oklch(61% 0.0337 20.09)",
+          "oklch(73% 0.0337 20.09)",
+          "oklch(84% 0.0337 20.09)",
+          "oklch(95% 0.0337 20.09)"
+        ]
+      },
+      "field": {
+        "role": "neutral",
+        "displayName": "Field",
+        "tonalRamp": [
+          "oklch(15% 0.0096 72.66)",
+          "oklch(27% 0.0096 72.66)",
+          "oklch(38% 0.0096 72.66)",
+          "oklch(50% 0.0096 72.66)",
+          "oklch(61% 0.0096 72.66)",
+          "oklch(73% 0.0096 72.66)",
+          "oklch(84% 0.0096 72.66)",
+          "oklch(95% 0.0096 72.66)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "tonalRamp": [
+          "oklch(15% 0.0429 29.48)",
+          "oklch(27% 0.0429 29.48)",
+          "oklch(38% 0.0429 29.48)",
+          "oklch(50% 0.0429 29.48)",
+          "oklch(61% 0.0429 29.48)",
+          "oklch(73% 0.0429 29.48)",
+          "oklch(84% 0.0429 29.48)",
+          "oklch(95% 0.0429 29.48)"
+        ]
+      },
+      "surface-secondary": {
+        "role": "neutral",
+        "displayName": "Surface Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0231 52.67)",
+          "oklch(27% 0.0231 52.67)",
+          "oklch(38% 0.0231 52.67)",
+          "oklch(50% 0.0231 52.67)",
+          "oklch(61% 0.0231 52.67)",
+          "oklch(73% 0.0231 52.67)",
+          "oklch(84% 0.0231 52.67)",
+          "oklch(95% 0.0231 52.67)"
+        ]
+      },
+      "surface-secondary-hover": {
+        "role": "neutral",
+        "displayName": "Surface Secondary Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0324 50.36)",
+          "oklch(27% 0.0324 50.36)",
+          "oklch(38% 0.0324 50.36)",
+          "oklch(50% 0.0324 50.36)",
+          "oklch(61% 0.0324 50.36)",
+          "oklch(73% 0.0324 50.36)",
+          "oklch(84% 0.0324 50.36)",
+          "oklch(95% 0.0324 50.36)"
+        ]
+      },
+      "surface-quiet-hover": {
+        "role": "neutral",
+        "displayName": "Surface Quiet Hover",
+        "tonalRamp": [
+          "oklch(15% 0.0250 49.73)",
+          "oklch(27% 0.0250 49.73)",
+          "oklch(38% 0.0250 49.73)",
+          "oklch(50% 0.0250 49.73)",
+          "oklch(61% 0.0250 49.73)",
+          "oklch(73% 0.0250 49.73)",
+          "oklch(84% 0.0250 49.73)",
+          "oklch(95% 0.0250 49.73)"
+        ]
+      },
+      "progress-empty": {
+        "role": "neutral",
+        "displayName": "Progress Empty",
+        "tonalRamp": [
+          "oklch(15% 0.1155 16.04)",
+          "oklch(27% 0.1155 16.04)",
+          "oklch(38% 0.1155 16.04)",
+          "oklch(50% 0.1155 16.04)",
+          "oklch(61% 0.1155 16.04)",
+          "oklch(73% 0.1155 16.04)",
+          "oklch(84% 0.1155 16.04)",
+          "oklch(95% 0.1155 16.04)"
+        ]
+      },
+      "split-bar": {
+        "role": "neutral",
+        "displayName": "Split Bar",
+        "tonalRamp": [
+          "oklch(15% 0.0750 21.11)",
+          "oklch(27% 0.0750 21.11)",
+          "oklch(38% 0.0750 21.11)",
+          "oklch(50% 0.0750 21.11)",
+          "oklch(61% 0.0750 21.11)",
+          "oklch(73% 0.0750 21.11)",
+          "oklch(84% 0.0750 21.11)",
+          "oklch(95% 0.0750 21.11)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Story introduction."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Story section heading."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Panel title."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Operate copy and story descriptions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Measured panel values; tabular numerals."
+      },
+      "distance": {
+        "displayName": "Distance",
+        "purpose": "Large kilometer measurement."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "action-background",
+        "value": "background 0.18s ease",
+        "purpose": "Primary and variant hover feedback."
+      },
+      {
+        "name": "story-reveal",
+        "value": "0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Clip from inset(0 0 5% 0) to inset(0), blur from 3px to 0."
+      },
+      {
+        "name": "photo-hover",
+        "value": "transform 0.2s",
+        "purpose": "Thumbnail scale to 1.03."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none; scroll-behavior: auto",
+        "purpose": "Applied under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-max",
+        "value": "700px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Observed primary action variant. Save is used on the red story field.",
+      "html": "<button class=\"ds-button-primary\">Continue</button>",
+      "css": ".ds-button-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 21px;border:1px solid transparent;border-radius:12px;font:700 1rem Arial,Helvetica,sans-serif;cursor:pointer;transition:background .18s ease;background:var(--red);color:var(--cream);}.ds-button-primary:hover{background:var(--deep)}.ds-button-primary:focus-visible{outline:3px solid var(--red);outline-offset:4px}.ds-button-primary:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Observed secondary action variant. Save is used on the red story field.",
+      "html": "<button class=\"ds-button-secondary\">Cancel</button>",
+      "css": ".ds-button-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 21px;border:1px solid transparent;border-radius:12px;font:700 1rem Arial,Helvetica,sans-serif;cursor:pointer;transition:background .18s ease;background:#efded4;color:var(--red);}.ds-button-secondary:hover{background:#e5cdc0}.ds-button-secondary:focus-visible{outline:3px solid var(--red);outline-offset:4px}.ds-button-secondary:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none}}"
+    },
+    {
+      "name": "Quiet button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Observed quiet action variant. Save is used on the red story field.",
+      "html": "<button class=\"ds-button-quiet\">Sign out</button>",
+      "css": ".ds-button-quiet{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 21px;border:1px solid transparent;border-radius:12px;font:700 1rem Arial,Helvetica,sans-serif;cursor:pointer;transition:background .18s ease;background:transparent;color:var(--red);padding:9px 12px;}.ds-button-quiet:hover{background:#efdcd2}.ds-button-quiet:focus-visible{outline:3px solid var(--red);outline-offset:4px}.ds-button-quiet:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.ds-button-quiet{transition:none}}"
+    },
+    {
+      "name": "Save button",
+      "kind": "button",
+      "refersTo": "button-save",
+      "description": "Observed save action variant. Save is used on the red story field.",
+      "html": "<button class=\"ds-button-save\">Save my recap as PNG</button>",
+      "css": ".ds-button-save{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:12px 21px;border:1px solid transparent;border-radius:12px;font:700 1rem Arial,Helvetica,sans-serif;cursor:pointer;transition:background .18s ease;background:var(--lime);color:var(--deep);}.ds-button-save:hover{background:var(--cream)}.ds-button-save:focus-visible{outline:3px solid var(--red);outline-offset:4px}.ds-button-save:disabled{opacity:.5;cursor:default}@media(prefers-reduced-motion:reduce){.ds-button-save{transition:none}}.ds-button-save:focus-visible{outline-color:var(--lime)}"
+    },
+    {
+      "name": "Labeled field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Readable Operate form field.",
+      "html": "<label class=\"ds-label\">Runner name<input class=\"ds-field\" value=\"Demo runner\"></label>",
+      "css": ".ds-label{display:block;color:var(--deep);font:700 .95rem Arial,Helvetica,sans-serif}.ds-field{display:block;width:100%;min-height:46px;margin-top:8px;border:1px solid #bd9a94;border-radius:8px;padding:11px 12px;background:#fffaf4;color:var(--deep);caret-color:var(--red);font:1rem Arial,Helvetica,sans-serif}.ds-field:focus-visible{outline:3px solid var(--red);outline-offset:4px}"
+    },
+    {
+      "name": "Statistic card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "Cream measurement panel on the story field.",
+      "html": "<div class=\"ds-stat\"><strong>00:58:24</strong><span>Finish time</span></div>",
+      "css": ".ds-stat{background:var(--cream);color:var(--deep);border-radius:16px;padding:24px}.ds-stat strong{display:block;font:800 clamp(1.8rem,4vw,3.6rem) Bricolage,sans-serif;font-variant-numeric:tabular-nums}.ds-stat span{display:block;margin-top:8px;font:1rem Arial,Helvetica,sans-serif}"
+    },
+    {
+      "name": "Recap progress navigation",
+      "kind": "nav",
+      "description": "Six directly selectable pages with reached bars and current label.",
+      "html": "<nav class=\"ds-progress\" aria-label=\"Recap pages\"><button ><span class=\"ds-reached\"></span><small>Your race</small></button><button aria-current=\"step\"><span class=\"ds-reached\"></span><small>Distance</small></button><button ><span ></span><small>Splits</small></button><button ><span ></span><small>Strava</small></button><button ><span ></span><small>Photos</small></button><button ><span ></span><small>Save</small></button></nav>",
+      "css": ".ds-progress{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;background:var(--red);padding:24px}.ds-progress button{display:block;padding:8px 0;min-height:45px;background:none;color:var(--cream);border:0;border-radius:0;font:700 1rem Arial,Helvetica,sans-serif;cursor:pointer}.ds-progress span{display:block;height:5px;background:#c66b72;border-radius:5px}.ds-progress .ds-reached{background:var(--cream)}.ds-progress small{display:block;margin-top:9px;font-size:.8rem}.ds-progress button[aria-current]{color:var(--lime)}.ds-progress button:focus-visible{outline:3px solid var(--lime);outline-offset:4px}@media(max-width:700px){.ds-progress{gap:8px}.ds-progress small{font-size:.65rem}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Existing Figma Make visual world",
+    "overview": "The existing Figma Make visual world is the authority: an immersive race-red field, cream statistic panels, lime emphasis and expressive Bricolage lettering. The recap uses Experience mode; sign-in, runner selection and organizer management use Operate mode with cream surfaces, readable forms and red actions.\n\nThe world is typographic and flat. Large race measurements, a split chart, photographic moments and a final keepsake give the story its rhythm. The reference portrait is not copied; the introduction uses type and color. Existing stock photography remains explicitly simulated and attributed.",
+    "keyCharacteristics": [
+      "Race red, cream and lime carry identity across both modes.",
+      "Bricolage display type pairs with familiar system sans body text.",
+      "Flat panels and generous numeric scale create hierarchy.",
+      "Direct progress buttons and visible focus keep the story navigable."
+    ],
+    "rules": [
+      {
+        "name": "The Existing World Rule",
+        "body": "Extend the supplied visual world; do not replace its palette or display character.",
+        "section": "colors"
+      },
+      {
+        "name": "The Display Ceiling Rule",
+        "body": "Interface display type stops at 6rem and tracking stays at or above -0.04em. The exported canvas has its own pixel scale.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Panel Rule",
+        "body": "Use color contrast and spacing to establish depth; existing panels have no box shadows.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do inherit the pinned Figma Make world when extending the interface.",
+      "Do use locally hosted Bricolage for display type and system sans for Operate body text.",
+      "Do keep measured values legible, with tabular numerals in statistic panels and tables.",
+      "Do keep stock-photo attribution and visible simulated-data labels.",
+      "Do respect reduced-motion preferences."
+    ],
+    "donts": [
+      "Don't replace the established red, cream and lime world with a new identity.",
+      "Don't copy the source-reference portrait or commit the read-only reference export.",
+      "Don't invent hydration, missing timing or a live Strava connection.",
+      "Don't add decorative shadows to the flat panel system."
+    ]
+  }
+}

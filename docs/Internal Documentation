@@ -150,3 +150,55 @@ The main branch (marathon-management-system-softeng26/Marathon-Wrapped) serves a
 * Maintain ongoing traceability register in /docs following SRS V3 guidelines (Harry Analta).
 
 Week 3 successfully achieved the implementation of both the Figma-inspired 6-screen race recap frontend and the pure TypeScript statistics engine in /lib, fully aligned with SRS V3. The team is on schedule to deliver Sprint 1 milestones and prepare for Week 16 final presentation and deliverables.
+
+# Week 5 — Internal Documentation & Technical Progress
+
+**Documentation Owner:** Harry Analta | **Technical Lead:** Embun Kahuripan (`kahur2005`) | **Database Lead:** Rakhansyah (`RKNSYAH`) | **Project Manager:** Marbella Elpantja (`bellamarbellaa`)
+
+**Context:** Capstone Project — Software Engineering 2026/2027 (Sampoerna University × University of Arizona)
+
+  <p>Click the button below to copy the exact Markdown code. The table has been removed, and the requirement tracking (SR/UR IDs) has been integrated directly into the bullet points!</p>
+  
+  <textarea id="markdown-content" spellcheck="false" readonly>
+# Week 5 — Internal Documentation & Technical Progress
+
+**Documentation Owner:** Harry Analta | **Technical Lead:** Embun Kahuripan (`kahur2005`) | **Database Lead:** Rakhansyah (`RKNSYAH`) | **Project Manager:** Marbella Elpantja (`bellamarbellaa`)
+
+**Context:** Capstone Project — Software Engineering 2026/2027 (Sampoerna University × University of Arizona)
+
+**Week 5:** Monday, 19 October – Thursday, 22 October 2026
+
+**Sprint Phase:** Sprint 2 — Polishing & Integration
+
+**Specification Baseline:** SRS V3
+
+---
+
+### 1. Key Progress & Repository Activity (Oct 19–20, 2026)
+
+During Week 5, the team achieved a major project milestone by transitioning from isolated static UI components into a fully integrated, protected, Supabase-backed web application.
+
+#### Major Commits & Deliverables
+
+* **Database Migrations & Chip Input Retrieval (`c899255`, `f957aec`):** Rakhansyah (`RKNSYAH`) — Updated Supabase SQL migrations, refreshed schema documentation, and implemented database-level chip input retrieval queries connecting runner profiles to timing results. *(Satisfies SR-F1, SR-F4)*
+
+* **Protected Supabase-Backed Wrapped Core (`b869f56`):** Embun Kahuripan (`kahur2005`) — Built the core data engine connecting live Supabase database tables directly to frontend Wrapped cards. *(Satisfies SR-F1, SR-F16, SR-F17)*
+
+* **Atomic Organizer Management & Demo Photos (`4dbe636`):** Embun Kahuripan (`kahur2005`) — Implemented atomic database transactions for organizer demo runner updates and added BIB-matched photo association pipelines for FotoYu race photos. *(Satisfies SR-F13, SR-F14, SR-F21)*
+
+* **Authenticated Recap & Organizer UI Connection (`cf49630`):** Embun Kahuripan (`kahur2005`) — Connected authenticated recap routes and organizer management views, keeping administrative actions isolated from runner recap experiences. *(Satisfies SR-F20, SR-NF14)*
+
+* **Brand Logo Assets Integration (`41c3421`):** Marbella Elpantja (`bellamarbellaa`) — Added official Soekarno Run 2027 logo vector and raster versions. *(Satisfies UR-D3)*
+
+* **Complete Organizer Enrichment & Verified UI (`94de9f6`):** Embun Kahuripan (`kahur2005`) — Completed atomic organizer hero-runner data enrichment and verified full end-to-end rendering on the race recap UI flow. *(Satisfies SR-F22, SR-F24, SR-NF19)*
+
+* **Anchor Recap Navigation Fix & Security Hygiene (`33a912f`):** Embun Kahuripan (`kahur2005`) — Fixed anchor-based card navigation controls and removed template environment secret files from public tracking for repository security compliance. *(Satisfies SR-NF13, SR-NF16)*
+
+* **Branch Merges & Integration Pull Requests (`e3bccf7`, `0c0457d`, `41fec2e`):** Marbella Elpantja / Embun Kahuripan — Merged PR #65 and PR #66 into the main branch, establishing a unified production candidate.
+
+### 2. Action Items & Next Steps
+
+* Conduct full Sprint 2 QA testing for live Supabase data fetching, missing photo fallbacks, and DNF runner recap rendering (Shan Gilbert).
+* Execute Strava V3 OAuth integration flow test scenarios (Embun Kahuripan).
+* Finalize hero runner seed profiles (3–5 complete runners) in production Supabase tables (Rakhansyah).
+* Maintain weekly working documentation and update requirement traceability matrices (Harry Analta).

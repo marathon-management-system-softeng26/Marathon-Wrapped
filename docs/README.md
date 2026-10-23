@@ -2,6 +2,9 @@
 
 ## Project documentation
 
+- [Core-first design](superpowers/specs/2026-10-20-core-first-design.md), [core implementation plan](superpowers/plans/2026-10-20-core-foundation.md), [delivery roadmap](superpowers/plans/2026-10-20-delivery-roadmap.md)
+- [Core verification evidence](qa/core-foundation.md) (database/Auth/API checks; full prototype acceptance remains pending)
+
 - [SRS V3](SRS_v3.md)
 - [Diagrams](diagrams/v3/README.md)
 - [Documentation conventions](DOCUMENTATION_GUIDELINES.md)
