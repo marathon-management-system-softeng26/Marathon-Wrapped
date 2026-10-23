@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .shoe-upper { fill: #FF0055; filter: drop-shadow(0px 10px 22px rgba(255, 0, 85, 0.45)); }
+      .shoe-trim { fill: #7000FF; }
+      .shoe-sole { fill: #CCFF00; }
+      .shoe-sole-dark { fill: #A0D600; }
+      .lace-white { fill: none; stroke: #FFFFFF; stroke-width: 4; stroke-linecap: round; }
+      .badge-era { fill: #00E5FF; stroke: #121212; stroke-width: 3.5; stroke-linejoin: round; }
+      .text-black { fill: #121212; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-white { fill: #FFFFFF; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-lime { fill: #CCFF00; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .speed-line { fill: none; stroke: #00E5FF; stroke-width: 5; stroke-linecap: round; }
+      .sparkle-lime { fill: #CCFF00; }
+      .star-white { fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <g id="in-my-running-era-sticker">
+    <!-- Speed Motion Trails (Back) -->
+    <path class="speed-line" d="M 60,310 Q 20,330 40,360" />
+    <path class="speed-line" d="M 90,340 Q 50,370 70,390" stroke-width="3" />
+    <path class="speed-line" d="M 120,370 Q 90,410 110,420" stroke-width="4" stroke="#FF0055" />
+
+    <!-- Dynamic Running Shoe (Angled Upward) -->
+    <g transform="translate(15, -20) rotate(-18, 250, 250)">
+      
+      <!-- Thick Neon Sole -->
+      <path class="shoe-sole" d="
+        M 90,340 
+        C 140,365 220,345 300,300 
+        C 360,265 435,215 460,175 
+        C 440,180 415,188 390,210 
+        C 320,270 230,325 150,335 
+        C 120,338 100,332 90,340 Z" />
+      
+      <path class="shoe-sole-dark" d="
+        M 90,340 
+        C 140,362 220,342 300,298 
+        C 360,263 435,213 460,173 
+        C 438,200 380,240 320,280 
+        C 230,335 150,340 90,340 Z" />
+
+      <!-- Heel Counter & Ankle Collar (Purple) -->
+      <path class="shoe-trim" d="M 320,110 C 330,80 360,65 370,85 C 380,105 420,150 420,150 L 320,150 Z" />
+      <path class="shoe-trim" d="M 345,92 C 340,70 355,65 360,75 C 365,85 355,92 345,92 Z" />
+
+      <!-- Main Shoe Upper (Hot Magenta Pink) -->
+      <path class="shoe-upper" d="
+        M 90,340 
+        C 130,305 185,230 215,130 
+        C 235,125 255,140 265,158 
+        C 290,195 325,105 370,85 
+        C 390,140 425,158 460,175 
+        C 430,215 350,265 290,300 
+        C 210,345 130,365 90,340 Z" />
+
+      <!-- Laces -->
+      <path class="lace-white" d="M 205,182 L 255,155 M 190,202 L 240,175 M 175,222 L 225,195 M 160,242 L 210,215" />
+      <path class="lace-white" d="M 215,130 C 195,100 175,120 200,145 C 210,155 215,130 215,130 Z" />
+
+      <!-- Side Accent Stripe (Neon Yellow Chevron) -->
+      <path d="M 260,220 L 320,175 L 340,190 L 280,240 Z" fill="#CCFF00" />
+    </g>
+
+    <!-- Overlay Badge: "IN MY RUNNING ERA" -->
+    <g transform="translate(195, 290) rotate(-6)">
+      <!-- Outer Shadow / Border Box -->
+      <rect x="-10" y="-10" width="280" height="110" rx="28" fill="#121212" />
+      <!-- Main Badge Box (Electric Cyan) -->
+      <rect class="badge-era" x="-10" y="-10" width="275" height="105" rx="25" />
+      
+      <!-- Text Lines -->
+      <text class="text-black" x="127" y="26" font-size="20" letter-spacing="3">IN MY</text>
+      <text class="text-black" x="127" y="65" font-size="38" letter-spacing="1">RUNNING</text>
+      <text class="text-white" x="127" y="86" font-size="20" letter-spacing="6">ERA</text>
+    </g>
+
+    <!-- Floating Pop Elements -->
+    <!-- Top Right Energy Lightning Bolt -->
+    <g transform="translate(385, 45) rotate(22) scale(1.3)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Lime Sparkle -->
+    <path class="sparkle-lime" d="M 80,110 Q 100,110 100,90 Q 100,110 120,110 Q 100,110 100,130 Q 100,110 80,110 Z" />
+
+    <!-- Floating Stars and Dots -->
+    <polygon class="star-white" transform="translate(430, 240) scale(0.9)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(50, 220) scale(0.7)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="445" cy="410" r="8" fill="#CCFF00" />
+    <circle cx="420" cy="430" r="5" fill="#00E5FF" />
+    <circle cx="70" cy="260" r="6" fill="#FF0055" />
+  </g>
+</svg>
