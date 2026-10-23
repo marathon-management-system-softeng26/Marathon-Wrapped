@@ -1,5 +1,5 @@
 # Marathon Wrapped diagrams
 
-See the [diagram index](v3/README.md) for all eight revised diagrams and editable sources.
+See [SRS V4 diagrams](v4/README.md) for the context, activity, main-requirement sequence, business process, and ERD v5 domain class diagrams, with editable PlantUML sources and SVG/PNG previews.
 
-The overview, class and use-case files in this folder mirror their V3 versions.
+See the [V3 diagram index](v3/README.md) for the eight earlier diagrams and editable sources. The overview, class and use-case files at this folder's root continue to mirror V3.

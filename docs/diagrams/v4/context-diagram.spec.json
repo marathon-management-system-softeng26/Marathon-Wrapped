@@ -1,0 +1,18 @@
+{
+  "title": "Marathon Wrapped \u2014 system context",
+  "output": "editable PlantUML and rendered SVG",
+  "audience": "Marathon Wrapped project team and course reviewers",
+  "source": "SRS V4; docs/erd-v5.png and docs/erd.md for domain classes",
+  "exact_source": "context-diagram.puml",
+  "constraints": [
+    "Preserve runner identity",
+    "Keep optional data optional",
+    "Do not resolve open decisions silently"
+  ],
+  "palette": [
+    "#BA3143",
+    "#FAF6EB",
+    "#D8F24B",
+    "#291B1D"
+  ]
+}

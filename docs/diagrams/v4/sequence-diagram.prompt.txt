@@ -1,0 +1,1 @@
+Render the adjacent PlantUML source exactly. Keep all labels, associations, multiplicities, decisions and notes. Use the embedded project palette. Source is authoritative: sequence-diagram.puml
