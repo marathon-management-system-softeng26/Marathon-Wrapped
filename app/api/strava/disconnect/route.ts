@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.redirect(new URL("/login", request.url))
     }
 
-    const accessToken = await getUserStravaAccessToken(user.id); // Implement this function to retrieve the user's Strava access token from your database
+    const accessToken = await getUserStravaAccessToken(user.id);
 
     if (!accessToken) {
       return NextResponse.json({ error: "No Strava access token found for user." }, { status: 400 });
