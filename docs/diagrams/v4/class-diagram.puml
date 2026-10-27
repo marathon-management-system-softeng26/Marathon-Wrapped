@@ -1,0 +1,112 @@
+@startuml
+skinparam backgroundColor #FAF6EB
+skinparam defaultFontName Helvetica
+skinparam defaultFontColor #291B1D
+skinparam shadowing false
+skinparam ArrowColor #BA3143
+skinparam activityBackgroundColor white
+skinparam activityBorderColor #BA3143
+skinparam activityDiamondBackgroundColor #D8F24B
+skinparam activityDiamondBorderColor #291B1D
+skinparam classBackgroundColor white
+skinparam classBorderColor #BA3143
+skinparam classAttributeIconSize 0
+skinparam sequenceParticipantBackgroundColor white
+skinparam sequenceParticipantBorderColor #BA3143
+skinparam sequenceLifeLineBorderColor #291B1D
+skinparam sequenceGroupBackgroundColor white
+skinparam sequenceGroupBorderColor #BA3143
+skinparam rectangleBackgroundColor white
+skinparam rectangleBorderColor #BA3143
+skinparam noteBackgroundColor #FFFDF6
+skinparam noteBorderColor #BA3143
+title Domain class diagram — based on ERD v5
+hide empty methods
+top to bottom direction
+class Event <<events>> {
+  {field} id: bigint
+  {field} name: text
+  {field} event_date: date
+  {field} location: text
+  {field} created_at: timestamptz
+}
+class Category <<categories>> {
+  {field} id: bigint
+  {field} event_id: bigint
+  {field} name: text
+  {field} distance_km: numeric(5,2)
+  {field} min_age: int
+}
+class Runner <<runners>> {
+  {field} id: uuid
+  {field} category_id: bigint
+  {field} bib_number: text {unique}
+  {field} name: text
+  {field} date_of_birth: date
+  {field} gender: text (M/F)
+  {field} id_type: text
+  {field} id_number: text
+  {field} email: text
+  {field} phone: text
+  {field} jersey_size: text
+  {field} parental_consent: boolean
+  {field} created_at: timestamptz
+}
+class ChipResult <<chip_results>> {
+  {field} id: uuid
+  {field} runner_id: uuid {unique}
+  {field} start_time: timestamptz
+  {field} finish_time: timestamptz
+  {field} elapsed_seconds: int
+  {field} avg_pace_sec_km: numeric(6,2)
+  {field} category_rank: int
+  {field} overall_rank: int
+  {field} start_status: text
+  {field} finisher: boolean
+}
+class ChipSplit <<chip_splits>> {
+  {field} id: uuid
+  {field} runner_id: uuid
+  {field} km_marker: int
+  {field} split_seconds: numeric(6,2)
+}
+class StravaMetrics <<strava_metrics>> {
+  {field} id: uuid
+  {field} runner_id: uuid {unique}
+  {field} avg_heartrate: int
+  {field} max_heartrate: int
+  {field} elevation_gain_m: numeric(7,2)
+  {field} calories: int
+  {field} avg_cadence: int
+  {field} connected_at: timestamptz
+}
+class FotoYuPhoto <<fotoyu_photos>> {
+  {field} id: uuid
+  {field} bib_number: text
+  {field} photo_url: text
+  {field} photographer: text
+  {field} captured_km: int
+  {field} captured_at: timestamptz
+}
+Event "1" -- "1..*" Category : contains
+Category "1" -- "1..*" Runner : groups
+Runner "1" -- "1" ChipResult : has result
+Runner "1" -- "1..*" ChipSplit : has recorded splits
+Runner "1" -- "0..1" StravaMetrics : optional enrichment
+Runner "1" -- "0..*" FotoYuPhoto : matched by bib_number
+ChipResult -[hidden]right- ChipSplit
+ChipSplit -[hidden]right- StravaMetrics
+StravaMetrics -[hidden]right- FotoYuPhoto
+note bottom of Runner
+  Attributes and associations follow the ERD v5 image.
+  One result / multiple splits express its started-runner model.
+  ERD notes exclude DNS; lifecycle inconsistency remains OD-01.
+  Physical schema permits zero results and zero splits.
+end note
+legend bottom
+Seven domain classes mapped from the seven ERD v5 entities.
+Plain UML associations; no unsupported inheritance or composition.
+1..* preserves ERD v5's many-side model; current database allows empty parent groups.
+No invented service methods or new database entities are added.
+endlegend
+@enduml

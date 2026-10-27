@@ -1,0 +1,1 @@
+Rendered successfully with PlantUML to SVG and PNG. Inspected labels, arrows, branches, lane assignments, and visible clipping. Class model checked against the ERD v5 image; main sequence checked against FR-01 and related recap requirements. Open policy decisions remain annotated in SRS V4. No unresolved rendering defects observed.

@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .skin-tone { fill: #FFB380; }
+      .hair-dark { fill: #2B0914; }
+      
+      .top-pink { fill: #FF0055; filter: drop-shadow(0px 8px 18px rgba(255, 0, 85, 0.45)); }
+      .shorts-purple { fill: #7000FF; }
+      
+      .headphone-pink { fill: #FF0055; stroke: #121212; stroke-width: 3.5; stroke-linejoin: round; }
+      .headphone-cyan { fill: #00E5FF; stroke: #121212; stroke-width: 3; }
+      .headphone-band { fill: #121212; stroke: #CCFF00; stroke-width: 3.5; }
+      
+      .shoe-body { fill: #00E5FF; stroke: #121212; stroke-width: 2.5; }
+      .shoe-sole { fill: #CCFF00; stroke: #121212; stroke-width: 2.5; }
+      
+      .music-note { fill: #CCFF00; stroke: #121212; stroke-width: 2; filter: drop-shadow(0px 0px 8px rgba(204, 255, 0, 0.8)); }
+      .sound-wave { fill: none; stroke: #00E5FF; stroke-width: 4; stroke-linecap: round; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .sparkle-cyan { fill: #00E5FF; }
+      .star-white { fill: #FFFFFF; }
+      
+      .speed-line { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="front-runner-music-sticker">
+    <!-- Soundwaves & Music Notes Floating Around Head -->
+    <!-- Left Soundwaves -->
+    <path class="sound-wave" d="M 120,130 C 100,145 100,175 120,190" />
+    <path class="sound-wave" d="M 100,115 C 75,140 75,195 100,215" stroke-width="3" stroke="#FF0055" />
+
+    <!-- Right Soundwaves -->
+    <path class="sound-wave" d="M 380,130 C 400,145 400,175 380,190" />
+    <path class="sound-wave" d="M 400,115 C 425,140 425,195 400,215" stroke-width="3" stroke="#FF0055" />
+
+    <!-- Music Notes Pops -->
+    <!-- Left Note -->
+    <g transform="translate(80, 80) rotate(-15) scale(1.2)">
+      <path class="music-note" d="M 10,15 L 25,10 L 25,25 C 25,28 22,30 18,30 C 14,30 12,28 12,25 C 12,22 14,20 18,20 L 22,20 L 22,14 L 12,17 L 12,30 C 12,33 9,35 5,35 C 1,35 -1,33 -1,30 C -1,27 1,25 5,25 L 10,25 Z" />
+    </g>
+    <!-- Right Note -->
+    <g transform="translate(380, 70) rotate(15) scale(1.3)">
+      <path class="music-note" d="M 10,15 L 25,10 L 25,25 C 25,28 22,30 18,30 C 14,30 12,28 12,25 C 12,22 14,20 18,20 L 22,20 L 22,14 L 12,17 L 12,30 C 12,33 9,35 5,35 C 1,35 -1,33 -1,30 C -1,27 1,25 5,25 L 10,25 Z" />
+    </g>
+
+    <!-- Front-Facing Runner Group -->
+    <g transform="translate(0, 10)">
+      
+      <!-- Back Leg (Left Leg Stride Behind) -->
+      <path class="skin-tone" d="M 220,320 L 190,410 L 220,425 L 240,330 Z" />
+      <path class="shoe-body" d="M 180,410 L 160,440 C 170,450 200,450 210,435 L 210,410 Z" />
+      <path class="shoe-sole" d="M 155,440 C 170,455 200,455 215,438 L 210,430 C 198,445 170,445 160,435 Z" />
+
+      <!-- Front Leg (Right Leg Striving Forward directly toward viewer) -->
+      <path class="skin-tone" d="M 260,320 L 290,400 L 325,390 L 285,315 Z" />
+      <path class="shoe-body" d="M 280,390 L 275,445 C 290,460 335,460 345,435 L 325,385 Z" />
+      <path class="shoe-sole" d="M 270,445 C 290,465 335,465 350,438 L 342,430 C 330,452 290,452 278,438 Z" />
+
+      <!-- Purple Running Shorts -->
+      <path class="shorts-purple" d="
+        M 200,280 
+        C 230,270 270,270 300,280 
+        L 320,335 
+        C 285,345 275,345 250,335 
+        C 225,345 215,345 180,335 Z" />
+
+      <!-- Torso (Hot Pink Tank Top Front) -->
+      <path class="top-pink" d="
+        M 215,180 
+        C 235,175 265,175 285,180 
+        L 300,285 
+        C 270,295 230,295 200,285 Z" />
+
+      <!-- Left Arm (Bent at 90deg Pumping Forward) -->
+      <path class="skin-tone" d="M 215,185 L 165,225 L 180,245 L 220,205 Z" />
+      <path class="skin-tone" d="M 165,225 L 195,275 C 205,280 215,270 208,260 L 180,245 Z" />
+
+      <!-- Right Arm (Bent at 90deg Pumping Back) -->
+      <path class="skin-tone" d="M 285,185 L 335,225 L 320,245 L 280,205 Z" />
+      <path class="skin-tone" d="M 335,225 L 305,275 C 295,280 285,270 292,260 L 320,245 Z" />
+
+      <!-- Smartwatch on Left Wrist -->
+      <rect x="180" y="245" width="18" height="14" rx="4" fill="#CCFF00" stroke="#121212" stroke-width="2" transform="rotate(-25, 180, 245)" />
+
+      <!-- Head & Face Facing Front -->
+      <!-- Neck -->
+      <path class="skin-tone" d="M 235,160 L 265,160 L 265,185 L 235,185 Z" />
+      
+      <!-- Face Circle -->
+      <circle cx="250" cy="130" r="32" class="skin-tone" />
+
+      <!-- Windblown Hair -->
+      <path class="hair-dark" d="
+        M 218,120 
+        C 210,90 235,80 250,80 
+        C 265,80 290,90 282,120 
+        C 275,100 260,92 250,92 
+        C 240,92 225,100 218,120 Z" />
+
+      <!-- Front Cool Visor/Sunglasses (Electric Cyan Reflection) -->
+      <path d="M 220,120 C 235,112 265,112 280,120 L 278,136 C 260,144 240,144 222,136 Z" fill="#00E5FF" stroke="#121212" stroke-width="2.5" />
+      <!-- Reflection Slash -->
+      <path d="M 230,120 L 245,118 L 240,138 L 228,135 Z" fill="#CCFF00" opacity="0.8" />
+
+      <!-- Vibrant Sport Headphones Over Ears -->
+      <!-- Headphone Band Over Top -->
+      <path class="headphone-band" d="M 215,130 C 210,90 290,90 285,130" fill="none" />
+      <!-- Left Ear Cup -->
+      <rect class="headphone-pink" x="202" y="120" width="18" height="32" rx="9" />
+      <rect class="headphone-cyan" x="206" y="125" width="10" height="22" rx="5" />
+      <!-- Right Ear Cup -->
+      <rect class="headphone-pink" x="280" y="120" width="18" height="32" rx="9" />
+      <rect class="headphone-cyan" x="284" y="125" width="10" height="22" rx="5" />
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(390, 45) rotate(22) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Pink Sparkle -->
+    <path class="sparkle-pink" d="M 60,360 Q 80,360 80,340 Q 80,360 100,360 Q 80,360 80,380 Q 80,360 60,360 Z" />
+
+    <!-- Floating Sparkle Stars & Dots -->
+    <polygon class="star-white" transform="translate(425, 230) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(60, 220) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="445" cy="370" r="9" fill="#CCFF00" />
+    <circle cx="420" cy="400" r="5" fill="#00E5FF" />
+    <circle cx="90" cy="410" r="6" fill="#FF0055" />
+  </g>
+</svg>

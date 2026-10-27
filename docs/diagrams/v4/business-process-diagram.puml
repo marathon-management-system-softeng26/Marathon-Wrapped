@@ -1,0 +1,82 @@
+@startuml
+skinparam backgroundColor #FAF6EB
+skinparam defaultFontName Helvetica
+skinparam defaultFontColor #291B1D
+skinparam shadowing false
+skinparam ArrowColor #BA3143
+skinparam activityBackgroundColor white
+skinparam activityBorderColor #BA3143
+skinparam activityDiamondBackgroundColor #D8F24B
+skinparam activityDiamondBorderColor #291B1D
+skinparam classBackgroundColor white
+skinparam classBorderColor #BA3143
+skinparam classAttributeIconSize 0
+skinparam sequenceParticipantBackgroundColor white
+skinparam sequenceParticipantBorderColor #BA3143
+skinparam sequenceLifeLineBorderColor #291B1D
+skinparam sequenceGroupBackgroundColor white
+skinparam sequenceGroupBorderColor #BA3143
+skinparam rectangleBackgroundColor white
+skinparam rectangleBorderColor #BA3143
+skinparam noteBackgroundColor #FFFDF6
+skinparam noteBorderColor #BA3143
+title Marathon Wrapped — business process
+|Event organizer|
+start
+:Prepare sample event and categories\nSoekarno Run 2027 — 5K and 10K;
+:Create or update demo runners,\nresults, splits and optional data;
+|Marathon Wrapped|
+:Validate BIB uniqueness and linked records;
+while (Save rejected?) is (yes)
+  :Explain rejection\nAllow correction;
+  |Event organizer|
+  :Correct demonstration data;
+  |Marathon Wrapped|
+  :Validate corrected data;
+endwhile (no)
+:Persist demonstration data\nConfirm successful save;
+|Event organizer|
+:Review event results and demo readiness;
+|Runner|
+:Select a runner / BIB;
+|Marathon Wrapped|
+if (Usable result available?) then (yes)
+  :Provide accurate baseline recap\nShow known DNF without finish values;
+else (no)
+  :Explain result unavailable\nOffer retry or runner selection;
+  stop
+endif
+|Runner|
+if (Want additional Strava detail?) then (yes)
+  :Choose connection and authorization;
+  |Strava service|
+  :Return authorization outcome\nand available metrics or failure;
+  |Marathon Wrapped|
+  :Include available authorized metrics\nRetain baseline when unavailable;
+else (no)
+endif
+|Marathon Wrapped|
+:Present matched photos or no-photo state;
+|Runner|
+:Review personal race recap;
+if (Want a saved / shareable image?) then (yes)
+  |Marathon Wrapped|
+  :Attempt image export;
+  if (Export succeeds?) then (yes)
+    |Runner|
+    :Save image; optionally share it;
+  else (no)
+    |Marathon Wrapped|
+    :Show error and recovery action\nPreserve recap and results;
+  endif
+else (no)
+endif
+|Runner|
+stop
+legend bottom
+Business process expressed as a UML activity with responsibility lanes;
+not a BPMN 2.0 conformance claim. FR-01–FR-18, NFR-09.
+Timing and photo collection are simulated. No registration or payment workflow.
+Organizer preparation precedes runner use; no organizer approval per recap.
+endlegend
+@enduml
