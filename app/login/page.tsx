@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 export default function Login() {
   const [error, setError] = useState(""),
@@ -74,9 +75,16 @@ export default function Login() {
           <button disabled={busy} type="submit">
             {busy ? "Signing in…" : "Find my race"}
           </button>
-          <p className="help">
-            Demo access is provided by the organizer. Synthetic race data is
-            clearly marked throughout the recap.
+          <button
+            className="auth-text-button"
+            disabled
+            title="Password recovery is not configured yet."
+            type="button"
+          >
+            Forgot Password?
+          </button>
+          <p className="auth-switch">
+            New here? <Link href="/register">Create account</Link>
           </p>
         </form>
       </section>
