@@ -1,278 +1,644 @@
-import "server-only"
+import "server-only";
+import crypto from "node:crypto";
 import { getSupabaseAdmin } from "../supabaseServer";
-import crypto from "crypto";
+import { stravaRpc } from "./store";
 
-export type StravaTokens = {
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: number;
-    athleteId: string;
-    scopes: string[];
+export type StravaCredentials = {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+};
+
+export type StravaTokens = StravaCredentials & {
+  athleteId: string;
+  scopes: string[];
 };
 
 export type StravaActivity = {
-    id: string;
-    sportType: string;
-    startDate: string;
-    distanceMeters: number;
-    startLatLng: [latitude: number, longitude: number] | null;
-    polyline: string | null;
+  id: string;
+  athleteId: string;
+  sportType: string;
+  startDate: string;
+  distanceMeters: number;
+  startLatLng: [number, number] | null;
+  polyline: string | null;
 };
 
-/*
- * pseudocode:
- * Caller first verifies the app user and stores a random, short-lived OAuth
- * state bound to that user. This helper only builds the authorization URL.
- *
- * require STRAVA_CLIENT_ID and a nonempty state
- * require callbackUrl to match the configured, trusted callback URL
- * create URL("https://www.strava.com/oauth/authorize")
- * set query parameters using URLSearchParams:
- *     client_id = STRAVA_CLIENT_ID
- *     response_type = "code"
- *     redirect_uri = callbackUrl
- *     scope = "activity:read_all"
- *     approval_prompt = "force"
- *     state = supplied state
- * return the URL string for the connect endpoint to redirect to
- *
- * Never put the client secret or user tokens into this URL.
- * Docs: https://developers.strava.com/docs/authentication/#requesting-access
- */
-export function createStravaAuthorizationUrl(callbackUrl: string, state: string): string | undefined {
-    
-    const clientId = process.env.STRAVA_CLIENT_ID;
-    const params = new URLSearchParams({
-        client_id: clientId!,
-        response_type: "code",
-        redirect_uri: callbackUrl.toString(),
-        approval_prompt: "force",
-        scope: "activity:read_all",
-        state: state,
+export type StravaConnection = {
+  user_id: string;
+  athlete_id: string | null;
+  status: "active" | "reauth_required" | "disconnecting" | "disconnected";
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: string | null;
+  generation: string;
+  operation_id: string | null;
+  granted_scopes: string[];
+  credentials_uncertain: boolean;
+};
+
+export class StravaError extends Error {
+  constructor(
+    public readonly code: string,
+    public readonly status = 503,
+    public readonly retryAfter?: number,
+  ) {
+    super(`Strava: ${code}.`);
+  }
+}
+
+function required(name: string): string {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new StravaError("not_configured");
+  }
+
+  return value;
+}
+
+export function stravaCallbackUrl(): URL {
+  let url: URL;
+
+  try {
+    url = new URL(required("STRAVA_CALLBACK_URL"));
+  } catch {
+    throw new StravaError("not_configured");
+  }
+
+  const local =
+    ["localhost", "127.0.0.1"].includes(url.hostname) &&
+    process.env.NODE_ENV !== "production";
+
+  if (
+    (url.protocol !== "https:" && !(local && url.protocol === "http:")) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/api/strava/callback" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new StravaError("not_configured");
+  }
+
+  return url;
+}
+
+export function validateStravaConfiguration() {
+  required("STRAVA_CLIENT_ID");
+  required("STRAVA_CLIENT_SECRET");
+  encryptionKey();
+
+  return stravaCallbackUrl();
+}
+
+export function createStravaAuthorizationUrl(
+  callbackUrl: string,
+  state: string,
+): string {
+  if (callbackUrl !== stravaCallbackUrl().href || !/^[a-f0-9]{64}$/.test(state)) {
+    throw new StravaError("invalid_oauth_request", 400);
+  }
+
+  const url = new URL("https://www.strava.com/oauth/authorize");
+
+  url.search = new URLSearchParams({
+    client_id: required("STRAVA_CLIENT_ID"),
+    response_type: "code",
+    redirect_uri: callbackUrl,
+    scope: "activity:read_all",
+    approval_prompt: "force",
+    state,
+  }).toString();
+
+  return url.href;
+}
+
+export function stravaId(value: unknown): string {
+  if (typeof value === "number" && (!Number.isSafeInteger(value) || value <= 0)) {
+    throw new StravaError("invalid_id", 400);
+  }
+
+  if (
+    (typeof value !== "string" && typeof value !== "number") ||
+    !/^[1-9]\d{0,18}$/.test(String(value))
+  ) {
+    throw new StravaError("invalid_id", 400);
+  }
+
+  return String(value);
+}
+
+function record(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function token(value: unknown): string {
+  if (
+    typeof value !== "string" ||
+    !/^[\x21-\x7e]+$/.test(value) ||
+    value.length > 8192
+  ) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return value;
+}
+
+function credentials(value: unknown): StravaCredentials {
+  const data = record(value);
+
+  if (
+    !Number.isSafeInteger(data.expires_at) ||
+    Number(data.expires_at) <= Date.now() / 1000 ||
+    Number(data.expires_at) > 8640000000000
+  ) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return {
+    accessToken: token(data.access_token),
+    refreshToken: token(data.refresh_token),
+    expiresAt: Number(data.expires_at),
+  };
+}
+
+async function providerRequest(
+  path: string,
+  init: RequestInit = {},
+  json = true,
+): Promise<unknown> {
+  let response: Response;
+
+  try {
+    response = await fetch(`https://www.strava.com${path}`, {
+      ...init,
+      cache: "no-store",
+      redirect: "error",
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch {
+    throw new StravaError("provider_unavailable");
+  }
+
+  if (!response.ok) {
+    if (response.status === 429) {
+      const retry = response.headers.get("retry-after");
+      const seconds =
+        retry && /^\d+$/.test(retry)
+          ? Number(retry)
+          : retry
+            ? (Date.parse(retry) - Date.now()) / 1000
+            : 0;
+
+      // Strava daily budget limit check
+      const daily = ["", "read-"].some((prefix) => {
+        const limit = response.headers
+          .get(`x-${prefix}ratelimit-limit`)
+          ?.split(",")
+          .map(Number);
+        const usage = response.headers
+          .get(`x-${prefix}ratelimit-usage`)
+          ?.split(",")
+          .map(Number);
+
+        return limit?.length === 2 && usage?.length === 2 && usage[1] >= limit[1];
+      });
+      const reset = daily
+        ? 86400 - (Math.floor(Date.now() / 1000) % 86400)
+        : 900 - (Math.floor(Date.now() / 1000) % 900);
+
+      throw new StravaError(
+        "rate_limited",
+        503,
+        Math.min(
+          86400,
+          Math.max(1, reset, Number.isFinite(seconds) ? Math.ceil(seconds) : 0),
+        ),
+      );
+    }
+
+    if (response.status === 401) {
+      throw new StravaError(
+        path.startsWith("/oauth/") ? "invalid_client_credentials" : "reauth_required",
+        path.startsWith("/oauth/") ? 503 : 409,
+      );
+    }
+
+    if (response.status === 403) {
+      throw new StravaError("forbidden", 403);
+    }
+
+    if (response.status === 404) {
+      throw new StravaError("not_found", 404);
+    }
+
+    if (response.status >= 500) {
+      throw new StravaError("provider_unavailable");
+    }
+
+    if (path === "/oauth/token" && response.status === 400) {
+      const body = await response.json().catch(() => null);
+      const invalidRefresh =
+        body &&
+        Array.isArray(body.errors) &&
+        body.errors.some(
+          (error: Record<string, unknown> | null) =>
+            error && error.resource === "RefreshToken" && error.code === "invalid",
+        );
+
+      if (invalidRefresh) {
+        throw new StravaError("authorization_revoked", 409);
+      }
+    }
+
+    throw new StravaError("provider_rejected", 422);
+  }
+
+  if (!json) {
+    return null;
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    throw new StravaError("invalid_provider_response");
+  }
+}
+
+async function tokenRequest(params: Record<string, string>) {
+  return providerRequest("/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: required("STRAVA_CLIENT_ID"),
+      client_secret: required("STRAVA_CLIENT_SECRET"),
+      ...params,
+    }),
+  });
+}
+
+export async function exchangeAuthorizationCode(
+  code: string,
+  scopes: string[],
+): Promise<StravaTokens> {
+  if (!code.trim() || code.length > 2048 || !scopes.includes("activity:read_all")) {
+    throw new StravaError("insufficient_scope", 400);
+  }
+
+  const data = record(await tokenRequest({ code, grant_type: "authorization_code" }));
+
+  return {
+    ...credentials(data),
+    athleteId: stravaId(record(data.athlete).id),
+    scopes: [...new Set(scopes)],
+  };
+}
+
+export async function refreshStravaTokens(
+  refreshToken: string,
+): Promise<StravaCredentials> {
+  return credentials(
+    await tokenRequest({
+      refresh_token: token(refreshToken),
+      grant_type: "refresh_token",
+    }),
+  );
+}
+
+function encryptionKey() {
+  const key = required("STRAVA_ENCRYPTION_KEY");
+
+  if (!/^[a-f0-9]{64}$/i.test(key)) {
+    throw new StravaError("invalid_encryption_key");
+  }
+
+  return Buffer.from(key, "hex");
+}
+
+export async function encryptToken(value: string): Promise<string> {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", encryptionKey(), iv);
+
+  return (
+    cipher.update(token(value), "utf8", "hex") +
+    cipher.final("hex") +
+    cipher.getAuthTag().toString("hex") +
+    iv.toString("hex")
+  );
+}
+
+export async function decryptToken(value: string): Promise<string> {
+  if (!/^[a-f0-9]+$/i.test(value) || value.length <= 56 || value.length % 2) {
+    throw new StravaError("invalid_encrypted_token");
+  }
+
+  try {
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      encryptionKey(),
+      Buffer.from(value.slice(-24), "hex"),
+    );
+
+    decipher.setAuthTag(Buffer.from(value.slice(-56, -24), "hex"));
+
+    return decipher.update(value.slice(0, -56), "hex", "utf8") + decipher.final("utf8");
+  } catch {
+    throw new StravaError("invalid_encrypted_token");
+  }
+}
+
+async function encryptedCredentials(value: StravaCredentials) {
+  return {
+    access_token: await encryptToken(value.accessToken),
+    refresh_token: await encryptToken(value.refreshToken),
+    expires_at: new Date(value.expiresAt * 1000).toISOString(),
+  };
+}
+
+export async function saveStravaConnection(
+  userId: string,
+  tokens: StravaTokens,
+  stateHash: string,
+): Promise<string> {
+  if (!tokens.scopes.includes("activity:read_all")) {
+    throw new StravaError("insufficient_scope", 400);
+  }
+
+  return stravaRpc<string>("strava_finish_oauth", {
+    p_user: userId,
+    p_hash: stateHash,
+    p_outcome: "connected",
+    p_tokens: {
+      ...await encryptedCredentials(tokens),
+      athlete_id: stravaId(tokens.athleteId),
+      scopes: tokens.scopes,
+    },
+  });
+}
+
+export async function loadStravaConnection(
+  userId: string,
+): Promise<StravaConnection | null> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("strava_connections")
+    .select(
+      "user_id,athlete_id,status,access_token,refresh_token,expires_at,generation,operation_id,granted_scopes,credentials_uncertain",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error("Strava storage is temporarily unavailable.");
+  }
+
+  return data as StravaConnection | null;
+}
+
+export async function getUserStravaAccessToken(
+  userId: string,
+  forceRefresh = false,
+): Promise<string | null> {
+  const connection = await loadStravaConnection(userId);
+
+  if (!connection || ["disconnected", "disconnecting"].includes(connection.status)) {
+    return null;
+  }
+
+  if (connection.status !== "active") {
+    throw new StravaError("reauth_required", 409);
+  }
+
+  if (
+    !forceRefresh &&
+    connection.expires_at &&
+    Date.parse(connection.expires_at) > Date.now() + 60000 &&
+    connection.access_token
+  ) {
+    return decryptToken(connection.access_token);
+  }
+
+  const claimed = await stravaRpc<(StravaConnection & { busy?: boolean }) | null>(
+    "strava_claim_credentials",
+    { p_user: userId, p_kind: "refresh" },
+  );
+
+  if (claimed?.busy) {
+    throw new StravaError("connection_busy", 409, 3);
+  }
+
+  if (!claimed) {
+    throw new StravaError("reauth_required", 409);
+  }
+
+  let refreshed: StravaCredentials;
+
+  try {
+    if (
+      !forceRefresh &&
+      claimed.expires_at &&
+      Date.parse(claimed.expires_at) > Date.now() + 60000 &&
+      claimed.access_token
+    ) {
+      const active = await stravaRpc<boolean>("strava_finish_refresh", {
+        p_user: userId,
+        p_operation: claimed.operation_id,
+        p_generation: claimed.generation,
+      });
+
+      return active ? decryptToken(claimed.access_token) : null;
+    }
+
+    if (!claimed.refresh_token) {
+      throw new StravaError("reauth_required", 409);
+    }
+
+    refreshed = await refreshStravaTokens(await decryptToken(claimed.refresh_token));
+  } catch (error) {
+    const safeRetry = error instanceof StravaError && error.retryAfter !== undefined;
+    const uncertain =
+      error instanceof StravaError &&
+      ["provider_unavailable", "invalid_provider_response", "invalid_encrypted_token"].includes(
+        error.code,
+      );
+
+    await stravaRpc("strava_finish_refresh", {
+      p_user: userId,
+      p_operation: claimed.operation_id,
+      p_generation: claimed.generation,
+      p_reauth: !safeRetry,
+      p_uncertain: uncertain,
     });
 
-    const oauth_uri = `http://www.strava.com/oauth/authorize?${params}`;
-    return oauth_uri;
+    throw error;
+  }
+
+  // If storage fails, keep the operation fenced. Re-exchanging an old rotating token is unsafe.
+  const saved = await stravaRpc<boolean>("strava_finish_refresh", {
+    p_user: userId,
+    p_operation: claimed.operation_id,
+    p_generation: claimed.generation,
+    p_tokens: await encryptedCredentials(refreshed),
+  });
+
+  if (!saved) {
+    return null;
+  }
+
+  return refreshed.accessToken;
 }
 
-/*
- * pseudocode:
- * Callback first verifies the app user, consumes the matching OAuth state,
- * handles access_denied, and checks the scopes actually granted by the user.
- *
- * require a nonempty authorization code and server-side client credentials
- * POST form data to https://www.strava.com/oauth/token:
- *     client_id, client_secret, code, grant_type = "authorization_code"
- * use a request timeout and reject non-success responses
- * validate access_token, refresh_token, expires_at, and athlete.id
- * normalize snake_case response fields into the StravaTokens shape
- * use the actual granted scopes, never assume all requested scopes were granted
- * return tokens to the backend callback, not to the browser
- *
- * contract: the callback may need to pass its granted scopes here, or merge
- * them into the result before saveStravaConnection; code alone cannot supply
- * callback query parameters. Do not blindly retry a consumed, single-use code.
- * Docs: https://developers.strava.com/docs/authentication/#token-exchange
- */
-export async function exchangeAuthorizationCode(
-    code: string,
-): Promise<StravaTokens | undefined> { }
+function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
+  const data = record(value);
+  const owner = stravaId(record(data.athlete).id);
 
-/*
- * pseudocode:
- * require a nonempty refresh token and server-side client credentials
- * POST form data to https://www.strava.com/oauth/token:
- *     client_id, client_secret, refresh_token, grant_type = "refresh_token"
- * use a request timeout and validate the response status and token fields
- * if authorization is revoked or the refresh token is invalid:
- *     report that the connection needs authorization again
- * if rate-limited or temporarily unavailable:
- *     surface a retryable failure without deleting the stored connection
- * return the returned access token, refresh token, and expiry together
- *
- * contract: refresh responses do not provide athlete identity or scopes.
- * Narrow the return type to refreshed credentials when implementing; the caller
- * must preserve athleteId and scopes from the existing connection.
- * Docs: https://developers.strava.com/docs/authentication/#refreshing-expired-access-tokens
- */
-export async function refreshStravaTokens(
-    refreshToken: string,
-): Promise<StravaTokens | undefined> { }
+  if (athleteId && owner !== athleteId) {
+    throw new StravaError("athlete_mismatch", 403);
+  }
 
-/*
- * pseudocode:
- * require userId from verified app authentication, not a browser-supplied ID
- * validate athlete ID, token fields, expiry, and the required granted scopes
- * reject an athlete already linked to another app user
- * encrypt accessToken and refreshToken with a server-held encryption key
- * atomically save the connection keyed by user_id:
- *     athlete_id, encrypted tokens, expires_at, granted_scopes
- * use a database uniqueness constraint to prevent concurrent duplicate links
- * fail the callback if persistence fails; do not claim the account is connected
- *
- * Keep tokens out of profile responses, logs, and Wrapped payloads. Backend-only
- * table grants/RLS protect the row; the encryption key stays outside the database.
- */
-export async function saveStravaConnection(
-    userId: string,
-    tokens: StravaTokens,
-): Promise<void> { }
+  if (
+    typeof data.sport_type !== "string" ||
+    !data.sport_type ||
+    typeof data.start_date !== "string" ||
+    !/(Z|[+-]\d{2}:\d{2})$/.test(data.start_date) ||
+    !Number.isFinite(Date.parse(data.start_date)) ||
+    typeof data.distance !== "number" ||
+    !Number.isFinite(data.distance) ||
+    data.distance < 0
+  ) {
+    throw new StravaError("invalid_provider_response");
+  }
 
-export async function encryptToken(token: string): Promise<string> {
-    const encryptionKey = process.env.STRAVA_ENCRYPTION_KEY;
-    if (!encryptionKey) {
-        throw new Error("Encryption key is not set.");
+  let start: [number, number] | null = null;
+
+  if (
+    data.start_latlng !== null &&
+    data.start_latlng !== undefined &&
+    !(Array.isArray(data.start_latlng) && !data.start_latlng.length)
+  ) {
+    const coords = data.start_latlng;
+
+    if (
+      !Array.isArray(coords) ||
+      coords.length !== 2 ||
+      !coords.every((n) => typeof n === "number" && Number.isFinite(n)) ||
+      Math.abs(coords[0]) > 90 ||
+      Math.abs(coords[1]) > 180
+    ) {
+      throw new StravaError("invalid_provider_response");
     }
 
-    const iv = crypto.randomBytes(12)
-    const cipher = crypto.createCipheriv("aes-256-gcm", Buffer.from(encryptionKey, "hex"), iv)
+    start = coords as [number, number];
+  }
 
-    const encrypted = cipher.update(token, "utf8", "hex") + cipher.final("hex")
-    const authTag = cipher.getAuthTag().toString("hex")
-    return encrypted + authTag + iv.toString("hex");
+  const map = data.map ? record(data.map) : {};
+  const polyline = [map.polyline, map.summary_polyline].find(
+    (v) => typeof v === "string" && v.length > 0,
+  );
+
+  if (typeof polyline === "string" && polyline.length > 1000000) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return {
+    id: stravaId(data.id),
+    athleteId: owner,
+    sportType: data.sport_type,
+    startDate: new Date(data.start_date).toISOString(),
+    distanceMeters: data.distance,
+    startLatLng: start,
+    polyline: typeof polyline === "string" ? polyline : null,
+  };
 }
 
-export async function decryptToken(encryptedToken: string): Promise<string> {
-    const encryptionKey = process.env.STRAVA_ENCRYPTION_KEY;
-    if (!encryptionKey) {
-        throw new Error("Encryption key is not set.");
-    }
-
-    const authTag = Buffer.from(encryptedToken.slice(-56, -24), "hex")
-    const iv = Buffer.from(encryptedToken.slice(-24), "hex")
-    const encrypted = encryptedToken.slice(0, -56)
-    
-    const decipher = crypto.createDecipheriv("aes-256-gcm", Buffer.from(encryptionKey, "hex"), iv)
-    decipher.setAuthTag(authTag)
-
-    return decipher.update(encrypted, "hex", "utf8") + decipher.final("utf8")
-    
-}
-
-/*
- * pseudocode:
- * load the server-only connection for the supplied, authorized userId
- * if no active connection exists:
- *     return null so the caller can report Strava disconnected
- * compare expires_at (Unix seconds) against current time plus a safety margin
- * if the access token is still valid:
- *     decrypt and return it
- * otherwise coordinate refreshes for this connection and re-read its latest row
- * if another request already refreshed it:
- *     return that saved access token
- * refresh using the latest decrypted refresh token
- * atomically persist the returned token pair and expiry, preserving athlete/scopes
- * return the new access token only after persistence succeeds
- * if authorization is revoked:
- *     mark the connection disconnected and report reauthorization is required
- * if storage, rate limits, or networking fail:
- *     surface an error rather than pretending the user has no connection
- *
- */
-export async function getUserStravaAccessToken(
-    userId: string,
-): Promise<string | null | undefined> {
-    
-    const {data: connection, error} = await getSupabaseAdmin().from("strava_connections")
-    .select("access_token, expires_at, refresh_token").eq("user_id", userId).maybeSingle();
-    
-    if (error) {
-        throw new Error("Failed to fetch Strava connection.");
-    }
-    
-    if (!connection) {
-        return null; // No active connection
-    }
-
-    const currentTime = Math.floor(Date.now() / 1000);
-    const safetyMargin = 60; // seconds
-    if (connection.expires_at > currentTime + safetyMargin) {
-        return decryptToken(connection.access_token); // Token is still valid
-    }
-    
-    const refreshToken = await decryptToken(connection.refresh_token);
-    if (!refreshToken) {
-        throw new Error("Failed to decrypt Strava refresh token.");
-    }
-    const refreshedTokens = await refreshStravaTokens(connection.refresh_token);
-    if (!refreshedTokens) {
-        throw new Error("Failed to refresh Strava tokens.");
-    }
-
-    const { error: updateError } = await getSupabaseAdmin().from("strava_connections")
-        .update({
-            access_token: await encryptToken(refreshedTokens.accessToken),
-            refresh_token: await encryptToken(refreshedTokens.refreshToken),
-            expires_at: refreshedTokens.expiresAt,
-        })
-        .eq("user_id", userId);
-
-    if (updateError) {
-        throw new Error("Failed to save refreshed Strava tokens.");
-    }
-
-
-    return decryptToken(refreshedTokens.accessToken);
-}
-
-
-/*
- * pseudocode:
- * validate activityId and require the linked athlete's valid access token
- * GET https://www.strava.com/api/v3/activities/{activityId}
- *     Authorization: Bearer <accessToken>
- * use a request timeout and disable shared caching of personal activity data
- * validate the response fields before using them for matching
- * normalize id, sport_type, start_date, distance, and start_latlng
- * choose nonempty map.polyline, otherwise map.summary_polyline, otherwise null
- * return the normalized StravaActivity without credentials
- * if GPS is absent:
- *     return null coordinates/polyline, never fabricate a race route
- * if 401, 403, 404, 429, or a server error occurs:
- *     distinguish authorization, missing/inaccessible data, and retryable failures
- *
- * contract: retain the raw athlete.id for ownership verification in the
- * worker, or pass expected athlete identity to verify before normalization.
- * Docs: https://developers.strava.com/docs/reference/#api-Activities-getActivityById
- */
 export async function getStravaActivity(
-    accessToken: string,
-    activityId: string,
-): Promise<StravaActivity | undefined> { }
+  accessToken: string,
+  activityId: string,
+  athleteId?: string,
+): Promise<StravaActivity> {
+  const activity = normalizeActivity(
+    await providerRequest(`/api/v3/activities/${stravaId(activityId)}`, {
+      headers: { Authorization: `Bearer ${token(accessToken)}` },
+    }),
+    athleteId,
+  );
 
-/*
- * pseudocode:
- * validate after/before as Unix seconds, after < before, and page >= 1
- * GET https://www.strava.com/api/v3/athlete/activities
- *     Authorization: Bearer <accessToken>
- *     query = after, before, page (default 1), bounded per_page
- * use the same timeout, private caching, and error handling as activity retrieval
- * validate and normalize this page of summary activities
- * use map.summary_polyline where available; summary data may lack full detail
- * return the page, including an empty array when no more activities remain
- *
- * Backfill caller walks pages within the race window and a bounded job budget,
- * fetches details for plausible candidates, and reuses the normal matcher.
- * Filters refer to activity start time, not when the watch uploaded the activity.
- * Docs: https://developers.strava.com/docs/reference/#api-Activities-getLoggedInAthleteActivities
- */
-export async function listStravaActivities(accessToken: string, after: number, before: number, page?: number): Promise<StravaActivity[] | undefined> { 
+  if (activity.id !== activityId) {
+    throw new StravaError("activity_mismatch", 403);
+  }
 
+  return activity;
 }
 
-/*
- * pseudocode:
- * require the user's token and server-side client credentials
- * POST https://www.strava.com/oauth/revoke with form data:
- *     token = accessToken, token_type_hint = "access_token"
- * authenticate using HTTP Basic Auth with client_id and client_secret
- * use a request timeout; never log the Authorization header or token
- * accept HTTP 200 with an empty body, including already-revoked tokens
- * surface invalid app credentials and retryable provider failures separately
- * let the disconnect service handle local connection and route cleanup
- *
- * Docs: https://developers.strava.com/docs/authentication/#deauthorization
- */
-export async function revokeStravaAccess(accessToken: string): Promise<void> { 
+export async function verifyStravaAuthorization(
+  accessToken: string,
+  athleteId: string,
+): Promise<void> {
+  const data = record(
+    await providerRequest("/api/v3/athlete", {
+      headers: { Authorization: `Bearer ${token(accessToken)}` },
+    }),
+  );
 
+  if (stravaId(data.id) !== athleteId) {
+    throw new StravaError("athlete_mismatch", 403);
+  }
+}
+
+export async function listStravaActivities(
+  accessToken: string,
+  after: number,
+  before: number,
+  page = 1,
+  athleteId?: string,
+): Promise<StravaActivity[]> {
+  if (
+    ![after, before, page].every(Number.isSafeInteger) ||
+    after < 0 ||
+    before <= after ||
+    page < 1 ||
+    page > 10000
+  ) {
+    throw new StravaError("invalid_window", 400);
+  }
+
+  const params = new URLSearchParams({
+    after: String(after),
+    before: String(before),
+    page: String(page),
+    per_page: "25",
+  });
+  const data = await providerRequest(`/api/v3/athlete/activities?${params}`, {
+    headers: { Authorization: `Bearer ${token(accessToken)}` },
+  });
+
+  if (!Array.isArray(data) || data.length > 25) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return data.map((item) => normalizeActivity(item, athleteId));
+}
+
+export async function revokeStravaAccess(value: string): Promise<void> {
+  await providerRequest(
+    "/oauth/revoke",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${required("STRAVA_CLIENT_ID")}:${required("STRAVA_CLIENT_SECRET")}`,
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        token: token(value),
+        token_type_hint: "refresh_token",
+      }),
+    },
+    false,
+  );
 }
