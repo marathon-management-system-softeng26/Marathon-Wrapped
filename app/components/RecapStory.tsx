@@ -8,7 +8,16 @@ import type { WrappedPayload, Photo } from "@/lib/wrappedPayload";
 import { formatMmSs } from "@/lib/format";
 import { shareModel } from "@/lib/shareModel";
 import { exportWrapped } from "@/lib/exportWrapped";
-const pages = ["Your race", "Distance", "Splits", "Strava", "Photos", "Save"];
+import { decorationUrl, recapDecorations } from "@/lib/recapDecorations";
+const pages = [
+  "Intro",
+  "Your race",
+  "Distance",
+  "Splits",
+  "Context",
+  "Photos",
+  "Save",
+];
 function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
   const [failed, setFailed] = useState(false);
   return failed ? (
@@ -82,7 +91,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
         event.preventDefault();
         setSlide((s) =>
-          Math.max(0, Math.min(5, s + (event.key === "ArrowRight" ? 1 : -1))),
+          Math.max(0, Math.min(6, s + (event.key === "ArrowRight" ? 1 : -1))),
         );
       }
     }
@@ -126,7 +135,8 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       </main>
     );
   const model = shareModel(payload),
-    stats = payload.status === "unavailable" ? null : payload.stats;
+    stats = payload.status === "unavailable" ? null : payload.stats,
+    firstName = model.name.trim().split(/\s+/)[0] || "Runner";
   return (
     <main
       className={`story story-${slide}`}
@@ -141,7 +151,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         const dx = event.changedTouches[0].clientX - touch.current.x,
           dy = event.changedTouches[0].clientY - touch.current.y;
         if (Math.abs(dx) > 65 && Math.abs(dx) > Math.abs(dy) * 1.5)
-          setSlide((s) => Math.max(0, Math.min(5, s + (dx < 0 ? 1 : -1))));
+          setSlide((s) => Math.max(0, Math.min(6, s + (dx < 0 ? 1 : -1))));
         touch.current = null;
       }}
     >
@@ -163,38 +173,54 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       </nav>
       <section className="story-content" key={slide}>
         {slide === 0 && (
-          <>
+          <div className="story-scene scene-intro">
+            <p className="scene-label">{model.event}</p>
             <h1 ref={heading} tabIndex={-1}>
-              <span>
-                {payload.status === "finisher"
-                  ? "You ran"
-                  : payload.status === "dnf"
-                    ? "You showed up."
-                    : "Your race,"}
-              </span>
-              <br />
-              {payload.status === "finisher" ? (
-                <>
-                  the whole
-                  <br />
-                  thing.
-                </>
-              ) : payload.status === "dnf" ? (
-                "Every kilometer counts."
-              ) : (
-                "your story."
-              )}
+              Hi <span>{firstName}</span>,<br />
+              here goes your <span>Fun Wrapped</span>
             </h1>
-            <p className="story-intro">
-              {model.name}, this is your race in numbers, photos and memories.
-            </p>
-            <p className="subtle">
-              BIB {model.bib ?? "unassigned"} · {model.result}
-            </p>
-          </>
+            <Image
+              className="decoration decoration-intro-shoe"
+              src={decorationUrl(recapDecorations.intro[0])}
+              width={180}
+              height={180}
+              alt=""
+            />
+            <Image
+              className="decoration decoration-intro-runner"
+              src={decorationUrl(recapDecorations.intro[1])}
+              width={430}
+              height={430}
+              alt=""
+              priority
+            />
+          </div>
         )}
         {slide === 1 && (
-          <>
+          <div className="story-scene scene-finisher">
+            <p className="scene-label">{model.event}</p>
+            <h1 ref={heading} tabIndex={-1}>
+              <span>
+                {payload.status === "finisher" ? "You ran" : "Your race,"}
+              </span>
+              <br />
+              {payload.status === "finisher" ? "the whole thing." : model.result}
+            </h1>
+            <p className="story-intro">
+              Your race, in numbers, photos and one very good finish.
+            </p>
+            <Image
+              className="decoration decoration-finisher-badge"
+              src={decorationUrl(recapDecorations.finisher[0])}
+              width={360}
+              height={360}
+              alt=""
+            />
+          </div>
+        )}
+        {slide === 2 && (
+          <div className="story-scene scene-distance">
+            <p className="scene-label">Distance</p>
             <h2 ref={heading} tabIndex={-1}>
               {payload.status === "finisher" ? "All the way." : model.result}
             </h2>
@@ -231,10 +257,25 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                 Late start recorded · Timing uses your actual chip start.
               </p>
             )}
-          </>
+            <Image
+              className="decoration decoration-distance-medal"
+              src={decorationUrl(recapDecorations.distance[0])}
+              width={190}
+              height={190}
+              alt=""
+            />
+            <Image
+              className="decoration decoration-distance-runner"
+              src={decorationUrl(recapDecorations.distance[1])}
+              width={270}
+              height={270}
+              alt=""
+            />
+          </div>
         )}
-        {slide === 2 && (
-          <>
+        {slide === 3 && (
+          <div className="story-scene scene-splits">
+            <p className="scene-label">Splits</p>
             <h2 ref={heading} tabIndex={-1}>
               {stats?.split_type === "negative" ? (
                 <>
@@ -285,14 +326,22 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
             ) : (
               <p>No kilometer splits were recorded for this result.</p>
             )}
-          </>
+            <Image
+              className="decoration decoration-splits-watch"
+              src={decorationUrl(recapDecorations.splits[0])}
+              width={215}
+              height={215}
+              alt=""
+            />
+          </div>
         )}
-        {slide === 3 && (
-          <>
+        {slide === 4 && (
+          <div className="story-scene scene-context">
+            <p className="scene-label">Race context</p>
             <h2 ref={heading} tabIndex={-1}>
-              Your race.
+              Your chip result
               <br />
-              <span>A little more context.</span>
+              <span>comes first.</span>
             </h2>
             <div className="enrichment">
               <h3>Strava is not connected</h3>
@@ -330,10 +379,24 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                   </>
                 )}
             </div>
-          </>
+            <Image
+              className="decoration decoration-context-watch"
+              src={decorationUrl(recapDecorations.context[0])}
+              width={190}
+              height={190}
+              alt=""
+            />
+            <Image
+              className="decoration decoration-context-card"
+              src={decorationUrl(recapDecorations.context[1])}
+              width={230}
+              height={230}
+              alt=""
+            />
+          </div>
         )}
-        {slide === 4 && (
-          <>
+        {slide === 5 && (
+          <div className="story-scene scene-photos">
             <h2 ref={heading} tabIndex={-1}>
               Caught
               <br />
@@ -363,22 +426,40 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                 are still here.
               </p>
             )}
-          </>
+            <Image
+              className="decoration decoration-photos-glasses"
+              src={decorationUrl(recapDecorations.photos[0])}
+              width={180}
+              height={180}
+              alt=""
+            />
+          </div>
         )}
-        {slide === 5 && (
-          <>
-            <h2 ref={heading} tabIndex={-1}>
-              Keep the feeling.
-            </h2>
+        {slide === 6 && (
+          <div className="story-scene scene-share">
+            <p className="scene-label">Share</p>
+            <span className="share-year" aria-hidden="true">
+              2027
+            </span>
             <SharePreview payload={payload} />
             <button className="save-button" onClick={save} disabled={saving}>
-              {saving ? "Preparing image…" : "Save my recap as PNG"}
+              {saving ? "Preparing image…" : "Save image"}
             </button>
+            <Link className="share-back" href="/">
+              Back to my races
+            </Link>
             <p className="subtle">
               1080 × 1350 · Includes synthetic race data. Health metrics stay
               out of your image.
             </p>
-          </>
+            <Image
+              className="decoration decoration-share-finish"
+              src={decorationUrl(recapDecorations.share[0])}
+              width={220}
+              height={220}
+              alt=""
+            />
+          </div>
         )}
       </section>
       <footer className="story-controls">
@@ -397,7 +478,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           className="circle"
           aria-label="Next page"
           onClick={() => setSlide((s) => s + 1)}
-          disabled={slide === 5}
+          disabled={slide === 6}
         >
           <Arrow />
         </button>

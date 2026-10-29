@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .shoe-body { fill: #6B3BA7; }
+      .shoe-collar { fill: #52278A; }
+      .shoe-sole { fill: #FFF2E6; }
+      .sole-line { fill: none; stroke: #FAD1C0; stroke-width: 1.5; }
+      .shoe-text { fill: #FFFFFF; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; font-style: italic; }
+      .lace-line { fill: none; stroke: #FFFFFF; stroke-width: 1.5; stroke-linecap: round; opacity: 0.9; }
+      
+      .bottle-body { fill: #FF6584; }
+      .bottle-top { fill: #2B0914; }
+      .bottle-drop { fill: #FFF2E6; }
+      .water-splash { fill: #FFF2E6; opacity: 0.8; }
+      
+      .star-yellow { fill: #FFC05A; }
+      .sparkle-light { fill: #FFF0E5; }
+      .dot-white { fill: #FFFFFF; }
+      .circle-outline { fill: none; stroke: #FFFFFF; stroke-width: 1.5; opacity: 0.8; }
+    </style>
+  </defs>
+
+  <!-- Decorative Background Elements (Excluding the purple blob background) -->
+  <g id="decorations">
+    <!-- Top Yellow Star -->
+    <polygon class="star-yellow" points="260,82 271,114 305,114 278,134 288,166 260,146 232,166 242,134 215,114 249,114" />
+    
+    <!-- Bottom Yellow Star -->
+    <polygon class="star-yellow" transform="translate(320, 360) rotate(15)" points="30,0 39,26 66,26 44,42 53,68 30,52 7,68 16,42 -6,26 21,26" />
+
+    <!-- Lightning / Sparkle Accents -->
+    <!-- Right Lightning -->
+    <polygon class="sparkle-light" points="410,120 445,175 425,178 450,225 415,170 432,167" />
+    <!-- Bottom-Left Lightning -->
+    <polygon class="sparkle-light" points="100,350 140,320 125,335 160,300 120,330 135,315" />
+
+    <!-- Water Splashes from Bottle -->
+    <path class="water-splash" d="M 155,100 C 150,70 160,60 165,65 C 170,75 160,95 155,100 Z" />
+    <path class="water-splash" d="M 180,120 C 190,100 215,105 210,115 C 200,125 185,125 180,120 Z" />
+
+    <!-- Bubbles and Dots -->
+    <circle class="dot-white" cx="283" cy="158" r="6" />
+    <circle class="dot-white" cx="283" cy="188" r="7" />
+    <circle class="dot-white" cx="305" cy="188" r="7" />
+    <circle class="circle-outline" cx="235" cy="140" r="8" />
+    <circle class="circle-outline" cx="222" cy="170" r="5" />
+    <circle class="circle-outline" cx="355" cy="112" r="10" />
+    <circle class="dot-white" cx="385" cy="108" r="4" />
+    <circle class="dot-white" cx="402" cy="122" r="7" />
+  </g>
+
+  <!-- Water Bottle (Tilted Behind/Beside Shoe) -->
+  <g id="water-bottle" transform="translate(110,240) rotate(-22) translate(-100,-200)">
+    <!-- Main Bottle Body -->
+    <rect class="bottle-body" x="40" y="160" width="105" height="190" rx="30" />
+    
+    <!-- Bottle Cap & Neck -->
+    <path class="bottle-top" d="
+      M 50,165 
+      L 135,165 
+      C 138,150 130,140 125,138 
+      L 125,115 
+      C 125,108 118,105 110,105 
+      L 75,105 
+      C 67,105 60,108 60,115 
+      L 60,138 
+      C 55,140 47,150 50,165 Z" />
+
+    <!-- Water Drop Icon -->
+    <path class="bottle-drop" d="
+      M 92,225 
+      C 92,225 72,252 72,266 
+      C 72,278 81,287 92,287 
+      C 103,287 112,278 112,266 
+      C 112,252 92,225 92,225 Z" />
+  </g>
+
+  <!-- Running Shoe Group -->
+  <g id="running-shoe">
+    <!-- Sole Base -->
+    <path class="shoe-sole" d="
+      M 80,430 
+      C 130,460 210,430 290,380 
+      C 350,340 430,285 460,240 
+      C 440,245 420,250 395,275 
+      C 320,340 230,405 150,420 
+      C 120,425 95,420 80,430 Z" />
+    
+    <!-- Thick Sole Bottom Section -->
+    <path class="shoe-sole" d="
+      M 80,430 
+      C 130,458 210,428 290,378 
+      C 350,338 430,283 460,238 
+      C 435,270 380,315 320,355 
+      C 230,415 150,430 80,430 Z" />
+
+    <!-- Sole Tread Wave Patterns -->
+    <path class="sole-line" d="M 95,432 Q 105,420 115,432 Q 125,420 135,430 Q 145,415 155,428 Q 165,410 175,424 Q 185,405 195,420 Q 205,400 215,414 Q 225,392 235,408 Q 245,385 255,402 Q 265,378 275,395 Q 285,370 295,388 Q 305,360 315,378 Q 325,350 335,368 Q 345,340 355,358 Q 365,330 375,348 Q 385,320 395,338 Q 405,310 415,326 Q 425,298 435,312" />
+
+    <!-- Upper Shoe Collar (Dark Purple Back) -->
+    <path class="shoe-collar" d="M 335,175 C 345,140 375,125 380,150 C 385,175 432,228 432,228 L 335,228 Z" />
+    <!-- Pull Tab -->
+    <path class="shoe-collar" d="M 360,155 C 355,130 370,125 375,135 C 380,145 370,155 360,155 Z" />
+
+    <!-- Shoe Main Body -->
+    <path class="shoe-body" d="
+      M 80,430 
+      C 120,390 180,310 210,200 
+      C 230,195 250,210 260,230 
+      C 290,270 330,170 380,150 
+      C 400,210 435,230 460,238 
+      C 430,285 350,340 290,380 
+      C 210,430 130,460 80,430 Z" />
+
+    <!-- Shoe Inner Collar Curve -->
+    <path class="shoe-collar" d="M 335,215 C 330,185 365,160 380,150 C 390,180 415,215 432,228 C 390,230 355,230 335,215 Z" />
+
+    <!-- Laces Details -->
+    <g id="laces">
+      <!-- Zigzag Lacing -->
+      <path class="lace-line" d="M 197,260 L 255,230 M 182,282 L 240,250 M 167,305 L 225,272 M 152,328 L 210,295 M 137,350 L 195,318" />
+      <!-- Top Bow Loops -->
+      <path class="lace-line" d="M 210,200 C 190,170 170,190 195,215 C 205,225 210,200 210,200 Z" />
+      <path class="lace-line" d="M 210,200 C 200,230 170,220 185,200 C 195,190 210,200 210,200 Z" />
+    </g>
+
+    <!-- "RUN!" Stylized Text -->
+    <g transform="translate(235, 205) rotate(-26)">
+      <text class="shoe-text" x="0" y="80" font-size="68" letter-spacing="2">RUN!</text>
+    </g>
+  </g>
+</svg>
