@@ -211,9 +211,23 @@ describe.skipIf(process.env.RUN_STRAVA_DATABASE_TESTS !== "1")(
       expect(metrics.data!.activity_id).toBe(selected.data!.activity_id);
       expect(metrics.data!.calories).toBe(selected.data!.activity_id === "one" ? 100 : 101);
       expect((await admin.from("strava_metrics").insert({ runner_id: p_runner, avg_heartrate: 123, data_source: "demo" })).error).toBeNull();
+      const workerId = crypto.randomUUID();
+      const workerLease = crypto.randomUUID();
+      expect((await admin.from("strava_jobs").insert({
+        id: workerId, user_id: p_user, generation: p_generation, kind: "activity",
+        dedupe_key: "worker-disconnect-race", status: "processing", lease_id: workerLease,
+        lease_until: new Date(Date.now() + 120000).toISOString(), attempts: 1,
+      })).error).toBeNull();
       await Promise.all([
         call("strava_disconnect", { p_user }),
         call("strava_select_runner_activity", { p_user, p_generation, p_runner, p_activity: "one", p_metrics: {} }),
+        call("strava_commit_runner_job", {
+          p_job: workerId, p_lease: workerLease,
+          p_activities: [{ id: "one", activity: { id: "one", calories: 200 } }],
+          p_runner_candidates: [{ runner_id: p_runner, candidates: [{
+            activity_id: "one", match_status: "auto_match", reason: "race_checks_passed", summary: {},
+          }] }],
+        }),
       ]);
       for (const table of ["strava_runner_activities", "strava_live_metrics", "strava_activity_candidates"]) {
         const remaining = await admin.from(table).select("runner_id").eq("runner_id", p_runner);

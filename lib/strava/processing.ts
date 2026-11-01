@@ -14,7 +14,8 @@ import {
   stravaId,
   verifyStravaAuthorization,
 } from "./client";
-import { stravaRpc } from "./store";
+import { loadRunnerRaceConfigs, stravaRpc } from "./store";
+import { matchActivityToRace } from "./matching";
 
 export type StravaWebhookEvent = {
   object_type: "activity" | "athlete";
@@ -178,6 +179,28 @@ async function currentConnection(job: StravaJob) {
   }
 
   return connection;
+}
+
+export async function enqueueRunnerStravaBackfill(userId: string, runnerId: string): Promise<void> {
+  if (!isRunnerId(runnerId)) throw new StravaError("invalid_runner", 400);
+  const [race] = await loadRunnerRaceConfigs(userId, runnerId);
+  if (!race) {
+    const access = await getSupabaseAdmin().from("runner_access").select("runner_id")
+      .eq("user_id", userId).eq("runner_id", runnerId).maybeSingle();
+    if (access.error) throw new Error("Strava storage is temporarily unavailable.");
+    if (!access.data) throw new StravaError("runner_not_found", 404);
+    return; // No approved category window: retain the connection without guessing dates.
+  }
+  const connection = await loadStravaConnection(userId);
+  if (!connection || connection.status !== "active") throw new StravaError("not_connected", 409);
+  // Strava's after/before bounds are exclusive; the matcher includes both endpoints.
+  const after = Math.floor(Date.parse(race.config.startTimeFrom) / 1000) - 1;
+  const before = Math.ceil(Date.parse(race.config.startTimeTo) / 1000) + 1;
+  await stravaRpc("strava_enqueue", {
+    p_user: userId, p_generation: connection.generation, p_kind: "backfill",
+    p_key: `runner:${runnerId}:backfill:${after}:${before}:1`,
+    p_payload: { runner_id: runnerId, after, before, page: 1 },
+  });
 }
 
 async function withAccess<T>(
@@ -370,7 +393,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
       let activities: ActivityWrite[] = [];
       let continuation: {
         key: string;
-        payload: Record<string, number>;
+        payload: Record<string, unknown>;
       } | null = null;
       const discoveries: {
         object_id: string;
@@ -408,8 +431,8 @@ export async function processStravaJobs(limit = 10): Promise<void> {
             }
 
             continuation = {
-              key: `backfill:${after}:${before}:${page + 1}`,
-              payload: { after, before, page: page + 1 },
+              key: `${typeof job.payload.runner_id === "string" ? `runner:${job.payload.runner_id}:` : ""}backfill:${after}:${before}:${page + 1}`,
+              payload: { ...job.payload, after, before, page: page + 1 },
             };
           }
         }
@@ -431,12 +454,25 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         }
       }
 
-      await stravaRpc("strava_commit_job", {
+      const races = job.kind === "revoke" || !await currentConnection(job)
+        ? [] : await loadRunnerRaceConfigs(job.user_id);
+      const runnerCandidates = races.map(({ runnerId, config }) => ({
+        runner_id: runnerId,
+        candidates: activities.flatMap(({ activity }) => {
+          if (!activity) return [];
+          const match = matchActivityToRace(activity, config);
+          return [{ activity_id: activity.id, match_status: match.status, reason: match.reason,
+            summary: { id: activity.id, sportType: activity.sportType,
+              startDate: activity.startDate, distanceMeters: activity.distanceMeters } }];
+        }),
+      }));
+      await stravaRpc("strava_commit_runner_job", {
         p_job: job.id,
         p_lease: job.lease_id,
         p_activities: activities,
         p_continuation: continuation,
         p_discoveries: discoveries,
+        p_runner_candidates: runnerCandidates,
       });
     } catch (error) {
       const known = error instanceof StravaError;

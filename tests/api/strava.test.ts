@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
   process: vi.fn(),
   connection: vi.fn(),
+  backfill: vi.fn(),
 }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -40,6 +41,7 @@ vi.mock("@/lib/strava/processing", async (original) => ({
   disconnectStravaUser: mocks.disconnect,
   enqueueWebhookEvent: mocks.enqueue,
   processStravaJobs: mocks.process,
+  enqueueRunnerStravaBackfill: mocks.backfill,
 }));
 
 import { POST as connect, DELETE as cancel } from "@/app/api/strava/connect/route";
@@ -281,6 +283,21 @@ describe("Strava OAuth", () => {
     expect(repeated.headers.get("location")).toBe(`${origin}${returnPath}?strava=connected`);
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
     expect(mocks.rpc.mock.calls.filter(([name]) => name === "strava_finish_oauth")).toHaveLength(1);
+    expect(mocks.backfill).toHaveBeenCalledWith("verified-user", runnerId);
+  });
+
+  it("queues the stored runner only after the connection is saved", async () => {
+    mocks.backfill.mockImplementation(async () => {
+      expect(mocks.rpc.mock.calls.some(([name, args]) => name === "strava_finish_oauth" && args.p_tokens)).toBe(true);
+    });
+    const response = await callback(callbackRequest(`code=code&scope=activity:read_all&state=${state}&runnerId=${otherRunnerId}`));
+    expect(response.status).toBe(303);
+    expect(mocks.backfill).toHaveBeenCalledWith("verified-user", runnerId);
+  });
+
+  it("does not queue backfill for provider denial", async () => {
+    await callback(callbackRequest(`error=access_denied&state=${state}`));
+    expect(mocks.backfill).not.toHaveBeenCalled();
   });
 
   it("rejects cross-origin starts before touching auth or storage", async () => {

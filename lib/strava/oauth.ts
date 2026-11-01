@@ -16,6 +16,7 @@ import {
 } from "./client";
 import { requireStravaOrigin } from "./http";
 import { stravaRpc } from "./store";
+import { enqueueRunnerStravaBackfill } from "./processing";
 
 const cookiePrefix = "strava_oauth_";
 const hash = (state: string) =>
@@ -189,6 +190,9 @@ export async function finishStravaAuthorization(request: NextRequest) {
   const returnPath = attempt.return_path;
 
   if (attempt.status !== "claimed") {
+    if (attempt.status === "connected") {
+      await enqueueRunnerStravaBackfill(user.id, attempt.runner_id);
+    }
     return outcome(attempt.status === "processing" ? "in_progress" : attempt.status, returnPath);
   }
 
@@ -236,6 +240,10 @@ export async function finishStravaAuthorization(request: NextRequest) {
     } catch {
       status = await saveStravaConnection(user.id, tokens, stateHash);
     }
+  }
+
+  if (status === "connected") {
+    await enqueueRunnerStravaBackfill(user.id, attempt.runner_id);
   }
 
   const response = outcome(status, returnPath);

@@ -9,19 +9,23 @@ const mocks = vi.hoisted(() => ({
   verify: vi.fn(),
   revoke: vi.fn(),
   owner: vi.fn(),
+  rows: vi.fn(),
 }));
 
-vi.mock("@/lib/strava/store", () => ({ stravaRpc: mocks.rpc }));
+vi.mock("@/lib/strava/store", async (original) => ({ ...await original<object>(), stravaRpc: mocks.rpc }));
 
 vi.mock("@/lib/supabaseServer", () => ({
   getSupabaseAdmin: () => ({
-    from: () => ({
-      select: () => ({
-        eq: () => ({
-          eq: () => ({ maybeSingle: mocks.owner }),
-        }),
-      }),
-    }),
+    from: (table: string) => {
+      const filters: Record<string, unknown> = {};
+      const query = {
+        select: () => query,
+        eq: (key: string, value: unknown) => { filters[key] = value; return query; },
+        maybeSingle: () => table === "strava_connections" ? mocks.owner() : mocks.rows(table, filters, true),
+        then: (resolve: (value: unknown) => void) => Promise.resolve(mocks.rows(table, filters, false)).then(resolve),
+      };
+      return query;
+    },
   }),
 }));
 
@@ -39,6 +43,7 @@ import { encryptToken, StravaError } from "@/lib/strava/client";
 import {
   disconnectStravaUser,
   enqueueStravaBackfill,
+  enqueueRunnerStravaBackfill,
   enqueueWebhookEvent,
   processStravaJobs,
 } from "@/lib/strava/processing";
@@ -69,14 +74,27 @@ const job = {
   payload: event,
 };
 
+const runnerId = "11111111-1111-1111-1111-111111111111";
+const raceActivity = {
+  id: "1", athleteId: "2", sportType: "Run", startDate: "2027-08-17T01:00:00Z",
+  distanceMeters: 5000, startLatLng: [-6.2, 106.8], averageHeartrate: 145.5,
+  maxHeartrate: null, elevationGainMeters: 0, calories: null, averageCadence: 80.5,
+};
+const raceConfig = {
+  category_id: 7, start_time_from: "2027-08-17T00:00:00Z", start_time_to: "2027-08-17T02:00:00Z",
+  start_latitude: -6.2, start_longitude: 106.8, start_radius_m: 100,
+  allowed_sport_types: ["Run"], distance_tolerance_m: 500,
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("STRAVA_ENCRYPTION_KEY", "01".repeat(32));
   vi.stubEnv("STRAVA_SUBSCRIPTION_ID", "3");
   mocks.connection.mockResolvedValue(connection);
   mocks.access.mockResolvedValue("access");
-  mocks.activity.mockResolvedValue({ id: "1", athleteId: "2", polyline: "route" });
+  mocks.activity.mockResolvedValue(raceActivity);
   mocks.owner.mockResolvedValue({ data: { user_id: "user", generation: "generation" } });
+  mocks.rows.mockResolvedValue({ data: [] });
   mocks.rpc.mockImplementation(async (name) =>
     name === "strava_claim_job" ? null : true,
   );
@@ -99,6 +117,103 @@ const claim = (value: Record<string, unknown> = job) => {
 };
 
 describe("Strava processing", () => {
+  const configuredRunner = () => {
+    mocks.rows.mockImplementation(async (table, filters, single) => {
+      const rows: Record<string, unknown> = {
+        runner_access: { runner_id: runnerId }, runners: { category_id: 7 },
+        categories: { distance_km: 5 }, strava_race_configs: raceConfig,
+      };
+      return { data: single ? rows[table] : [rows[table]] };
+    });
+    mocks.activity.mockResolvedValue(raceActivity);
+  };
+
+  it("commits race classifications with the activity lease and keeps private location out of summaries", async () => {
+    configuredRunner();
+    claim();
+    await processStravaJobs();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
+      p_job: "job", p_lease: "lease",
+      p_runner_candidates: [{ runner_id: runnerId, candidates: [{
+        activity_id: "1", match_status: "auto_match", reason: "race_checks_passed",
+        summary: { id: "1", sportType: "Run", startDate: "2027-08-17T01:00:00Z", distanceMeters: 5000 },
+      }] }],
+    }));
+  });
+
+  it.each([
+    [{ startLatLng: null }, "needs_confirmation", "missing_start_location"],
+    [{ sportType: "Ride" }, "no_match", "wrong_sport"],
+    [{ startDate: "2027-08-18T01:00:00Z" }, "no_match", "outside_start_window"],
+    [{ distanceMeters: 4000 }, "no_match", "distance_mismatch"],
+  ])("classifies detail overrides %j", async (override, status, reason) => {
+    configuredRunner();
+    mocks.activity.mockResolvedValue({ ...raceActivity, ...override });
+    claim();
+    await processStravaJobs();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
+      p_runner_candidates: [{ runner_id: runnerId, candidates: [expect.objectContaining({ match_status: status, reason })] }],
+    }));
+  });
+
+  it("queues the owned category's inclusive start window with runner-specific deduplication", async () => {
+    configuredRunner();
+    await enqueueRunnerStravaBackfill("user", runnerId);
+    expect(mocks.rpc).toHaveBeenLastCalledWith("strava_enqueue", {
+      p_user: "user", p_generation: "generation", p_kind: "backfill",
+      p_key: `runner:${runnerId}:backfill:1818460799:1818468001:1`,
+      p_payload: { runner_id: runnerId, after: 1818460799, before: 1818468001, page: 1 },
+    });
+    expect(mocks.rows).toHaveBeenCalledWith("runner_access", { user_id: "user", runner_id: runnerId }, true);
+  });
+
+  it("rejects foreign runner backfills before contacting Strava", async () => {
+    mocks.rows.mockResolvedValue({ data: null });
+    await expect(enqueueRunnerStravaBackfill("user", runnerId)).rejects.toMatchObject({ code: "runner_not_found" });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("leaves an owned runner without race configuration connected without inventing a window", async () => {
+    configuredRunner();
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => table === "strava_race_configs"
+      ? Promise.resolve({ data: null }) : normal(table, filters, single));
+    await expect(enqueueRunnerStravaBackfill("user", runnerId)).resolves.toBeUndefined();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+
+  it("does not classify when disconnect changes the generation during the provider request", async () => {
+    configuredRunner();
+    claim();
+    mocks.activity.mockImplementation(async () => {
+      mocks.connection.mockResolvedValue({ ...connection, status: "disconnecting", generation: "new" });
+      return raceActivity;
+    });
+    await processStravaJobs();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({ p_runner_candidates: [] }));
+    expect(mocks.rows).not.toHaveBeenCalled();
+  });
+
+  it("retains runner context on subsequent backfill pages", async () => {
+    claim({ ...job, kind: "backfill", payload: { after: 100, before: 200, page: 1, runner_id: runnerId } });
+    mocks.list.mockResolvedValue(Array.from({ length: 25 }, (_, i) => ({ id: String(i + 1) })));
+    await processStravaJobs();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
+      p_continuation: { key: `runner:${runnerId}:backfill:100:200:2`, payload: { after: 100, before: 200, page: 2, runner_id: runnerId } },
+    }));
+  });
+
+  it("keeps a failed atomic matching commit retryable", async () => {
+    configuredRunner();
+    claim();
+    const normal = mocks.rpc.getMockImplementation()!;
+    mocks.rpc.mockImplementation((name, args) => name === "strava_commit_runner_job"
+      ? Promise.reject(new Error("storage failed")) : normal(name, args));
+    await processStravaJobs();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_job", expect.objectContaining({
+      p_error: "storage_unavailable", p_delay: expect.any(Number), p_reauth: false,
+    }));
+  });
   it("deduplicates equivalent update key order without fetching at webhook receipt", async () => {
     await enqueueWebhookEvent({ ...event, updates: { title: "New", private: "false" } });
     await enqueueWebhookEvent({ ...event, updates: { private: "false", title: "New" } });
@@ -125,12 +240,12 @@ describe("Strava processing", () => {
 
     expect(mocks.activity).toHaveBeenCalledWith("access", "1", "2");
     expect(mocks.rpc).toHaveBeenCalledWith(
-      "strava_commit_job",
+      "strava_commit_runner_job",
       expect.objectContaining({
         p_job: "job",
         p_lease: "lease",
         p_activities: [
-          { id: "1", activity: { id: "1", athleteId: "2", polyline: "route" } },
+          { id: "1", activity: raceActivity },
         ],
       }),
     );
@@ -151,11 +266,11 @@ describe("Strava processing", () => {
     await processStravaJobs();
 
     expect(mocks.rpc).toHaveBeenCalledWith(
-      "strava_commit_job",
+      "strava_commit_runner_job",
       expect.objectContaining({
         p_activities: [
           expect.objectContaining({
-            activity: expect.objectContaining({ polyline: "route" }),
+            activity: expect.objectContaining({ id: "1", distanceMeters: 5000 }),
           }),
         ],
       }),
@@ -169,7 +284,7 @@ describe("Strava processing", () => {
     await processStravaJobs();
 
     expect(mocks.rpc).toHaveBeenCalledWith(
-      "strava_commit_job",
+      "strava_commit_runner_job",
       expect.objectContaining({ p_activities: [{ id: "1", activity: null }] }),
     );
   });
@@ -271,7 +386,7 @@ describe("Strava processing", () => {
 
     expect(mocks.list).toHaveBeenCalledWith("access", 100, 200, 1, "2");
     expect(mocks.rpc).toHaveBeenCalledWith(
-      "strava_commit_job",
+      "strava_commit_runner_job",
       expect.objectContaining({
         p_activities: [],
         p_discoveries: expect.arrayContaining([
@@ -297,7 +412,7 @@ describe("Strava processing", () => {
     await processStravaJobs();
 
     expect(mocks.rpc).toHaveBeenCalledWith(
-      "strava_commit_job",
+      "strava_commit_runner_job",
       expect.objectContaining({ p_continuation: null, p_discoveries: [] }),
     );
     await expect(enqueueStravaBackfill("user", 200, 100)).rejects.toMatchObject({
