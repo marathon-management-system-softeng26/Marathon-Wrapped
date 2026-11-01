@@ -154,16 +154,101 @@ describe("Strava client", () => {
   it("normalizes missing GPS and uses private uncached requests", async () => {
     mocks.fetch.mockResolvedValue(Response.json(rawActivity));
 
-    expect(await getStravaActivity("access", "1", "2")).toMatchObject({
+    const activity = await getStravaActivity("access", "1", "2");
+
+    expect(activity).toMatchObject({
       id: "1",
       athleteId: "2",
       startLatLng: null,
-      polyline: "summary",
     });
+    expect(activity).not.toHaveProperty("polyline");
     expect(mocks.fetch).toHaveBeenCalledWith(
       "https://www.strava.com/api/v3/activities/1",
       expect.objectContaining({ cache: "no-store", redirect: "error" }),
     );
+  });
+
+  it("normalizes detailed race metrics and preserves raw average cadence", async () => {
+    mocks.fetch.mockResolvedValue(
+      Response.json({
+        ...rawActivity,
+        average_heartrate: 151.5,
+        max_heartrate: 184,
+        total_elevation_gain: 321.7,
+        calories: 702,
+        average_cadence: 86.4,
+      }),
+    );
+
+    expect(await getStravaActivity("access", "1", "2")).toMatchObject({
+      averageHeartrate: 151.5,
+      maxHeartrate: 184,
+      elevationGainMeters: 321.7,
+      calories: 702,
+      averageCadence: 86.4,
+    });
+  });
+
+  it.each([
+    ["average_heartrate", "averageHeartrate"],
+    ["max_heartrate", "maxHeartrate"],
+    ["total_elevation_gain", "elevationGainMeters"],
+    ["calories", "calories"],
+    ["average_cadence", "averageCadence"],
+  ])("leaves missing %s as null", async (providerField, normalizedField) => {
+    const activity = {
+      ...rawActivity,
+      average_heartrate: 151,
+      max_heartrate: 184,
+      total_elevation_gain: 321,
+      calories: 702,
+      average_cadence: 86,
+    };
+    Reflect.deleteProperty(activity, providerField);
+    mocks.fetch.mockResolvedValue(Response.json(activity));
+
+    expect(await getStravaActivity("access", "1", "2")).toHaveProperty(
+      normalizedField,
+      null,
+    );
+  });
+
+  it("preserves valid zero-valued metrics", async () => {
+    mocks.fetch.mockResolvedValue(
+      Response.json({
+        ...rawActivity,
+        average_heartrate: 0,
+        max_heartrate: 0,
+        total_elevation_gain: 0,
+        calories: 0,
+        average_cadence: 0,
+      }),
+    );
+
+    expect(await getStravaActivity("access", "1", "2")).toMatchObject({
+      averageHeartrate: 0,
+      maxHeartrate: 0,
+      elevationGainMeters: 0,
+      calories: 0,
+      averageCadence: 0,
+    });
+  });
+
+  it.each([
+    ["average_heartrate", -1],
+    ["max_heartrate", Number.POSITIVE_INFINITY],
+    ["total_elevation_gain", -0.1],
+    ["calories", "702"],
+    ["average_cadence", Number.NaN],
+  ])("rejects malformed present metric %s", async (field, value) => {
+    mocks.fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...rawActivity, [field]: value }),
+    } as Response);
+
+    await expect(getStravaActivity("access", "1", "2")).rejects.toMatchObject({
+      code: "invalid_provider_response",
+    });
   });
 
   it("rejects foreign ownership and malformed GPS", async () => {

@@ -19,7 +19,11 @@ const baseActivity = {
   startDate: "2027-08-17T01:00:00Z",
   distanceMeters: 5000,
   startLatLng: [-6.2, 106.8],
-  polyline: null,
+  averageHeartrate: null,
+  maxHeartrate: null,
+  elevationGainMeters: null,
+  calories: null,
+  averageCadence: null,
 } satisfies StravaActivity;
 
 function config(overrides: Record<string, unknown> = {}): RaceMatchConfig {
