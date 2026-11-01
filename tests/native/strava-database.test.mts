@@ -27,8 +27,14 @@ test(
       `);
 
       for (const file of [
+        "supabase/migrations/20261019155810_initial_schema.sql",
+        "supabase/migrations/20261019184443_core_access_and_rank_contract.sql",
+        "supabase/migrations/20261019185554_result_lifecycle_guards.sql",
+        "supabase/migrations/20261019190232_organizer_management.sql",
+        "supabase/migrations/20261020020029_organizer_optional_aggregate.sql",
         "supabase/migrations/20261026175630_strava_integration.sql",
         "supabase/migrations/20261028192351_strava_lifecycle.sql",
+        "supabase/migrations/20261101000100_strava_race_matching.sql",
         "tests/sql/strava-lifecycle.sql",
       ]) {
         await db.exec(await readFile(file, "utf8"));
