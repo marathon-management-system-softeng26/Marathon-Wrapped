@@ -50,6 +50,27 @@ describe("authorized computed payload", () => {
     expect(JSON.stringify(result)).not.toContain("provider secret");
     if (result && result.status !== "unavailable") expect(result.warnings.length).toBeGreaterThan(0);
   });
+  it("keeps the chip recap usable when Strava enrichment is unavailable", async () => {
+    mocks.enrichment.mockRejectedValue(new Error("Strava unavailable"));
+
+    const result = await getWrappedForUser("user", ainaInput().runner_id);
+
+    expect(result?.status).toBe("finisher");
+    if (!result || result.status === "unavailable") throw new Error("expected chip recap");
+    expect(result.stats).toMatchObject({
+      runner_id: "11111111-1111-1111-1111-111111111111",
+      elapsed_seconds: 1523,
+      avg_pace_sec_km: 304.6,
+      category_rank: 1,
+      fastest_km: { km_marker: 5, split_seconds: 290 },
+      first_half_seconds: 617,
+      second_half_seconds: 588,
+    });
+    expect(result.strava).toEqual({ state: "unavailable", metrics: null });
+    expect(result.warnings).toEqual([expect.any(String)]);
+    expect(result.warnings[0].length).toBeGreaterThan(0);
+    expect(JSON.stringify(result)).not.toContain("Strava unavailable");
+  });
   it("aborts a stalled optional query and returns the baseline within its deadline", async () => {
     vi.useFakeTimers();
     try {
