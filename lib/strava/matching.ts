@@ -3,75 +3,126 @@ import type { StravaActivity } from "./client";
 export type RaceMatchConfig = {
   startTimeFrom: string;
   startTimeTo: string;
-  startLatitude: number;
-  startLongitude: number;
-  startRadiusMeters: number;
+  startLatitude: number | null;
+  startLongitude: number | null;
+  startRadiusMeters: number | null;
   distanceMeters: number;
   allowedSportTypes: string[];
 };
 
 export type ActivityMatchResult = {
-  status: "match" | "no_match" | "needs_confirmation";
+  status: "auto_match" | "no_match" | "needs_confirmation";
   reason: string;
 };
 
-/*
- * TODO pseudocode:
- * validate race configuration before matching:
- *     timestamps include an offset and startTimeFrom <= startTimeTo
- *     coordinates are valid and start radius is finite and nonnegative
- *     target distance is positive and allowedSportTypes is not empty
- * reject malformed activity timestamps/distances instead of guessing a match
- *
- * if activity.sportType is not in race.allowedSportTypes:
- *     return { status: "no_match", reason: "wrong_sport" }
- * parse activity.startDate and race window into comparable UTC instants
- * if activity start is outside the inclusive race start window:
- *     return { status: "no_match", reason: "outside_start_window" }
- * use the fixed distance tolerance defined in code, not organizer configuration
- * if abs(activity.distanceMeters - race.distanceMeters) exceeds tolerance:
- *     return { status: "no_match", reason: "distance_mismatch" }
- * if start coordinates are missing:
- *     return { status: "needs_confirmation", reason: "missing_start_location" }
- * validate the activity coordinates, then calculate Haversine distance in meters
- * if distance from the configured start exceeds race.startRadiusMeters:
- *     return { status: "no_match", reason: "outside_start_area" }
- * return { status: "match", reason: "race_checks_passed" }
- *
- * Keep this pure: no database calls, provider requests, or writes. Use category
- * distance, not a hard-coded marathon distance, and activity start, not upload
- * time. A match here is only a candidate; the processor resolves ambiguity
- * across activities/registrations before attaching anything automatically.
- */
+const DISTANCE_TOLERANCE_METERS = 500;
+const EARTH_RADIUS_METERS = 6_371_000;
+const OFFSET_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function utcInstant(value: unknown): number | null {
+  if (typeof value !== "string" || !OFFSET_TIMESTAMP.test(value)) return null;
+  const instant = Date.parse(value);
+  return Number.isFinite(instant) ? instant : null;
+}
+
+function validCoordinatePair(value: unknown): value is [number, number] {
+  return Array.isArray(value) &&
+    value.length === 2 &&
+    value.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) &&
+    Math.abs(value[0]) <= 90 &&
+    Math.abs(value[1]) <= 180;
+}
+
+export function validateRaceMatchConfig(config: RaceMatchConfig): RaceMatchConfig {
+  const value = config as unknown as Record<string, unknown>;
+  const from = utcInstant(value.startTimeFrom);
+  const to = utcInstant(value.startTimeTo);
+  const locationValues = [value.startLatitude, value.startLongitude, value.startRadiusMeters];
+  const locationIsUnset = locationValues.every((part) => part === null);
+  const locationIsSet = locationValues.every((part) => typeof part === "number");
+
+  if (
+    from === null ||
+    to === null ||
+    from >= to ||
+    typeof value.distanceMeters !== "number" ||
+    !Number.isFinite(value.distanceMeters) ||
+    value.distanceMeters <= 0 ||
+    !Array.isArray(value.allowedSportTypes) ||
+    value.allowedSportTypes.length !== 1 ||
+    value.allowedSportTypes[0] !== "Run" ||
+    (!locationIsUnset && !locationIsSet)
+  ) {
+    throw new TypeError("invalid_race_match_config");
+  }
+
+  if (locationIsSet) {
+    const latitude = value.startLatitude as number;
+    const longitude = value.startLongitude as number;
+    const radius = value.startRadiusMeters as number;
+
+    if (
+      !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
+      !Number.isFinite(longitude) || Math.abs(longitude) > 180 ||
+      !Number.isFinite(radius) || radius < 0
+    ) {
+      throw new TypeError("invalid_race_match_config");
+    }
+  }
+
+  return config;
+}
+
+function haversineMeters(first: [number, number], second: [number, number]): number {
+  const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+  const [latitude1, longitude1] = first.map(toRadians);
+  const [latitude2, longitude2] = second.map(toRadians);
+  const latitudeDelta = latitude2 - latitude1;
+  const longitudeDelta = longitude2 - longitude1;
+  const a =
+    Math.sin(latitudeDelta / 2) ** 2 +
+    Math.cos(latitude1) * Math.cos(latitude2) * Math.sin(longitudeDelta / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_METERS * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export function matchActivityToRace(
   activity: StravaActivity,
   race: RaceMatchConfig,
-): ActivityMatchResult | undefined {
-  const tolerance = 500; // value need to be tested
+): ActivityMatchResult {
+  const config = validateRaceMatchConfig(race);
+  const start = utcInstant(activity.startDate);
 
-  const distanceDiff = Math.abs(activity.distanceMeters - race.distanceMeters);
+  if (start === null) return { status: "no_match", reason: "invalid_start_time" };
+  if (typeof activity.distanceMeters !== "number" || !Number.isFinite(activity.distanceMeters) || activity.distanceMeters < 0) {
+    return { status: "no_match", reason: "invalid_distance" };
+  }
+  if (activity.startLatLng !== null && !validCoordinatePair(activity.startLatLng)) {
+    return { status: "no_match", reason: "invalid_start_location" };
+  }
 
+  if (activity.sportType !== "Run" || !config.allowedSportTypes.includes(activity.sportType)) {
+    return { status: "no_match", reason: "wrong_sport" };
+  }
+
+  const from = utcInstant(config.startTimeFrom)!;
+  const to = utcInstant(config.startTimeTo)!;
+  if (start < from || start > to) return { status: "no_match", reason: "outside_start_window" };
+  if (Math.abs(activity.distanceMeters - config.distanceMeters) > DISTANCE_TOLERANCE_METERS) {
+    return { status: "no_match", reason: "distance_mismatch" };
+  }
+
+  if (config.startLatitude === null) {
+    return { status: "needs_confirmation", reason: "missing_configured_location" };
+  }
   if (activity.startLatLng === null) {
     return { status: "needs_confirmation", reason: "missing_start_location" };
   }
 
-  const dateMatch = new Date(activity.startDate) >= new Date(race.startTimeFrom) && new Date(activity.startDate) <= new Date(race.startTimeTo);
-  const distanceMatch = distanceDiff <= tolerance;
-  const sportTypeMatch = race.allowedSportTypes.includes(activity.sportType);
-
-  if (!dateMatch) {
-    return { status: "no_match", reason: "outside_start_window" };
+  const configuredStart: [number, number] = [config.startLatitude, config.startLongitude!];
+  if (haversineMeters(activity.startLatLng, configuredStart) > config.startRadiusMeters!) {
+    return { status: "no_match", reason: "outside_start_area" };
   }
 
-  if (!distanceMatch) {
-    return { status: "no_match", reason: "distance_mismatch" };
-  }
-
-  if (!sportTypeMatch) {
-    return { status: "no_match", reason: "wrong_sport" };
-  }
-
-
-  return { status: "match", reason: "race_checks_passed" };
-
+  return { status: "auto_match", reason: "race_checks_passed" };
 }
