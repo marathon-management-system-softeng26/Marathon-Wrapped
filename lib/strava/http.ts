@@ -1,5 +1,6 @@
 import "server-only";
 import { AuthenticationError } from "../auth/session";
+import { AccessDeniedError } from "../auth/access";
 import { privateHeaders, sameOrigin } from "../authHttp";
 import { StravaError, stravaCallbackUrl } from "./client";
 
@@ -16,15 +17,19 @@ export function stravaErrorResponse(error: unknown) {
   const status =
     error instanceof AuthenticationError
       ? 401
-      : error instanceof StravaError
-        ? error.status
-        : 503;
+      : error instanceof AccessDeniedError
+        ? 404
+        : error instanceof StravaError
+          ? error.status
+          : 503;
   const code =
     error instanceof AuthenticationError
       ? "sign_in_required"
-      : error instanceof StravaError
-        ? error.code
-        : "temporarily_unavailable";
+      : error instanceof AccessDeniedError
+        ? "runner_not_found"
+        : error instanceof StravaError
+          ? error.code
+          : "temporarily_unavailable";
 
   return Response.json(
     { error: code },
