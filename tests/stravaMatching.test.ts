@@ -34,8 +34,8 @@ describe("validateRaceMatchConfig", () => {
   it.each([
     ["timestamp without offset", { startTimeFrom: "2027-08-17T00:00:00" }],
     ["invalid timestamp", { startTimeFrom: "not-a-date" }],
-    ["reversed time window", { startTimeFrom: "2027-08-17T02:00:00Z" }],
-    ["empty time window", { startTimeTo: "2027-08-17T00:00:00Z" }],
+    ["impossible calendar date", { startTimeFrom: "2027-02-30T01:00:00Z" }],
+    ["reversed time window", { startTimeFrom: "2027-08-17T03:00:00Z" }],
     ["non-finite latitude", { startLatitude: Number.NaN }],
     ["latitude outside range", { startLatitude: 90.01 }],
     ["non-finite longitude", { startLongitude: Number.POSITIVE_INFINITY }],
@@ -57,6 +57,11 @@ describe("validateRaceMatchConfig", () => {
     const unsetLocation = config({ startLatitude: null, startLongitude: null, startRadiusMeters: null });
     expect(validateRaceMatchConfig(unsetLocation)).toEqual(unsetLocation);
   });
+
+  it("accepts a window whose endpoints are the same instant", () => {
+    const instantWindow = config({ startTimeFrom: "2027-08-17T01:00:00Z", startTimeTo: "2027-08-17T01:00:00Z" });
+    expect(validateRaceMatchConfig(instantWindow)).toEqual(instantWindow);
+  });
 });
 
 describe("matchActivityToRace", () => {
@@ -72,6 +77,14 @@ describe("matchActivityToRace", () => {
     });
   });
 
+  it("matches an activity at the sole instant in an equal-endpoint window", () => {
+    const instant = "2027-08-17T01:00:00Z";
+    expect(matchActivityToRace(activity({ startDate: instant }), config({ startTimeFrom: instant, startTimeTo: instant }))).toEqual({
+      status: "auto_match",
+      reason: "race_checks_passed",
+    });
+  });
+
   it.each([
     ["before the start window", { startDate: "2027-08-16T23:59:59.999Z" }, "outside_start_window"],
     ["after the end window", { startDate: "2027-08-17T02:00:00.001Z" }, "outside_start_window"],
@@ -80,6 +93,7 @@ describe("matchActivityToRace", () => {
     ["a non-Run sport", { sportType: "Ride" }, "wrong_sport"],
     ["an invalid timestamp", { startDate: "invalid" }, "invalid_start_time"],
     ["a timestamp without UTC offset", { startDate: "2027-08-17T01:00:00" }, "invalid_start_time"],
+    ["an impossible calendar date", { startDate: "2027-02-30T01:00:00Z" }, "invalid_start_time"],
     ["a non-finite activity distance", { distanceMeters: Number.NaN }, "invalid_distance"],
     ["a negative activity distance", { distanceMeters: -1 }, "invalid_distance"],
     ["invalid activity coordinates", { startLatLng: [91, 0] }, "invalid_start_location"],

@@ -17,10 +17,28 @@ export type ActivityMatchResult = {
 
 const DISTANCE_TOLERANCE_METERS = 500;
 const EARTH_RADIUS_METERS = 6_371_000;
-const OFFSET_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const OFFSET_TIMESTAMP = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
 
 function utcInstant(value: unknown): number | null {
-  if (typeof value !== "string" || !OFFSET_TIMESTAMP.test(value)) return null;
+  if (typeof value !== "string") return null;
+  const parts = value.match(OFFSET_TIMESTAMP);
+  if (!parts) return null;
+
+  const [year, month, day, hour, minute, second] = parts.slice(1, 7).map(Number);
+  const calendarDate = new Date(0);
+  calendarDate.setUTCFullYear(year, month - 1, day);
+  calendarDate.setUTCHours(hour, minute, second, 0);
+  if (
+    calendarDate.getUTCFullYear() !== year ||
+    calendarDate.getUTCMonth() !== month - 1 ||
+    calendarDate.getUTCDate() !== day ||
+    calendarDate.getUTCHours() !== hour ||
+    calendarDate.getUTCMinutes() !== minute ||
+    calendarDate.getUTCSeconds() !== second
+  ) {
+    return null;
+  }
+
   const instant = Date.parse(value);
   return Number.isFinite(instant) ? instant : null;
 }
@@ -44,7 +62,7 @@ export function validateRaceMatchConfig(config: RaceMatchConfig): RaceMatchConfi
   if (
     from === null ||
     to === null ||
-    from >= to ||
+    from > to ||
     typeof value.distanceMeters !== "number" ||
     !Number.isFinite(value.distanceMeters) ||
     value.distanceMeters <= 0 ||
