@@ -10,6 +10,7 @@ import {
   loadStravaConnection,
   revokeStravaAccess,
   StravaConnection,
+  StravaActivity,
   StravaError,
   stravaId,
   verifyStravaAuthorization,
@@ -30,15 +31,39 @@ export type StravaWebhookEvent = {
 export type RunnerStravaRoute = {
   status:
     | "disconnected"
-    | "pending"
+    | "disconnecting"
+    | "reauthorize_to_disconnect"
+    | "reauth_required"
+    | "importing"
     | "matched"
     | "needs_confirmation"
     | "no_match"
-    | "no_gps"
     | "unavailable";
   activityId: string | null;
-  polyline: string | null;
+  candidates: RunnerStravaCandidate[];
+  metrics: Partial<Record<StravaMetric, number>>;
 };
+
+export type RunnerStravaCandidate = {
+  activityId: string;
+  startTimeLocal: string;
+  distanceMeters: number;
+  sportType: string;
+  gpsAvailable: boolean;
+  matchReason: string;
+};
+
+type StravaMetric = "avg_heartrate" | "max_heartrate" | "elevation_gain_m" | "calories" | "avg_cadence";
+const metricFields: StravaMetric[] = ["avg_heartrate", "max_heartrate", "elevation_gain_m", "calories", "avg_cadence"];
+
+function availableMetrics(value: Record<string, unknown>): Partial<Record<StravaMetric, number>> {
+  const result: Partial<Record<StravaMetric, number>> = {};
+  for (const field of metricFields) {
+    const metric = value[field];
+    if (typeof metric === "number" && Number.isFinite(metric) && metric >= 0) result[field] = metric;
+  }
+  return result;
+}
 
 type StravaJob = {
   id: string;
@@ -518,10 +543,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
   }
 }
 
-export async function getRunnerStravaRoute(
-  userId: string,
-  runnerId: string,
-): Promise<RunnerStravaRoute> {
+async function requireStravaRunnerAccess(userId: string, runnerId: string): Promise<void> {
   if (!isRunnerId(runnerId)) {
     throw new StravaError("invalid_runner", 400);
   }
@@ -540,17 +562,110 @@ export async function getRunnerStravaRoute(
   if (!data) {
     throw new StravaError("runner_not_found", 404);
   }
+}
 
-  const connection = await loadStravaConnection(userId);
+function connectionState(connection: StravaConnection | null): RunnerStravaRoute["status"] | null {
+  if (!connection || connection.status === "disconnected") return "disconnected";
+  if (connection.status === "disconnecting") {
+    return connection.credentials_uncertain ? "reauthorize_to_disconnect" : "disconnecting";
+  }
+  if (connection.status === "reauth_required") return "reauth_required";
+  return connection.athlete_id ? null : "unavailable";
+}
 
-  // TODO: Read selected routes here when race matching and candidate persistence are implemented.
+const emptyRunnerState = (status: RunnerStravaRoute["status"]): RunnerStravaRoute => ({
+  status, activityId: null, candidates: [], metrics: {},
+});
+
+type CandidateRow = { activity_id: string; match_status: string; reason: string };
+
+function safeCandidate(row: CandidateRow, activity: StravaActivity, athleteId: string): RunnerStravaCandidate | null {
+  if (activity.id !== row.activity_id || activity.athleteId !== athleteId || activity.sportType !== "Run" ||
+    !/^[1-9]\d{0,18}$/.test(activity.id) || !Number.isFinite(activity.distanceMeters) || activity.distanceMeters < 0 ||
+    !Number.isFinite(Date.parse(activity.startDate))) return null;
+  // The race is in Jakarta (UTC+07:00). The provider detail stores a UTC instant.
+  const local = new Date(Date.parse(activity.startDate) + 7 * 60 * 60 * 1000).toISOString().slice(0, 19) + "+07:00";
+  const knownReasons = ["race_checks_passed", "missing_start_location", "missing_configured_location"];
   return {
-    status: connection?.status === "active" ? "unavailable" : "disconnected",
-    activityId: null,
-    polyline: null,
+    activityId: activity.id, startTimeLocal: local, distanceMeters: activity.distanceMeters,
+    sportType: "Run", gpsAvailable: Array.isArray(activity.startLatLng) && activity.startLatLng.length === 2 &&
+      activity.startLatLng.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) &&
+      Math.abs(activity.startLatLng[0]) <= 90 && Math.abs(activity.startLatLng[1]) <= 180,
+    matchReason: knownReasons.includes(row.reason) ? row.reason : "confirmation_required",
   };
 }
 
-export async function confirmRunnerStravaActivity(): Promise<never> {
-  throw new StravaError("matching_not_implemented", 501);
+export async function getRunnerStravaRoute(userId: string, runnerId: string): Promise<RunnerStravaRoute> {
+  await requireStravaRunnerAccess(userId, runnerId);
+  const connection = await loadStravaConnection(userId);
+  const state = connectionState(connection);
+  if (state) return emptyRunnerState(state);
+  const active = connection!;
+  const db = getSupabaseAdmin();
+  const scoped = <const Fields extends string>(table: string, fields: Fields) => db.from(table).select(fields)
+    .eq("user_id", userId).eq("generation", active.generation);
+  const [candidateRows, details, selection, jobs] = await Promise.all([
+    scoped("strava_activity_candidates", "activity_id,match_status,reason").eq("runner_id", runnerId)
+      .in("match_status", ["auto_match", "needs_confirmation"]),
+    scoped("strava_activities", "activity_id,activity"),
+    scoped("strava_runner_activities", "activity_id").eq("runner_id", runnerId).maybeSingle(),
+    scoped("strava_jobs", "kind,status").in("kind", ["backfill", "activity", "webhook"]).neq("status", "complete"),
+  ]);
+  if ([candidateRows, details, selection, jobs].some((result) => result.error)) {
+    throw new Error("Strava storage is temporarily unavailable.");
+  }
+  const activities = new Map<string, StravaActivity>((details.data ?? []).flatMap((row) =>
+    row.activity ? [[row.activity_id, row.activity as StravaActivity] as const] : []));
+  const candidates: RunnerStravaCandidate[] = (candidateRows.data ?? []).flatMap((row: CandidateRow) => {
+    const activity = activities.get(row.activity_id);
+    const summary = activity ? safeCandidate(row, activity, active.athlete_id!) : null;
+    return summary ? [summary] : [];
+  }).sort((a, b) => a.activityId.localeCompare(b.activityId));
+  const selected = candidates.find((candidate) => candidate.activityId === selection.data?.activity_id);
+  let metrics: RunnerStravaRoute["metrics"] = {};
+  if (selected) {
+    const result = await scoped("strava_live_metrics", "avg_heartrate,max_heartrate,elevation_gain_m,calories,avg_cadence")
+      .eq("runner_id", runnerId).eq("activity_id", selected.activityId).maybeSingle();
+    if (result.error) throw new Error("Strava storage is temporarily unavailable.");
+    metrics = availableMetrics(result.data ?? {});
+  }
+  // A disconnect/reconnect during the reads must not return an old generation's data.
+  const current = await loadStravaConnection(userId);
+  const currentState = connectionState(current);
+  if (currentState) return emptyRunnerState(currentState);
+  if (current!.generation !== active.generation) return emptyRunnerState("importing");
+  return {
+    status: selected ? "matched" : jobs.data?.some((job) => job.status === "failed") ? "unavailable"
+      : jobs.data?.length ? "importing" : candidates.length ? "needs_confirmation" : "no_match",
+    activityId: selected?.activityId ?? null, candidates, metrics,
+  };
+}
+
+export async function confirmRunnerStravaActivity(userId: string, runnerId: string, activityId: string): Promise<RunnerStravaRoute> {
+  await requireStravaRunnerAccess(userId, runnerId);
+  if (typeof activityId !== "string" || !/^[1-9]\d{0,18}$/.test(activityId)) throw new StravaError("invalid_activity", 400);
+  const connection = await loadStravaConnection(userId);
+  if (!connection || connectionState(connection)) throw new StravaError("not_connected", 409);
+  const db = getSupabaseAdmin();
+  const [candidate, detail] = await Promise.all([
+    db.from("strava_activity_candidates").select("activity_id,match_status,reason")
+      .eq("user_id", userId).eq("generation", connection.generation).eq("runner_id", runnerId)
+      .eq("activity_id", activityId).in("match_status", ["auto_match", "needs_confirmation"]).maybeSingle(),
+    db.from("strava_activities").select("activity").eq("user_id", userId)
+      .eq("generation", connection.generation).eq("activity_id", activityId).maybeSingle(),
+  ]);
+  if (candidate.error || detail.error) throw new Error("Strava storage is temporarily unavailable.");
+  const activity = detail.data?.activity as StravaActivity | undefined;
+  if (!candidate.data || !activity || !safeCandidate(candidate.data, activity, connection.athlete_id!)) {
+    throw new StravaError("invalid_candidate", 409);
+  }
+  // Recheck identity and derive metrics from the current stored detail under the
+  // database connection/candidate locks, so a worker refresh cannot race this read.
+  const outcome = await stravaRpc<string>("strava_confirm_runner_activity", {
+    p_user: userId, p_generation: connection.generation, p_runner: runnerId, p_activity: activityId,
+  });
+  if (outcome === "forbidden") throw new StravaError("runner_not_found", 404);
+  if (outcome === "obsolete" || outcome === "invalid_candidate") throw new StravaError("invalid_candidate", 409);
+  if (outcome !== "selected") throw new StravaError("temporarily_unavailable");
+  return getRunnerStravaRoute(userId, runnerId);
 }

@@ -36,8 +36,10 @@ test(
         "supabase/migrations/20261028192351_strava_lifecycle.sql",
         "supabase/migrations/20261101000100_strava_race_matching.sql",
         "supabase/migrations/20261101000200_strava_worker_matching.sql",
+        "supabase/migrations/20261102074802_strava_atomic_confirmation.sql",
         "tests/sql/strava-lifecycle.sql",
         "tests/sql/strava-processing.sql",
+        "tests/sql/strava-confirmation.sql",
       ]) {
         await db.exec(await readFile(file, "utf8"));
       }
