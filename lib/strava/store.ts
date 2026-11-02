@@ -4,6 +4,15 @@ import { validateRaceMatchConfig, type RaceMatchConfig } from "./matching";
 
 export type RunnerRaceConfig = { runnerId: string; config: RaceMatchConfig };
 
+/** A completed OAuth attempt is the durable opt-in for exactly this generation. */
+export async function loadStravaRunnerScope(userId: string, generation: string, signal?: AbortSignal): Promise<string | null> {
+  const query = getSupabaseAdmin().from("strava_oauth_attempts").select("runner_id")
+    .eq("user_id", userId).eq("generation", generation).eq("status", "connected");
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
+  if (error) throw new Error("Strava storage is temporarily unavailable.");
+  return data?.runner_id ?? null;
+}
+
 /** Only direct runner ownership can authorize athlete data; organizer access is insufficient. */
 export async function loadRunnerRaceConfigs(userId: string, runnerId?: string): Promise<RunnerRaceConfig[]> {
   const db = getSupabaseAdmin();

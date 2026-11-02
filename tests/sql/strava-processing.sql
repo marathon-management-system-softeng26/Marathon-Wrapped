@@ -18,6 +18,8 @@ begin
     values(r,c,'Worker runner','1990-01-01','M','worker@example.invalid','0','Passport','worker','M');
   insert into public.runner_access values(u,r);
   insert into public.strava_connections(user_id,generation,status,athlete_id) values(u,g,'active','2');
+  insert into public.strava_oauth_attempts(state_hash,user_id,generation,status,runner_id,return_path)
+    values('worker-scope',u,g,'connected',r,'/wrapped/'||r::text);
   insert into public.strava_metrics(runner_id,avg_heartrate,data_source) values(r,123,'demo');
   batches := jsonb_build_array(jsonb_build_object('runner_id',r,'candidates',jsonb_build_array(
     jsonb_build_object('activity_id','one','match_status','auto_match','reason','race_checks_passed','summary','{}'::jsonb))));
@@ -137,8 +139,8 @@ begin
   assert not public.strava_commit_runner_job((j->>'id')::uuid,(j->>'lease_id')::uuid,
     p_continuation=>'{"key":"page-two","payload":{"page":2}}',
     p_discoveries=>'[{"object_id":"one","owner_id":"repeated-pages"}]');
-  assert (select count(*) from public.strava_jobs where user_id=u and kind='activity')=1, 'Repeated page detail discovery is idempotent';
-  assert (select count(*) from public.strava_jobs where user_id=u and dedupe_key='page-two')=1, 'Repeated page continuation is idempotent';
+  assert (select count(*) from public.strava_jobs where user_id=u and kind='activity')=0, 'Unscoped legacy page cannot discover details';
+  assert (select count(*) from public.strava_jobs where user_id=u and dedupe_key='page-two')=0, 'Unscoped legacy page cannot continue';
 end $$;
 
 rollback;

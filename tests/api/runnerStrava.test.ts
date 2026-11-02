@@ -10,6 +10,7 @@ import { POST as disconnect } from "@/app/api/strava/disconnect/route";
 import { AuthenticationError } from "@/lib/auth/session";
 import { getRunnerEnrichment } from "@/controllers/enrichmentController";
 import { getRunnerStravaRoute } from "@/lib/strava/processing";
+import { stravaViewModel } from "@/lib/strava/viewModel";
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
 const otherRunner = "22222222-2222-2222-2222-222222222222";
@@ -62,6 +63,7 @@ beforeEach(() => {
   storageError = null; selectionCalls = []; selectionOutcome = "selected"; revokeOutcome = "done"; beforeRead = undefined; querySignals = [];
   tables = {
     runner_access: [{ user_id: "user", runner_id: runnerId }],
+    strava_oauth_attempts: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "connected" }],
     strava_connections: [{ user_id: "user", generation: "generation", status: "active", athlete_id: "123",
       access_token: "private-token", refresh_token: null, credentials_uncertain: false }],
     strava_activity_candidates: [], strava_activities: [], strava_runner_activities: [], strava_live_metrics: [], strava_jobs: [],
@@ -145,6 +147,18 @@ describe("runner Strava access and safe states", () => {
     expect(result.strava).toMatchObject({ state: "disconnected", metrics: null, controlsAvailable: false });
     expect(JSON.stringify(result)).not.toMatch(/188|91/);
   });
+  it("hides every organizer control when the sample query also fails", async () => {
+    beforeRead = (table) => { storageError = table === "strava_metrics" ? "storage unavailable" : null; };
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "organizer");
+    expect(result.strava).toMatchObject({ state: "unavailable", controlsAvailable: false });
+    expect(stravaViewModel(result.strava, runnerId).actions).toEqual([]);
+    expect(stravaViewModel(result.strava, runnerId).candidates).toEqual([]);
+  });
+  it("hides mutation controls until direct ownership can be established", async () => {
+    storageError = "access unavailable";
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
+    expect(result.strava.controlsAvailable).toBe(false);
+  });
   it("reports unavailable and a warning for storage failure without leaking internals", async () => {
     storageError = "private-token";
     const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
@@ -154,6 +168,16 @@ describe("runner Strava access and safe states", () => {
   it("reports disconnected when neither live nor demo data exists", async () => {
     tables.strava_connections = [];
     expect((await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user")).strava).toMatchObject({ state: "disconnected", metrics: null });
+  });
+  it.each(["other_runner", "old_generation", "pending"])("does not expose or confirm data outside the completed runner scope: %s", async (kind) => {
+    candidate(); selected();
+    tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
+    if (kind === "other_runner") tables.strava_oauth_attempts[0].runner_id = otherRunner;
+    if (kind === "old_generation") tables.strava_oauth_attempts[0].generation = "old";
+    if (kind === "pending") tables.strava_oauth_attempts[0].status = "pending";
+    expect(await safe(await GET(request(), context()))).toEqual({ status: "disconnected", activityId: null, candidates: [], metrics: {} });
+    await safe(await PUT(request("PUT", { activityId: "10" }), context()), 409);
+    expect(selectionCalls).toEqual([]);
   });
   it("does not substitute samples when current provider import has failed", async () => {
     tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 155 }];
@@ -166,7 +190,7 @@ describe("runner Strava access and safe states", () => {
     candidate(); selected();
     const signal = new AbortController().signal;
     await getRunnerStravaRoute("user", runnerId, signal);
-    expect(querySignals.length).toBe(8);
+    expect(querySignals.length).toBe(9);
     expect(querySignals.every((value) => value === signal)).toBe(true);
   });
   it.each(["GET", "PUT"])("requires authentication for %s", async (method) => {

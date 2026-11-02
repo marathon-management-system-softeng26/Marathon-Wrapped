@@ -45,7 +45,7 @@ export function stravaViewModel(input: WrappedPayloadStrava, runnerId: string, p
     const value = input.metrics?.[key];
     return typeof value === "number" && Number.isFinite(value) && value >= 0 ? [{ label: labels[key], value }] : [];
   }) : [];
-  const candidates = input.state === "needs_confirmation" ? (input.candidates ?? []).flatMap((candidate) => {
+  const candidates = input.controlsAvailable !== false && input.state === "needs_confirmation" ? (input.candidates ?? []).flatMap((candidate) => {
     const date = new Date(candidate.startTimeLocal);
     if (!Number.isFinite(date.getTime()) || !Number.isFinite(candidate.distanceMeters) || candidate.distanceMeters < 0) return [];
     const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
@@ -83,6 +83,7 @@ export function callbackFeedback(href: string): { notice: string; path: string }
     ["insufficient_scope", "Allow activity access in Strava to connect your race activity."],
     ["expired", "Strava authorization expired. Connect again to try again."],
     ["athlete_conflict", "This Strava account is already connected elsewhere. Choose another account."],
+    ["different_runner", "Strava is connected to another recap. Disconnect it there before connecting this recap."],
   ]);
   const notice = messages.get(code ?? "") ?? "Strava could not connect. Try connecting again.";
   url.searchParams.delete("strava");

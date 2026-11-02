@@ -94,7 +94,13 @@ beforeEach(() => {
   mocks.access.mockResolvedValue("access");
   mocks.activity.mockResolvedValue(raceActivity);
   mocks.owner.mockResolvedValue({ data: { user_id: "user", generation: "generation" } });
-  mocks.rows.mockResolvedValue({ data: [] });
+  mocks.rows.mockImplementation(async (table, filters, single) => {
+    const rows: Record<string, unknown> = {
+      strava_oauth_attempts: { runner_id: runnerId }, runner_access: { runner_id: runnerId },
+      runners: { category_id: 7 }, categories: { distance_km: 5 }, strava_race_configs: raceConfig,
+    };
+    return { data: single ? rows[table] : [rows[table]] };
+  });
   mocks.rpc.mockImplementation(async (name) =>
     name === "strava_claim_job" ? null : true,
   );
@@ -120,6 +126,7 @@ describe("Strava processing", () => {
   const configuredRunner = () => {
     mocks.rows.mockImplementation(async (table, filters, single) => {
       const rows: Record<string, unknown> = {
+        strava_oauth_attempts: { runner_id: runnerId },
         runner_access: { runner_id: runnerId }, runners: { category_id: 7 },
         categories: { distance_km: 5 }, strava_race_configs: raceConfig,
       };
@@ -127,6 +134,63 @@ describe("Strava processing", () => {
     });
     mocks.activity.mockResolvedValue(raceActivity);
   };
+
+  it("matches only the runner who opted in even when another owned runner has identical race configuration", async () => {
+    configuredRunner();
+    const normal = mocks.rows.getMockImplementation()!;
+    const other = "22222222-2222-2222-2222-222222222222";
+    mocks.rows.mockImplementation((table, filters, single) => table === "runner_access" && !filters.runner_id
+      ? Promise.resolve({ data: [{ runner_id: runnerId }, { runner_id: other }] }) : normal(table, filters, single));
+    claim();
+    await processStravaJobs();
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_runner_candidates.map((batch: { runner_id: string }) => batch.runner_id)).toEqual([runnerId]);
+  });
+
+  it.each([
+    { startDate: "2027-08-18T01:00:00Z" }, { sportType: "Ride" }, { distanceMeters: 4000 },
+  ])("removes private detail for an unrelated workout %j", async (override) => {
+    configuredRunner();
+    mocks.activity.mockResolvedValue({ ...raceActivity, ...override });
+    claim();
+    await processStravaJobs();
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_activities).toEqual([{ id: "1", activity: null }]);
+    expect(commit.p_runner_candidates.flatMap((batch: { candidates: unknown[] }) => batch.candidates)).toEqual([]);
+  });
+
+  it("does not import private details when the opted-in runner has no approved configuration", async () => {
+    configuredRunner();
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => table === "strava_race_configs"
+      ? Promise.resolve({ data: null }) : normal(table, filters, single));
+    claim();
+    await processStravaJobs();
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_activities).toEqual([{ id: "1", activity: null }]);
+    expect(commit.p_runner_candidates).toEqual([]);
+  });
+
+  it("does not import for a generation without a completed runner opt-in", async () => {
+    configuredRunner();
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => table === "strava_oauth_attempts"
+      ? Promise.resolve({ data: [] }) : normal(table, filters, single));
+    claim();
+    await processStravaJobs();
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_runner_candidates).toEqual([]);
+    expect(commit.p_activities).toEqual([{ id: "1", activity: null }]);
+    expect(mocks.activity).not.toHaveBeenCalled();
+  });
+  it("does not fetch a queued detail bound to a different runner", async () => {
+    configuredRunner();
+    claim({ ...job, kind: "activity", payload: { object_id: "1", owner_id: "2", runner_id: "22222222-2222-2222-2222-222222222222" } });
+    await processStravaJobs();
+    expect(mocks.activity).not.toHaveBeenCalled();
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_activities).toEqual([]);
+  });
 
   it("commits race classifications with the activity lease and keeps private location out of summaries", async () => {
     configuredRunner();
@@ -152,7 +216,7 @@ describe("Strava processing", () => {
     claim();
     await processStravaJobs();
     expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
-      p_runner_candidates: [{ runner_id: runnerId, candidates: [expect.objectContaining({ match_status: status, reason })] }],
+      p_runner_candidates: [{ runner_id: runnerId, candidates: status === "no_match" ? [] : [expect.objectContaining({ match_status: status, reason })] }],
     }));
   });
 
@@ -191,15 +255,18 @@ describe("Strava processing", () => {
     });
     await processStravaJobs();
     expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({ p_runner_candidates: [] }));
-    expect(mocks.rows).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
+      p_activities: [{ id: "1", activity: null }],
+    }));
   });
 
   it("retains runner context on subsequent backfill pages", async () => {
-    claim({ ...job, kind: "backfill", payload: { after: 100, before: 200, page: 1, runner_id: runnerId } });
+    configuredRunner();
+    claim({ ...job, kind: "backfill", payload: { after: 1818460799, before: 1818468001, page: 1, runner_id: runnerId } });
     mocks.list.mockResolvedValue(Array.from({ length: 25 }, (_, i) => ({ id: String(i + 1) })));
     await processStravaJobs();
     expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_runner_job", expect.objectContaining({
-      p_continuation: { key: `runner:${runnerId}:backfill:100:200:2`, payload: { after: 100, before: 200, page: 2, runner_id: runnerId } },
+      p_continuation: { key: `runner:${runnerId}:backfill:1818460799:1818468001:2`, payload: { after: 1818460799, before: 1818468001, page: 2, runner_id: runnerId } },
     }));
   });
 
@@ -234,6 +301,7 @@ describe("Strava processing", () => {
   });
 
   it("commits fetched activity only with the claimed lease", async () => {
+    configuredRunner();
     claim();
 
     await processStravaJobs();
@@ -261,6 +329,7 @@ describe("Strava processing", () => {
   });
 
   it("does not trust a deletion POST while the activity remains accessible", async () => {
+    configuredRunner();
     claim({ ...job, payload: { ...event, aspect_type: "delete" } });
 
     await processStravaJobs();
@@ -373,10 +442,11 @@ describe("Strava processing", () => {
   });
 
   it("queues bounded backfill pages and fetches details separately", async () => {
+    configuredRunner();
     claim({
       ...job,
       kind: "backfill",
-      payload: { after: 100, before: 200, page: 1 },
+      payload: { after: 1818460799, before: 1818468001, page: 1, runner_id: runnerId },
     });
     mocks.list.mockResolvedValue(
       Array.from({ length: 25 }, (_, i) => ({ id: String(i + 1) })),
@@ -384,17 +454,17 @@ describe("Strava processing", () => {
 
     await processStravaJobs();
 
-    expect(mocks.list).toHaveBeenCalledWith("access", 100, 200, 1, "2");
+    expect(mocks.list).toHaveBeenCalledWith("access", 1818460799, 1818468001, 1, "2");
     expect(mocks.rpc).toHaveBeenCalledWith(
       "strava_commit_runner_job",
       expect.objectContaining({
         p_activities: [],
         p_discoveries: expect.arrayContaining([
-          expect.objectContaining({ object_id: "1" }),
+          expect.objectContaining({ object_id: "1", runner_id: runnerId }),
         ]),
         p_continuation: {
-          key: "backfill:100:200:2",
-          payload: { after: 100, before: 200, page: 2 },
+          key: `runner:${runnerId}:backfill:1818460799:1818468001:2`,
+          payload: { after: 1818460799, before: 1818468001, page: 2, runner_id: runnerId },
         },
       }),
     );
@@ -402,10 +472,11 @@ describe("Strava processing", () => {
   });
 
   it("ends an empty import and only schedules explicit valid windows", async () => {
+    configuredRunner();
     claim({
       ...job,
       kind: "backfill",
-      payload: { after: 100, before: 200, page: 1 },
+      payload: { after: 1818460799, before: 1818468001, page: 1, runner_id: runnerId },
     });
     mocks.list.mockResolvedValue([]);
 
@@ -419,11 +490,12 @@ describe("Strava processing", () => {
       code: "invalid_window",
     });
 
-    await enqueueStravaBackfill("user", 100, 200);
+    await expect(enqueueStravaBackfill("user", 100, 200)).rejects.toMatchObject({ code: "invalid_window" });
+    await enqueueStravaBackfill("user", 1818460799, 1818468001);
 
     expect(mocks.rpc).toHaveBeenLastCalledWith(
       "strava_enqueue",
-      expect.objectContaining({ p_key: "backfill:100:200:1" }),
+      expect.objectContaining({ p_key: `runner:${runnerId}:backfill:1818460799:1818468001:1` }),
     );
   });
 

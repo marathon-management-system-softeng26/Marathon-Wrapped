@@ -53,8 +53,10 @@ export async function getRunnerEnrichment(runnerId: string, bib: string | null, 
     // The legacy table is sample data only; live provenance requires a current selection.
     strava = { state: "demo", metrics: metrics(demo.value.data) };
   }
-  if (ownerDenied || !userId) strava.controlsAvailable = false;
   if (liveFailed || (demoFailed && (!route || route.status === "disconnected"))) strava = { state: "unavailable", metrics: null };
+  // A failed authorization lookup is not proof of ownership. Apply this after
+  // all fallback replacements so failures cannot restore mutation controls.
+  if (!route || ownerDenied || !userId) strava.controlsAvailable = false;
   if (demoFailed || liveFailed || strava.state === "unavailable") warnings.push("Extra activity details are unavailable. Your chip recap is ready.");
   if (photoFailed) warnings.push("Photos are unavailable. Try again later.");
   return { strava, photos: (!photoFailed && photos.status === "fulfilled" ? photos.value.data ?? [] : []) as Photo[], warnings };

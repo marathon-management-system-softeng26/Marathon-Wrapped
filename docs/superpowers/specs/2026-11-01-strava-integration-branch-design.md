@@ -140,4 +140,3 @@ The refreshed Strava recap card supports: disconnected, authorizing, connected/i
 - Denial, no match, ambiguous match, partial data, rate limits, refresh failure, and remote cleanup do not block the baseline recap.
 - The previous TODO matching behavior and HTTP 501 confirmation path are removed.
 - Required automated gates pass, live-provider acceptance is recorded, and remaining operational prerequisites are documented.
-

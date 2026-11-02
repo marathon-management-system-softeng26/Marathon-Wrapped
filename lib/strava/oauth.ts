@@ -56,7 +56,7 @@ const outcomeCodes = new Set([
   "failed", "in_progress", "invalid_state", "athlete_conflict", "insufficient_scope",
   "invalid_callback", "invalid_id", "invalid_provider_response", "provider_unavailable",
   "provider_rejected", "rate_limited", "authorization_revoked", "forbidden", "not_found",
-  "authorization_failed",
+  "authorization_failed", "different_runner",
 ]);
 
 type RunnerOAuthAttempt = {
@@ -113,6 +113,7 @@ export async function connectStrava(request: NextRequest) {
   });
 
   if (result !== "ready") {
+    if (result === "already_connected") await enqueueRunnerStravaBackfill(user.id, runnerId);
     return outcome(result, returnPath);
   }
 

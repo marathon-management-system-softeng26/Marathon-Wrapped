@@ -588,4 +588,3 @@ Expected: both ancestry checks pass, source refs still point to their original f
 ## Execution Order and Review Gates
 
 Execute strictly in task order. After each task, review only that task's commit and rerun its focused tests before continuing. Do not push, deploy, apply remote migrations, register a webhook, or merge `integration` into another branch unless the user separately authorizes that external change.
-

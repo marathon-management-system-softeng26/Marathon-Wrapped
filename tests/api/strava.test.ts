@@ -148,6 +148,25 @@ describe("Strava encryption", () => {
 });
 
 describe("Strava OAuth", () => {
+  it.each(["STRAVA_CLIENT_SECRET", "STRAVA_CALLBACK_URL"])("returns a submitted recap form safely when %s is missing", async (key) => {
+    vi.stubEnv(key, "");
+    const response = await connect(request("strava/connect", "POST", {
+      "Content-Type": "application/x-www-form-urlencoded", Accept: "text/html",
+    }, `runnerId=${runnerId}&returnPath=https%3A%2F%2Fevil.example`));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=authorization_failed`);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("returns a submitted recap form safely when attempt storage fails", async () => {
+    mocks.rpc.mockRejectedValue(new Error("private-storage-detail"));
+    const response = await connect(request("strava/connect", "POST", {
+      "Content-Type": "application/x-www-form-urlencoded", Accept: "text/html",
+    }, `runnerId=${runnerId}`));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=authorization_failed`);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
   it("binds a random state to the selected authorized runner and HttpOnly browser cookie", async () => {
     const response = await connect(connectRequest());
 

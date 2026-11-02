@@ -325,13 +325,15 @@ begin
   -- reuse a UUID across two users with access to the same registration.
   insert into public.runner_access values (b,runner);
   insert into public.strava_connections(user_id,status,generation) values (b,'active',generation);
+  insert into public.strava_oauth_attempts(state_hash,user_id,generation,status,runner_id,return_path)
+    values('other-owner-scope',b,generation,'connected',runner,'/wrapped/'||runner::text);
   insert into public.strava_activities(user_id,generation,activity_id,activity) values (b,generation,'one','{}');
   perform pg_temp.expect_error(format('insert into public.strava_activity_candidates(user_id,generation,runner_id,activity_id,match_status,reason) values (%L,%L,%L,''one'',''auto_match'',''race_checks_passed'')',b,generation,runner),'23505');
   perform pg_temp.expect_error(format('select public.strava_store_runner_candidates(%L,%L,%L,''[]'')',a,generation,foreign_runner),'42501');
   perform pg_temp.expect_error(format('select public.strava_store_runner_candidates(%L,%L,%L,''[{"activity_id":"missing","match_status":"auto_match","reason":"race_checks_passed","summary":{}}]'')',a,generation,runner),'23503');
   perform pg_temp.expect_error(format('select public.strava_store_runner_candidates(%L,%L,%L,''[]'')',a,gen_random_uuid(),runner),'22023');
-  perform pg_temp.expect_error(format('insert into public.strava_activity_candidates(user_id,generation,runner_id,activity_id,match_status,reason) values (%L,%L,%L,''one'',''auto_match'',''race_checks_passed'')',a,generation,foreign_runner),'23503');
-  perform pg_temp.expect_error(format('insert into public.strava_activity_candidates(user_id,generation,runner_id,activity_id,match_status,reason) values (%L,%L,%L,''one'',''auto_match'',''race_checks_passed'')',a,gen_random_uuid(),runner),'23503');
+  perform pg_temp.expect_error(format('insert into public.strava_activity_candidates(user_id,generation,runner_id,activity_id,match_status,reason) values (%L,%L,%L,''one'',''auto_match'',''race_checks_passed'')',a,generation,foreign_runner),'42501');
+  perform pg_temp.expect_error(format('insert into public.strava_activity_candidates(user_id,generation,runner_id,activity_id,match_status,reason) values (%L,%L,%L,''one'',''auto_match'',''race_checks_passed'')',a,gen_random_uuid(),runner),'42501');
   assert public.strava_select_runner_activity(a,generation,foreign_runner,'one','{}') = 'forbidden';
   assert public.strava_select_runner_activity(a,generation,runner,'missing','{}') = 'invalid_candidate';
   assert public.strava_select_runner_activity(a,generation,runner,'one','{"avg_heartrate":140,"max_heartrate":180,"calories":300}') = 'selected';

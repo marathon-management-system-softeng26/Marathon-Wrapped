@@ -20,6 +20,8 @@ begin
       (other_runner,c,'Other runner','1990-01-01','M','other@example.invalid','0','Passport','other-confirm','M');
   insert into public.runner_access values(u,r),(u,other_runner);
   insert into public.strava_connections(user_id,generation,status,athlete_id) values(u,g,'active','confirmation-athlete');
+  insert into public.strava_oauth_attempts(state_hash,user_id,generation,status,runner_id,return_path)
+    values('confirmation-scope',u,g,'connected',r,'/wrapped/'||r::text);
   insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',detail);
   perform public.strava_store_runner_candidates(u,g,r,'[{"activity_id":"10","match_status":"needs_confirmation","reason":"missing_start_location"}]');
   assert public.strava_confirm_runner_activity(u,g,r,'10')='selected', 'Missing GPS can be explicitly confirmed';
@@ -57,6 +59,8 @@ begin
   delete from public.runner_access where user_id=u and runner_id=r;
   assert public.strava_confirm_runner_activity(u,g,r,'10')='forbidden', 'Ownership removed before confirmation is rechecked';
   insert into public.runner_access values(u,r);
+  insert into public.strava_oauth_attempts(state_hash,user_id,generation,status,runner_id,return_path)
+    values('confirmation-restored-scope',u,g,'connected',r,'/wrapped/'||r::text);
   perform public.strava_store_runner_candidates(u,g,r,'[{"activity_id":"10","match_status":"needs_confirmation","reason":"missing_start_location"}]');
   update public.strava_connections set status='reauth_required' where user_id=u;
   assert public.strava_confirm_runner_activity(u,g,r,'10')='obsolete', 'Current connection must remain active';

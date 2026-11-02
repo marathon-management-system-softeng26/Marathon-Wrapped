@@ -1,18 +1,35 @@
 # Strava integration setup and acceptance runbook
 
-Updated November 2, 2026. This runbook separates repeatable local evidence from credential-gated external acceptance. It does not authorize deployment, remote migrations, webhook registration, or provider calls.
+Updated November 3, 2026. This runbook separates repeatable local evidence from credential-gated external acceptance. It does not authorize deployment, remote migrations, webhook registration, or provider calls.
 
 ## Current evidence status
 
 | Gate | Current evidence | Acceptance status |
 | --- | --- | --- |
-| Unit, route, service, UI-model, privacy, and export tests | Task 11 local run: 313 passed, 17 environment-gated skips | Automated local evidence passed |
+| Unit, route, service, UI-model, privacy, and export tests | Final fix wave: 328 passed, 17 environment-gated skips | Automated local evidence passed |
 | Local PostgreSQL migration/lifecycle/worker/confirmation checks | Task 11 default run: 10 passed, 1 gated skip; activated PGlite run: 11 passed | Automated local PostgreSQL evidence passed |
 | Dedicated Supabase concurrency suite | Not run; no dedicated-project credentials were supplied | Pending |
 | Real Strava OAuth, import, webhook, refresh, and revocation | Not run; no test application/account credentials were supplied | Pending |
 | Desktop/mobile, keyboard/focus, callback URL cleanup, and PNG privacy | Automated/static coverage exists; complete manual pass not run for this integration | Pending |
 
 No full FR-08–FR-11 acceptance is claimed until every applicable pending gate is recorded below.
+
+## Final fix verification — November 3, 2026
+
+The final review fixes enforce the completed OAuth attempt's runner/generation throughout discovery, detail processing, candidate writes, selection, and API reads. Rejected or unconfigured activities do not retain health/location snapshots. Missing Strava setup or storage errors from a native Connect form return to the validated recap with safe feedback. Organizer denial combined with sample-query failure hides all mutation controls.
+
+| Gate | Command / check | Observed result |
+| --- | --- | --- |
+| Full suite | `npm test` | 23 files passed, 2 credential-gated files skipped; 328 tests passed, 17 skipped, 0 failed |
+| Controlled-provider/regression fixtures | Same seven-file focused command recorded below | 240 passed, 0 failed |
+| Export/privacy subset | Same six-file subset command recorded below | 111 passed, 0 failed |
+| Native default | `npm run test:native` | 10 passed, 1 PGlite-gated skip |
+| Activated PostgreSQL | Set `STRAVA_PGLITE_MODULE` to the established external module, then `npm run test:native` | 11 passed, 0 skipped; includes pre-fix upgrade cleanup, two-runner scope, stale generations, rollback, snapshot invalidation, idempotent scoped pages, and privilege assertions |
+| Static gates | `npm run lint`; `npx tsc --noEmit`; `npm run build` | Passed; production build generated 15 static pages |
+| Branch-wide whitespace | `git diff --check origin/dev...integration` | Passed after removing both plan/spec EOF blank lines |
+| Source histories | Both ancestry commands and source-ref comparisons below | Passed; both source refs unchanged |
+
+The same credentialed and manual gates remain pending. Existing non-failing Vite CJS and native typeless-package warnings remain; no dependency versions or lockfiles changed.
 
 ## Task 11 evidence — November 2, 2026
 
@@ -29,11 +46,11 @@ Environment: Windows/PowerShell in the isolated `integration` worktree, Node.js 
 | Current-worktree whitespace | `git diff --check` | Passed |
 | Branch ancestry | `git merge-base --is-ancestor origin/dev integration`; same for `origin/strava-integration` | Both exited 0 |
 | Source-ref preservation | Compare current refs with the Task 1 recorded SHAs | `origin/dev` remains `d82a4fa77a55dfea8891433546df2234b1f7ed0f`; `origin/strava-integration` remains `b782a0cda5cea71031e7cb8ceda18830ed87ba25` |
-| Branch-wide whitespace | `git diff --check origin/dev...integration` | Not clean: the Task 1 plan and design-spec copies contain an extra blank line at EOF. This inherited documentation-only warning remains open; it does not invalidate the passing runtime gates. |
+| Branch-wide whitespace | `git diff --check origin/dev...integration` | Task 11 found an extra EOF blank line in the plan/spec copies; the final fix wave removed both. See the final verification below. |
 
 Controlled fixtures exercised consent success and denial, partial scope, complete/partial/malformed metrics, zero/no/ambiguous matching, missing GPS, `429` with `Retry-After`, coordinated refresh, provider revocation, repeat/replay protection, and disconnect cleanup. The evidence is in `tests/api/strava.test.ts`, `tests/api/runnerStrava.test.ts`, `tests/stravaClient.test.ts`, `tests/stravaProcessing.test.ts`, `tests/stravaMatching.test.ts`, and the activated native lifecycle suite.
 
-Static and automated privacy evidence confirms one recap fetch on component load, ordinary recap reads use stored data rather than Strava, callback feedback is allowlisted and removed with `history.replaceState`, candidates omit route geometry and private identifiers, organizer-only viewers receive no live metrics or controls, export remains 1080 × 1350, and the share/export model receives no health metrics. The production build confirms the code compiles, but no usable local authenticated runner fixture exists without the absent Supabase configuration; desktop/mobile visual layout, keyboard/focus transitions, address-bar observation, browser network/storage/log inspection, and a rendered PNG inspection therefore remain pending manual browser acceptance.
+Static and automated privacy evidence confirms one recap fetch on component load, ordinary recap reads use stored data rather than Strava, callback feedback is allowlisted and removed with `history.replaceState`, and candidates omit athlete IDs, credentials, raw payloads, coordinates, and route geometry. The owner-authorized candidate API intentionally returns the provider `activityId` needed for explicit confirmation. Organizer-only viewers receive no live metrics or controls, export remains 1080 × 1350, and the share/export model receives no health metrics. The production build confirms the code compiles, but no usable local authenticated runner fixture exists without the absent Supabase configuration; desktop/mobile visual layout, keyboard/focus transitions, address-bar observation, browser network/storage/log inspection, and a rendered PNG inspection therefore remain pending manual browser acceptance.
 
 Skipped external gates:
 
@@ -68,10 +85,13 @@ The OAuth application callback must exactly equal `STRAVA_CALLBACK_URL`. The app
    - `20261101000100_strava_race_matching.sql`
    - `20261101000200_strava_worker_matching.sql`
    - `20261102074802_strava_atomic_confirmation.sql`
+   - `20261102192931_strava_runner_scope_privacy.sql`
 3. Add one `strava_race_configs` row for each category under test. Use an inclusive UTC start window, `allowed_sport_types = ARRAY['Run']`, and `distance_tolerance_m = 500`. Category distance comes from `categories.distance_km`.
 4. Supply `start_latitude`, `start_longitude`, and `start_radius_m` together, or leave all three null. Null configured coordinates or missing activity GPS always require runner confirmation. Exactly one candidate can auto-select only when sport, time, distance, and configured start-area checks all pass.
 
 For manual provider acceptance, create a clearly labeled temporary QA-only window around a private test `Run` in the dedicated test database. Keep private coordinates and activity IDs outside commits, reports, screenshots, logs, and issue text. Record the original rows first and restore the Soekarno Run configuration immediately after the test, even if acceptance fails.
+
+Completed runner-bound OAuth attempts persist the runner opt-in for the current connection generation, beyond the callback expiry. Workers, candidates, and selections enforce that scope. A user with several owned runners must disconnect the existing scoped recap before connecting another. Explicit Connect can bind an older active grant that has no runner scope. The final migration removes pre-fix accidental candidate/selection fan-out and private snapshots unrelated to a retained scoped candidate; sample metrics and credentials remain intact. Worker reclassification removes rejected activity snapshots and dependent live metrics without accumulating tombstones.
 
 ## Webhook and worker operations
 
@@ -129,7 +149,7 @@ Use an authorized private test account and the temporary QA-only race window.
 
 At recorded desktop and mobile viewports, verify keyboard access, visible focus, readable state/status feedback, candidate confirmation, disconnect, and callback-message cleanup from the address bar. Confirm one recap request per refresh and no duplicate provider call from ordinary recap loading.
 
-Export a 1080 × 1350 PNG and confirm it contains the correct runner's chip recap but no live health metrics. Inspect HTML, JSON responses, browser storage, application logs, screenshots, exported images, and `git diff` for tokens, secrets, private coordinates, route geometry, athlete identifiers, or private activity IDs. Organizer-only access must never reveal runner live metrics or connection controls.
+Export a 1080 × 1350 PNG and confirm it contains the correct runner's chip recap but no live health metrics. Inspect HTML, JSON responses, browser storage, application logs, screenshots, exported images, and `git diff` for tokens, secrets, private coordinates, route geometry, or athlete identifiers. The owner-authorized API may return provider `activityId` for confirmation; keep real activity IDs out of logs, screenshots, exports, and committed artifacts. Organizer-only access must never reveal runner live metrics or connection controls.
 
 ## Recording results
 
