@@ -139,6 +139,12 @@ describe("runner Strava access and safe states", () => {
     expect(result.strava.controlsAvailable).toBe(false);
     expect(JSON.stringify(result)).not.toContain("145.5");
   });
+  it("never relabels legacy live metrics as organizer-visible demo data", async () => {
+    tables.strava_metrics = [{ runner_id: runnerId, data_source: "strava", avg_heartrate: 188, avg_cadence: 91 }];
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "organizer");
+    expect(result.strava).toMatchObject({ state: "disconnected", metrics: null, controlsAvailable: false });
+    expect(JSON.stringify(result)).not.toMatch(/188|91/);
+  });
   it("reports unavailable and a warning for storage failure without leaking internals", async () => {
     storageError = "private-token";
     const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");

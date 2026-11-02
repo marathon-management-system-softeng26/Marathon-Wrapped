@@ -95,4 +95,22 @@ describe("authorized computed payload", () => {
       if (result && result.status !== "unavailable") expect(result.warnings.length).toBeGreaterThan(0);
     } finally { vi.useRealTimers(); }
   });
+  it("preserves completed photos when the live lookup settles just after the deadline abort", async () => {
+    vi.useFakeTimers();
+    try {
+      mocks.enrichment.mockImplementation((_runnerId, _bib, signal: AbortSignal) => new Promise((resolve) => {
+        signal.addEventListener("abort", () => setTimeout(() => resolve({
+          strava: { state: "unavailable", metrics: null },
+          photos: [{ id: "photo", bib_number: "A1001", photo_url: "/photos/finish.jpg", photographer: null, captured_km: null, captured_at: null }],
+          warnings: ["Extra activity details are unavailable. Your chip recap is ready."],
+        }), 1), { once: true });
+      }));
+      const pending = getWrappedForUser("user", ainaInput().runner_id);
+      await vi.advanceTimersByTimeAsync(1202);
+      const result = await pending;
+      if (!result || result.status === "unavailable") throw new Error("expected recap");
+      expect(result.strava).toEqual({ state: "unavailable", metrics: null });
+      expect(result.photos).toEqual([expect.objectContaining({ id: "photo", photo_url: "/photos/finish.jpg" })]);
+    } finally { vi.useRealTimers(); }
+  });
 });

@@ -16,20 +16,28 @@ export async function getWrappedForUser(userId: string, runnerId: string): Promi
   let optional: Enrichment;
   const controller = new AbortController();
   let deadline: ReturnType<typeof setTimeout> | undefined;
+  let grace: ReturnType<typeof setTimeout> | undefined;
+  const fallback: Enrichment = { strava: { state: "unavailable", metrics: null }, photos: [], warnings: ["Extra details are unavailable. Your chip recap is ready."] };
   try {
+    const enrichment = getRunnerEnrichment(runnerId, input.bib_number, controller.signal, userId);
     optional = await Promise.race([
-      getRunnerEnrichment(runnerId, input.bib_number, controller.signal, userId),
-      new Promise<never>((_resolve, reject) => {
+      enrichment,
+      new Promise<Enrichment>((resolve) => {
         deadline = setTimeout(() => {
           controller.abort();
-          reject(new Error("Optional data deadline exceeded."));
+          grace = setTimeout(() => resolve(fallback), 25);
+          enrichment.then(
+            (value) => { if (grace) clearTimeout(grace); resolve(value); },
+            () => { if (grace) clearTimeout(grace); resolve(fallback); },
+          );
         }, 1200);
       }),
     ]);
   } catch {
-    optional = { strava: { state: "unavailable", metrics: null }, photos: [], warnings: ["Extra details are unavailable. Your chip recap is ready."] };
+    optional = fallback;
   } finally {
     if (deadline) clearTimeout(deadline);
+    if (grace) clearTimeout(grace);
   }
   return mergeWrapped(buildWrappedStats(input), optional);
 }

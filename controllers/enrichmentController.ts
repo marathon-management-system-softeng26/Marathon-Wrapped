@@ -5,6 +5,17 @@ import { StravaError } from "@/lib/strava/client";
 import type { Enrichment, Photo, StravaMetrics, WrappedPayloadStrava } from "@/lib/wrappedPayload";
 
 const fields = "avg_heartrate,max_heartrate,elevation_gain_m,calories,avg_cadence";
+function stopOnAbort<T>(source: PromiseLike<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new DOMException("Optional data deadline exceeded.", "AbortError"));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener("abort", abort, { once: true });
+    Promise.resolve(source).then(
+      (value) => { signal.removeEventListener("abort", abort); resolve(value); },
+      (error) => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
+}
 function metrics(row: Partial<StravaMetrics>): StravaMetrics {
   const number = (value: unknown): number | null => {
     const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
@@ -18,10 +29,10 @@ function metrics(row: Partial<StravaMetrics>): StravaMetrics {
 export async function getRunnerEnrichment(runnerId: string, bib: string | null, signal: AbortSignal, userId?: string): Promise<Enrichment> {
   const db = getSupabaseAdmin();
   const [demo, photos, live] = await Promise.allSettled([
-    db.from("strava_metrics").select(`${fields},data_source`).eq("runner_id", runnerId).abortSignal(signal).maybeSingle(),
-    bib === null ? Promise.resolve({ data: [], error: null }) : db.from("fotoyu_photos")
-      .select("id,bib_number,photo_url,photographer,captured_km,captured_at").eq("bib_number", bib).order("captured_at", { ascending: true }).abortSignal(signal),
-    userId ? getRunnerStravaRoute(userId, runnerId, signal) : Promise.resolve(null),
+    stopOnAbort(db.from("strava_metrics").select(`${fields},data_source`).eq("runner_id", runnerId).eq("data_source", "demo").abortSignal(signal).maybeSingle(), signal),
+    stopOnAbort<{ data: Photo[] | null; error: unknown }>(bib === null ? Promise.resolve({ data: [], error: null }) : db.from("fotoyu_photos")
+      .select("id,bib_number,photo_url,photographer,captured_km,captured_at").eq("bib_number", bib).order("captured_at", { ascending: true }).abortSignal(signal), signal),
+    stopOnAbort(userId ? getRunnerStravaRoute(userId, runnerId, signal) : Promise.resolve(null), signal),
   ]);
   const warnings: string[] = [];
   const demoFailed = demo.status === "rejected" || !!demo.value.error;

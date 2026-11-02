@@ -74,16 +74,17 @@ export function callbackFeedback(href: string): { notice: string; path: string }
   const url = new URL(href);
   if (!url.searchParams.has("strava")) return null;
   const code = url.searchParams.get("strava");
-  const messages: Record<string, string> = {
-    connected: "Strava authorized. Checking your race activity.", already_connected: "Strava is already connected. Checking your race activity.",
-    cancelled: "Strava connection cancelled. Your chip recap is ready.",
-    in_progress: "Strava authorization is still processing. Check status in a moment.",
-    disconnecting: "Strava is still disconnecting. Check status in a moment.",
-    insufficient_scope: "Allow activity access in Strava to connect your race activity.",
-    expired: "Strava authorization expired. Connect again to try again.",
-    athlete_conflict: "This Strava account is already connected elsewhere. Choose another account.",
-  };
-  const notice = messages[code ?? ""] ?? "Strava could not connect. Try connecting again.";
+  const messages = new Map<string, string>([
+    ["connected", "Strava authorized. Checking your race activity."],
+    ["already_connected", "Strava is already connected. Checking your race activity."],
+    ["cancelled", "Strava connection cancelled. Your chip recap is ready."],
+    ["in_progress", "Strava authorization is still processing. Check status in a moment."],
+    ["disconnecting", "Strava is still disconnecting. Check status in a moment."],
+    ["insufficient_scope", "Allow activity access in Strava to connect your race activity."],
+    ["expired", "Strava authorization expired. Connect again to try again."],
+    ["athlete_conflict", "This Strava account is already connected elsewhere. Choose another account."],
+  ]);
+  const notice = messages.get(code ?? "") ?? "Strava could not connect. Try connecting again.";
   url.searchParams.delete("strava");
   return { notice, path: url.pathname + url.search + url.hash };
 }

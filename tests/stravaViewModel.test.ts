@@ -71,6 +71,12 @@ describe("Strava controls and readable state", () => {
     expect(callbackFeedback("https://race.test/wrapped/runner?strava=private-token")).toEqual({ notice: "Strava could not connect. Try connecting again.", path: "/wrapped/runner" });
     expect(callbackFeedback("https://race.test/wrapped/runner")).toBeNull();
   });
+  it.each(["__proto__", "toString", "constructor"])("treats prototype callback key %s as unrecognized", (code) => {
+    expect(callbackFeedback(`https://race.test/wrapped/runner?strava=${code}`)).toEqual({
+      notice: "Strava could not connect. Try connecting again.",
+      path: "/wrapped/runner",
+    });
+  });
   it("confirms only an explicitly chosen activity and handles cleanup reauthorization", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: "reauthorize_to_disconnect" }), { status: 409 }));
     const result = await runStravaAction(fetcher, runner, "disconnect");
