@@ -65,16 +65,22 @@ beforeEach(() => {
   };
   mocks.from.mockImplementation((table: string) => {
     const filters: ((row: Row) => boolean)[] = [];
+    let offset = 0;
+    let count = 1000;
+    let orderBy: string | undefined;
     const result = () => {
       beforeRead?.(table);
-      return { data: structuredClone((tables[table] ?? []).filter((row) => filters.every((filter) => filter(row)))), error: storageError };
+      const rows = (tables[table] ?? []).filter((row) => filters.every((filter) => filter(row)));
+      if (orderBy) rows.sort((a, b) => String(a[orderBy!]).localeCompare(String(b[orderBy!])));
+      return { data: structuredClone(rows.slice(offset, offset + Math.min(count, 1000))), error: storageError };
     };
     const query = {
       select: () => query,
       eq: (key: string, value: unknown) => { filters.push((row) => row[key] === value); return query; },
       in: (key: string, values: unknown[]) => { filters.push((row) => values.includes(row[key])); return query; },
       neq: (key: string, value: unknown) => { filters.push((row) => row[key] !== value); return query; },
-      order: () => query,
+      order: (key: string) => { orderBy = key; return query; },
+      range: (from: number, to: number) => { offset = from; count = to - from + 1; return query; },
       maybeSingle: async () => { const value = result(); return { ...value, data: value.data[0] ?? null }; },
       then: (resolve: (value: unknown) => void) => Promise.resolve(result()).then(resolve),
     };
@@ -146,6 +152,25 @@ describe("runner Strava access and safe states", () => {
     expect(await safe(await GET(request(), context()))).toEqual({ status: "matched", activityId: "10", candidates: [{
       activityId: "10", startTimeLocal: "2027-08-17T07:15:00+07:00", distanceMeters: 5000, sportType: "Run", gpsAvailable: true, matchReason: "race_checks_passed",
     }], metrics: { avg_heartrate: 145.5, elevation_gain_m: 0, avg_cadence: 80.5 } });
+  });
+  it.each(["GET", "PUT"])("keeps the race detail beyond 1000 unrelated activities in %s", async (method) => {
+    for (let i = 0; i < 1005; i++) {
+      tables.strava_activities.push({ user_id: "user", generation: "generation", activity_id: String(10000 + i), activity: detail(String(10000 + i)) });
+    }
+    candidate(); selected();
+    const response = method === "GET" ? await GET(request(), context()) : await PUT(request("PUT", { activityId: "10" }), context());
+    const body = await safe(response);
+    expect(body.status).toBe("matched"); expect(body.activityId).toBe("10");
+    expect(body.candidates).toHaveLength(1); expect(body.candidates[0].activityId).toBe("10");
+    expect(body.metrics).toEqual({ avg_heartrate: 145.5, elevation_gain_m: 0, avg_cadence: 80.5 });
+  });
+  it("retains candidates and selected metrics beyond the candidate response cap", async () => {
+    for (let i = 0; i < 1005; i++) candidate(String(10000 + i));
+    selected("11004");
+    const body = await safe(await GET(request(), context()));
+    expect(body.status).toBe("matched"); expect(body.activityId).toBe("11004");
+    expect(body.candidates).toHaveLength(1005);
+    expect(body.metrics).toEqual({ avg_heartrate: 145.5, elevation_gain_m: 0, avg_cadence: 80.5 });
   });
   it("offers ambiguous candidates for confirmation without attaching metrics", async () => {
     candidate(); candidate("11");

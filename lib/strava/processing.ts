@@ -604,19 +604,35 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string): Pr
   const db = getSupabaseAdmin();
   const scoped = <const Fields extends string>(table: string, fields: Fields) => db.from(table).select(fields)
     .eq("user_id", userId).eq("generation", active.generation);
-  const [candidateRows, details, selection, jobs] = await Promise.all([
-    scoped("strava_activity_candidates", "activity_id,match_status,reason").eq("runner_id", runnerId)
-      .in("match_status", ["auto_match", "needs_confirmation"]),
-    scoped("strava_activities", "activity_id,activity"),
+  const batchSize = 100;
+  const loadCandidates = async () => {
+    const rows: CandidateRow[] = [];
+    for (let offset = 0; ; offset += batchSize) {
+      const page = await scoped("strava_activity_candidates", "activity_id,match_status,reason")
+        .eq("runner_id", runnerId).in("match_status", ["auto_match", "needs_confirmation"])
+        .order("activity_id").range(offset, offset + batchSize - 1);
+      if (page.error) throw new Error("Strava storage is temporarily unavailable.");
+      rows.push(...page.data ?? []);
+      if (!page.data || page.data.length < batchSize) return rows;
+    }
+  };
+  const [candidateRows, selection, jobs] = await Promise.all([
+    loadCandidates(),
     scoped("strava_runner_activities", "activity_id").eq("runner_id", runnerId).maybeSingle(),
     scoped("strava_jobs", "kind,status").in("kind", ["backfill", "activity", "webhook"]).neq("status", "complete"),
   ]);
-  if ([candidateRows, details, selection, jobs].some((result) => result.error)) {
+  if (selection.error || jobs.error) {
     throw new Error("Strava storage is temporarily unavailable.");
   }
-  const activities = new Map<string, StravaActivity>((details.data ?? []).flatMap((row) =>
+  // Unrelated imported activities must not consume the database response limit.
+  // Small ID batches also keep each detail request below that limit and bound its URL.
+  const details = await Promise.all(Array.from({ length: Math.ceil(candidateRows.length / batchSize) }, (_, index) =>
+    scoped("strava_activities", "activity_id,activity").in("activity_id",
+      candidateRows.slice(index * batchSize, (index + 1) * batchSize).map((row) => row.activity_id))));
+  if (details.some((result) => result.error)) throw new Error("Strava storage is temporarily unavailable.");
+  const activities = new Map<string, StravaActivity>(details.flatMap((result) => result.data ?? []).flatMap((row) =>
     row.activity ? [[row.activity_id, row.activity as StravaActivity] as const] : []));
-  const candidates: RunnerStravaCandidate[] = (candidateRows.data ?? []).flatMap((row: CandidateRow) => {
+  const candidates: RunnerStravaCandidate[] = candidateRows.flatMap((row) => {
     const activity = activities.get(row.activity_id);
     const summary = activity ? safeCandidate(row, activity, active.athlete_id!) : null;
     return summary ? [summary] : [];
