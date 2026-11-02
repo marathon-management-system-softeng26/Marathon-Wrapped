@@ -24,6 +24,10 @@ This revision simplifies the document structure and wording. It does not establi
 
 Sections 3 and 4 describe user needs and testable behavior together, avoiding separate copies of the same requirement. Section 8 preserves links to V3 IDs. V4 IDs apply to this document; existing V3 IDs remain available for historical references.
 
+### Implementation evidence update — November 2, 2026
+
+The October 20 decision to deliver only a disconnected Strava state applied while no Strava application existed. The approved direction now implements FR-08–FR-11 on the isolated `integration` branch: runner-bound opt-in OAuth, configured race matching, explicit confirmation, five nullable live metrics, safe fallback, and disconnect cleanup. Automated route, service, matching, privacy, export, and local PostgreSQL migration tests pass. This is implementation evidence, not live-provider acceptance: a real Strava application, dedicated non-production Supabase concurrency run, webhook subscription, scheduler, and manual desktop/mobile acceptance are still pending. The executed evidence and remaining gates are recorded in the [acceptance matrix](qa/acceptance-matrix.md) and [Strava integration runbook](qa/strava-integration.md).
+
 ## 2. Stakeholders
 
 | Stakeholder | What they need | Relationship to the system |
@@ -56,8 +60,8 @@ Each row states the expected behavior and a practical way to check it.
 | ID | Requirement | Acceptance check |
 | --- | --- | --- |
 | FR-08 | A runner shall be able to connect Strava through OAuth 2.0 after explicitly selecting Connect and authorizing access. | Opening the recap does not start OAuth. Selecting Connect begins authorization; connection requires consent. |
-| FR-09 | After a successful connection, the system shall retrieve and display available average heart rate, maximum heart rate, elevation gain, calories, and average cadence for the selected runner. | Test complete and incomplete metric responses. Display returned values only; do not invent missing metrics. Activity selection remains OD-05. |
-| FR-10 | A runner shall be able to disconnect Strava. The system shall remove or invalidate the associated connection data and stop displaying metrics as connected data while keeping baseline results available. | Disconnect and refresh. Verify the disconnected state and intact chip results. Failed disconnection must not be reported as success. Retention and recovery details remain OD-05. |
+| FR-09 | After a successful connection, the system shall retrieve and display available average heart rate, maximum heart rate, elevation gain, calories, and average cadence for the selected runner. | Test complete and incomplete metric responses. Display returned values only; do not invent missing metrics. Apply the activity-selection resolution in section 7. |
+| FR-10 | A runner shall be able to disconnect Strava. The system shall remove or invalidate the associated connection data and stop displaying metrics as connected data while keeping baseline results available. | Disconnect and refresh. Verify the disconnected state and intact chip results. Failed disconnection must not be reported as success. Apply the retention/recovery resolution in section 7. |
 | FR-11 | Skipping or denying Strava authorization, a failed request, and unavailable or incomplete Strava data shall not block the baseline recap. | Exercise each condition and verify the runner can still view available baseline results and insights. |
 
 ### Race photos and image export
@@ -185,9 +189,17 @@ The class diagram maps all seven entities, attributes, identifier types, and ass
 
 ![Domain class diagram based on ERD v5](diagrams/v4/class-diagram.svg)
 
-## 7. Decisions still needed
+## 7. Decisions and remaining decisions
 
-These are inherited from V3. Simplifying the document does not make them agreed decisions.
+These items are inherited from V3. The integration decision below is now resolved; the remaining items still require agreement.
+
+### Resolved for the Strava integration
+
+| ID | Decision | Resolution |
+| --- | --- | --- |
+| OD-05 | Race-activity selection, metrics retention, and failed-disconnection recovery | Resolved November 2, 2026. Match only configured `Run` activities inside the inclusive category window and ±500 m distance tolerance. A sole fully qualifying candidate with configured and present GPS may auto-select; ambiguity or missing location requires explicit runner confirmation. Live metrics are separate from labeled demo metrics and are removed from the recap when local disconnect commits. Remote revocation retries durably; uncertain credentials require reauthorization to finish cleanup. |
+
+### Still needed
 
 | ID | Decision | Owner |
 | --- | --- | --- |
@@ -195,7 +207,6 @@ These are inherited from V3. Simplifying the document does not make them agreed 
 | OD-02 | Define tied ranks and whether overall ranking compares both race distances or stays within a distance. | Bella / Embun |
 | OD-03 | Define early/later split comparison for 5K and 10K, equal splits, rounding, tied fastest kilometers, and insufficient split data. | Embun / Harry / Shaun |
 | OD-04 | Define how a runner is identified and how organizer access is enforced. | Bella / Rakha |
-| OD-05 | Define race-activity selection in Strava, connection/metrics retention after disconnect, and recovery after failed disconnection. | Embun / Bella |
 | OD-06 | Define export format/dimensions, broken-photo behavior, and error/retry wording. | Indra / Harry / Shaun |
 | OD-07 | Define replacing hero runners and saving related records together so partial failures do not leave incomplete data. | Rakha / Bella |
 | OD-08 | Agree performance conditions, usable-state measurement, browser versions, viewport sizes, and navigation-test starting screens. | Shaun / Bella |

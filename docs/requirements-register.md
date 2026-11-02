@@ -4,14 +4,14 @@
 
 This register locates requirements and their function coverage. Requirement text, rationale and verification measures are in the SRS; user-to-system mapping is in section 7.4. Issue and executed-test references remain to be populated by the team; no implementation or acceptance is implied.
 
-October 20 implementation evidence is recorded separately in the [acceptance matrix](qa/acceptance-matrix.md), with verified, deferred and unverified measures distinguished. The location-only rows below retain the original baseline; they are not the current execution status.
+Implementation evidence through November 2, 2026 is recorded separately in the [acceptance matrix](qa/acceptance-matrix.md), with verified, deferred and unverified measures distinguished. The location rows below retain the original baseline and link the new Strava evidence where available; automated implementation does not imply live-provider acceptance.
 
 | Clause ID | Parent / existing reference | Module | Priority | Function coverage | Issue / actual test evidence |
 | --- | --- | --- | --- | --- | --- |
 | **UR-F1** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
 | **UR-F2** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
-| **UR-F3** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
-| **UR-F4** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
+| **UR-F3** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Automated OAuth/connect evidence; live provider pending |
+| **UR-F4** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Automated metrics/disconnect/fallback evidence; live provider pending |
 | **UR-F5** | Same ID | Photos | Mandatory (shall) | FS-05 | Not yet recorded |
 | **UR-F6** | Same ID | Recap / export | Mandatory (shall) | FS-01 / FS-06 | Not yet recorded |
 | **UR-F7** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
@@ -23,7 +23,7 @@ October 20 implementation evidence is recorded separately in the [acceptance mat
 | **UR-NF4** | Same ID | Shared quality | Mandatory (shall) | Across functions | Not yet recorded |
 | **UR-NF5** | Same ID | Shared quality | Mandatory (shall) | Across functions | Not yet recorded |
 | **UR-D1** | Same ID | Recap / export | Desirable (should) | FS-01 / FS-06 | Not yet recorded |
-| **UR-D2** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Not yet recorded |
+| **UR-D2** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Automated optional-state and safe-feedback evidence; browser acceptance pending |
 | **UR-D3** | Same ID | Shared quality | Desirable (should) | Across functions | Not yet recorded |
 | **SR-F1** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
 | **SR-F2** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
@@ -33,11 +33,11 @@ October 20 implementation evidence is recorded separately in the [acceptance mat
 | **SR-F6a** | SR-F6 | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
 | **SR-F6b** | SR-F6 | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
 | **SR-F7** | Same ID | Results | Mandatory (shall) | FS-01 / FS-02 | Not yet recorded |
-| **SR-F8** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
-| **SR-F9** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
-| **SR-F10** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
-| **SR-F11** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
-| **SR-F12** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Not yet recorded |
+| **SR-F8** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Runner-bound explicit-connect route tests; real consent pending |
+| **SR-F9** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Encrypted lifecycle and runner ownership tests; live provider pending |
+| **SR-F10** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Matching, confirmation, nullable five-metric, privacy, and PGlite evidence |
+| **SR-F11** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Disconnect/local cleanup and durable-retry tests; live revocation pending |
+| **SR-F12** | Same ID | Strava | Mandatory (shall) | FS-03 / FS-04 | Denial/error/partial-data fallback tests; manual provider acceptance pending |
 | **SR-F13** | Same ID | Photos | Mandatory (shall) | FS-05 | Not yet recorded |
 | **SR-F14** | Same ID | Photos | Mandatory (shall) | FS-05 | Not yet recorded |
 | **SR-F15a** | SR-F15 | Photos | Mandatory (shall) | FS-05 | Not yet recorded |
@@ -73,8 +73,8 @@ October 20 implementation evidence is recorded separately in the [acceptance mat
 | **SR-NF17** | Same ID | Shared quality | Mandatory (shall) | Across functions | Not yet recorded |
 | **SR-NF18** | Same ID | Shared quality | Mandatory (shall) | Across functions | Not yet recorded |
 | **SR-NF19** | Same ID | Shared quality | Mandatory (shall) | Across functions | Not yet recorded |
-| **SR-D1** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Not yet recorded |
-| **SR-D2** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Not yet recorded |
+| **SR-D1** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Automated accessible card-state and callback-feedback evidence; browser acceptance pending |
+| **SR-D2** | Same ID | Strava | Desirable (should) | FS-03 / FS-04 | Automated optional-connect and disconnect-state copy evidence |
 
 ## Change history
 
@@ -84,5 +84,6 @@ October 20 implementation evidence is recorded separately in the [acceptance mat
 | V3 split | SR-F6a/b, SR-F15a/b, SR-F19a/b, SR-NF5a/b, SR-NF11a/b | Separate independent obligations; parent references remain valid groups. |
 | V3 new clarification | SR-F23, SR-F24 | Explicit result-unavailable and rejected-save paths in the new flowcharts. |
 | V3 desirable presentation | UR-D1–UR-D3, SR-D1–SR-D2 | Everyday explanations, optional-connect messaging, confirmed palette and disconnect feedback. |
+| November 2, 2026 Strava direction | UR-F3–UR-F4, SR-F8–SR-F12, SR-NF12, SR-D1–SR-D2 | Replace the October 20 disconnected-only delivery decision with the approved full opt-in implementation. Automated and local PostgreSQL evidence is recorded; real-provider, dedicated remote database, and manual browser acceptance remain pending. |
 
 Record future changes with the [change-request form](templates/requirements-change-request.md); update affected diagrams, function forms and tests together. Team review of the V3 additions is pending.

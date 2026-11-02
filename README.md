@@ -49,13 +49,13 @@ npm run dev
 
 Before starting, configure the ignored `.env.local` with `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY`. Demo seeding also uses `SUPABASE_DEMO_PROJECT_REF`. Never commit environment files or share secret values.
 
-The ignored `.env.demo.local` holds synthetic demo account credentials and live-test settings. It is used by the demo/test scripts, not loaded automatically by Next.js. Strava credentials are not configured; the demo shows a disconnected state.
+The ignored `.env.demo.local` holds synthetic demo account credentials and live-test settings. It is used by the demo/test scripts, not loaded automatically by Next.js. Strava is optional: without the server configuration below, the recap keeps its chip results, photos, export, and a safe unavailable/disconnected state.
 
 ### Strava backend
 
-The preserved Strava backend supports OAuth, encrypted rotating tokens, webhook ingestion, resumable imports, and disconnect cleanup. The refreshed recap, login, registration, decorations, photos, and image export from `dev` are retained. Race matching is incomplete (the matching test remains a TODO), runner confirmation returns `501`, and connection controls still require follow-up work. Optional enrichment failures return chip statistics with a warning, so the baseline recap remains usable.
+The Strava backend supports runner-bound OAuth, encrypted rotating tokens, webhook ingestion, resumable imports, race-activity matching and confirmation, five optional live metrics, and disconnect cleanup. The refreshed recap exposes explicit connection states and controls without making Strava a prerequisite. Optional enrichment failures return chip statistics and independently completed photos with a safe warning.
 
-Apply `supabase/migrations/20261026175630_strava_integration.sql`, then `supabase/migrations/20261028192351_strava_lifecycle.sql`, first in a local or dedicated test database. Legacy connections must reconnect because the old schema did not record athlete identity or granted scopes. The lifecycle migration clears those old token values. No remote migration is applied automatically.
+Apply the committed migrations in filename order, including the Strava migrations from `20261026175630_strava_integration.sql` through `20261102074802_strava_atomic_confirmation.sql`, first in a local or dedicated non-production database. Legacy connections must reconnect because the old schema did not record athlete identity or granted scopes. No remote migration is applied automatically.
 
 Configure these server-only variables:
 
@@ -63,7 +63,7 @@ Configure these server-only variables:
 |---|---|
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | Strava application credentials |
 | `STRAVA_CALLBACK_URL` | Exact public HTTPS URL ending in `/api/strava/callback` (HTTP localhost allowed in development) |
-| `STRAVA_ENCRYPTION_KEY` | 32 random bytes encoded as 64 hexadecimal characters; keep stable and outside the database |
+| `STRAVA_ENCRYPTION_KEY` | 32 random bytes encoded as 64 hexadecimal characters; keep stable and outside the database; rotation requires migrating all encrypted tokens first |
 | `STRAVA_WEBHOOK_VERIFY_TOKEN` | Random secret used when registering the webhook |
 | `STRAVA_SUBSCRIPTION_ID` | The subscription ID returned by Strava |
 | `STRAVA_PROCESS_SECRET` | Random bearer secret for the job-processing endpoint |
@@ -73,13 +73,15 @@ Configure these server-only variables:
 - Start authorization with a same-origin `POST /api/strava/connect`, preferably a normal form submission so the browser follows the redirect. GET does not start authorization. The callback requires the same app account and browser.
 - Cancel this browser's pending authorization with same-origin `DELETE /api/strava/connect`. Closing the provider tab has no guaranteed callback; unused attempts expire after ten minutes. Cancellation cannot undo a connection that already committed; use disconnect instead.
 - Disconnect with same-origin `POST /api/strava/disconnect`. A `202` means local ingestion is disabled but remote cleanup is unfinished. `reauthorize_to_disconnect` means a refresh response may have been lost: POST connect again, authorize the same athlete, and the recovered credentials will be queued for revocation, not reactivation.
-- Register `/api/strava/webhook` as the public webhook callback. POST payloads are not signed; workers verify provider state before destructive changes.
+- Register the deployment's public `/api/strava/webhook` URL with Strava only after its verification token is configured. The same route answers the subscription verification challenge. POST payloads are not signed; workers verify subscription and provider state before destructive changes. Store the returned subscription ID as `STRAVA_SUBSCRIPTION_ID`.
 - Configure an external scheduler to POST `/api/internal/strava/process` with `Authorization: Bearer <STRAVA_PROCESS_SECRET>`, on hosting that permits a 60-second handler. Work is leased, retried, and stops after eight failed attempts. Inspect failed jobs through trusted backend/database tooling. No scheduler or provider subscription is installed automatically.
-- Historical import requires explicit UTC race-window bounds. The backend-only `enqueueStravaBackfill(userId, after, before)` takes Unix seconds from owned race configuration. No recent-history import runs automatically while that configuration is absent. Activity details are stored privately for later matching; runner confirmation currently returns `501`.
+- Configure one `strava_race_configs` row per participating category. The start window is inclusive for matching; activities must be type `Run` and within ±500 m of the category distance. Start latitude, longitude, and radius are either all present or all null. Null configured coordinates, or missing activity GPS, require runner confirmation and can never auto-select. Exactly one fully qualifying candidate may auto-select; ambiguous candidates require confirmation through `PUT /api/runners/{runnerId}/strava`.
+- Historical import is queued from the runner's owned category window after successful OAuth. No recent-history import runs while that configuration is absent. Provider activity details and coordinates remain server-only; runner responses contain only safe candidate summaries.
+- For a private acceptance activity, use a clearly labeled temporary QA-only window and optional private coordinates in the dedicated test database. Restore the Soekarno Run configuration immediately afterward. Never commit private coordinates or activity IDs.
 
 OAuth exchange/refresh and database persistence cannot be one transaction. Lost refresh credentials require reauthorization rather than unsafe retries. If authorization-code exchange succeeds remotely but its response is lost, restart authorization; any abandoned provider-side grant may also need removal in Strava's application settings. Never rotate the encryption key without migrating existing encrypted tokens.
 
-Verification: `npm test`, `npm run build`, and `npm run test:native`. The isolated PostgreSQL lifecycle check runs when `STRAVA_PGLITE_MODULE` points to an externally installed PGlite entry module (`dist/index.js`); it adds no application dependency. True concurrent RPC tests are opt-in with `RUN_STRAVA_DATABASE_TESTS=1` and the existing dedicated-project test environment, then `npm run test:db`. Do not point integration tests at production.
+Verification: `npm test`, `npm run test:native`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`. The isolated PostgreSQL migration check runs when `STRAVA_PGLITE_MODULE` points to an externally installed PGlite entry module (`dist/index.js`); it adds no application dependency. True concurrent RPC tests are opt-in with `RUN_STRAVA_DATABASE_TESTS=1` and the existing dedicated-project test environment, then `npm run test:db`. Do not point integration tests at production. See [the Strava integration runbook](docs/qa/strava-integration.md) for mocked, database, browser, privacy, and credential-gated acceptance steps.
 
 Open http://localhost:3000. You'll need a free Supabase project — seed scripts are in `/db`.
 
