@@ -1,6 +1,6 @@
 # SRS V4 implementation and evidence map
 
-Updated November 2, 2026. This distinguishes implementation from executed acceptance and preserves the V3 clause links used by the existing evidence. The October 20 disconnected-only decision was superseded by the approved full opt-in Strava direction. Automated and local PostgreSQL evidence is complete for the implemented paths below; real-provider, dedicated remote database, webhook/scheduler, and manual browser acceptance remain pending.
+Updated November 2, 2026. This distinguishes implementation from executed acceptance and preserves the V3 clause links used by the existing evidence. The October 20 disconnected-only decision was superseded by the approved full opt-in Strava direction. Task 11 reran 313 local automated checks, 11 activated PGlite/PostgreSQL checks, 225 focused controlled-provider checks, and the lint/type/build gates successfully. Real-provider, dedicated remote database, webhook/scheduler, and manual browser acceptance remain pending because no corresponding credentials or usable authenticated browser fixture was supplied. The branch-wide whitespace check also retains one documentation-only warning from the Task 1 plan/spec copies.
 
 | Clauses | Implementation / evidence | Remaining measure |
 | --- | --- | --- |

@@ -6,13 +6,40 @@ Updated November 2, 2026. This runbook separates repeatable local evidence from 
 
 | Gate | Current evidence | Acceptance status |
 | --- | --- | --- |
-| Unit, route, service, UI-model, privacy, and export tests | Latest implementation run: 313 passed, 17 environment-gated skips | Implemented; rerun in Task 11 |
-| Local PostgreSQL migration/lifecycle/worker/confirmation checks | 11 passed with an external PGlite runtime after all migrations | Implemented locally; rerun in Task 11 |
+| Unit, route, service, UI-model, privacy, and export tests | Task 11 local run: 313 passed, 17 environment-gated skips | Automated local evidence passed |
+| Local PostgreSQL migration/lifecycle/worker/confirmation checks | Task 11 default run: 10 passed, 1 gated skip; activated PGlite run: 11 passed | Automated local PostgreSQL evidence passed |
 | Dedicated Supabase concurrency suite | Not run; no dedicated-project credentials were supplied | Pending |
 | Real Strava OAuth, import, webhook, refresh, and revocation | Not run; no test application/account credentials were supplied | Pending |
 | Desktop/mobile, keyboard/focus, callback URL cleanup, and PNG privacy | Automated/static coverage exists; complete manual pass not run for this integration | Pending |
 
 No full FR-08–FR-11 acceptance is claimed until every applicable pending gate is recorded below.
+
+## Task 11 evidence — November 2, 2026
+
+Environment: Windows/PowerShell in the isolated `integration` worktree, Node.js test runner, Vitest 2.1.9, Next.js 16.3.6, and an external PGlite module outside the repository. No `.env.local` or `.env.demo.local` file was present, and none of the required Strava or dedicated-Supabase variables was set. No credential value was read or recorded.
+
+| Gate | Command / check | Observed result |
+| --- | --- | --- |
+| Full unit/API/service suite | `npm test` | 23 files passed, 2 credential-gated files skipped; 313 tests passed, 17 skipped, 0 failed |
+| Native default | `npm run test:native` | 10 passed, 1 PGlite-gated skip, 0 failed |
+| Native with isolated PostgreSQL | Set `STRAVA_PGLITE_MODULE` to the established external module, then `npm run test:native` | 11 passed, 0 skipped, 0 failed; migration/lifecycle suite completed in PGlite |
+| Controlled-provider fixtures | `npx vitest run tests/api/strava.test.ts tests/api/runnerStrava.test.ts tests/stravaClient.test.ts tests/stravaProcessing.test.ts tests/stravaMatching.test.ts tests/wrappedService.test.ts tests/stravaViewModel.test.ts` | 7 files and 225 tests passed |
+| Export/privacy subset | `npx vitest run tests/exportWrapped.test.ts tests/shareModel.test.ts tests/api/wrapped.test.ts tests/wrappedService.test.ts tests/stravaViewModel.test.ts tests/api/runnerStrava.test.ts` | 6 files and 106 tests passed |
+| Static quality | `npm run lint`; `npx tsc --noEmit`; `npm run build` | All passed; production build compiled and generated 15 static pages |
+| Current-worktree whitespace | `git diff --check` | Passed |
+| Branch ancestry | `git merge-base --is-ancestor origin/dev integration`; same for `origin/strava-integration` | Both exited 0 |
+| Source-ref preservation | Compare current refs with the Task 1 recorded SHAs | `origin/dev` remains `d82a4fa77a55dfea8891433546df2234b1f7ed0f`; `origin/strava-integration` remains `b782a0cda5cea71031e7cb8ceda18830ed87ba25` |
+| Branch-wide whitespace | `git diff --check origin/dev...integration` | Not clean: the Task 1 plan and design-spec copies contain an extra blank line at EOF. This inherited documentation-only warning remains open; it does not invalidate the passing runtime gates. |
+
+Controlled fixtures exercised consent success and denial, partial scope, complete/partial/malformed metrics, zero/no/ambiguous matching, missing GPS, `429` with `Retry-After`, coordinated refresh, provider revocation, repeat/replay protection, and disconnect cleanup. The evidence is in `tests/api/strava.test.ts`, `tests/api/runnerStrava.test.ts`, `tests/stravaClient.test.ts`, `tests/stravaProcessing.test.ts`, `tests/stravaMatching.test.ts`, and the activated native lifecycle suite.
+
+Static and automated privacy evidence confirms one recap fetch on component load, ordinary recap reads use stored data rather than Strava, callback feedback is allowlisted and removed with `history.replaceState`, candidates omit route geometry and private identifiers, organizer-only viewers receive no live metrics or controls, export remains 1080 × 1350, and the share/export model receives no health metrics. The production build confirms the code compiles, but no usable local authenticated runner fixture exists without the absent Supabase configuration; desktop/mobile visual layout, keyboard/focus transitions, address-bar observation, browser network/storage/log inspection, and a rendered PNG inspection therefore remain pending manual browser acceptance.
+
+Skipped external gates:
+
+- `npm run test:db` was not run because no dedicated non-production Supabase URL, matching project ref, or service credential was configured. The hostname guard was not bypassed.
+- Manual Strava OAuth/import/webhook/refresh/revocation was not run because no test application credentials or private test account was supplied. No live provider endpoint was called.
+- No remote migration, webhook registration, scheduler configuration, deployment, push, or merge to another branch was performed.
 
 ## Server-only configuration
 
