@@ -25,6 +25,14 @@ describe("protected wrapped HTTP boundary", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.wrapped).toHaveBeenCalledWith("user-A", runnerId);
   });
+  it("returns selected live state and partial metrics without changing chip fields", async () => {
+    mocks.wrapped.mockResolvedValue({ status: "finisher", stats: { elapsed_seconds: 1523, avg_pace_sec_km: 304.6 },
+      strava: { state: "connected", activityId: "10", metrics: { avg_heartrate: 145.5, max_heartrate: null, elevation_gain_m: 0, calories: null, avg_cadence: 80.5 } }, photos: [], warnings: [] });
+    const response = await call();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ stats: { elapsed_seconds: 1523, avg_pace_sec_km: 304.6 },
+      strava: { state: "connected", activityId: "10", metrics: { avg_heartrate: 145.5, calories: null, avg_cadence: 80.5 } } });
+  });
   it("uses identical 404 bodies for unknown and forbidden runners", async () => {
     mocks.wrapped.mockResolvedValue(null); const absent = await call();
     mocks.wrapped.mockRejectedValue(new AccessDeniedError()); const denied = await call();

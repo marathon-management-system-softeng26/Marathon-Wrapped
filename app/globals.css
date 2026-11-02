@@ -12,6 +12,9 @@
   --cream: #fff6ec;
   --lime: #c8f02e;
   --muted: #efd1d0;
+  --surface-secondary: #efded4;
+  --surface-secondary-hover: #e5cdc0;
+  --field-border: #bd9a94;
   color: var(--deep);
   background: var(--cream);
   font-family: Bricolage, Arial, sans-serif;
@@ -1542,4 +1545,35 @@ body:has(.story-state) {
   .story-controls > span {
     font-size: 0.82rem;
   }
+}
+
+/* Activity controls use the recap's existing cream panels and race-red actions. */
+.scene-context .strava-card { max-width: 700px; text-align: left; min-width: 0; }
+.strava-card h3 { font-family: Bricolage, Arial, sans-serif; font-size: 1.5rem; font-weight: 700; line-height: 1.04; letter-spacing: -0.03em; }
+.story-4 .story-content { min-height: 0; padding-bottom: 24px; }
+.story-4 .story-controls { position: relative; inset: auto; transform: none; margin-inline: auto; background: transparent; }
+.strava-card p { max-width: 65ch; }
+.strava-card .strava-baseline { font-size: 0.9rem; line-height: 1.5; }
+.strava-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.strava-actions form { margin: 0; }
+.strava-card button { background: var(--red); color: var(--cream); }
+.strava-card button:hover { background: var(--deep); }
+.strava-card button.secondary { background: var(--surface-secondary); color: var(--red); }
+.strava-card button.secondary:hover { background: var(--surface-secondary-hover); }
+.strava-candidates { list-style: none; margin: 20px 0 0; padding: 0; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.strava-candidates li { padding: 16px 6px; border-bottom: 1px solid var(--field-border); }
+.strava-candidates p { margin: 0 0 12px; }
+.strava-card .metric-list { font-variant-numeric: tabular-nums; }
+.strava-card .metric-list dt { min-width: 0; overflow-wrap: anywhere; }
+.strava-card .metric-list dd { margin: 0; flex-shrink: 0; }
+.strava-feedback:empty { margin: 0; }
+.strava-feedback { font-size: 0.95rem; }
+.strava-callback { position: relative; z-index: 4; width: min(calc(100% - 44px), 476px); max-width: none; margin: 16px auto 0; }
+@media (min-width: 900px) {
+  .strava-callback { width: min(calc(100% - 96px), 1180px); }
+}
+@media (max-width: 700px) {
+  .scene-context .strava-card { padding: 22px; }
+  .strava-actions { flex-direction: column; align-items: stretch; }
+  .strava-actions button { width: 100%; }
 }

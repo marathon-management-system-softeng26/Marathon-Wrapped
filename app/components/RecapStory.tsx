@@ -1,9 +1,11 @@
 "use client";
 import Link from "next/link";
 import SharePreview from "./SharePreview";
+import StravaCard from "./StravaCard";
 import Arrow from "./Arrow";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { callbackFeedback } from "@/lib/strava/viewModel";
 import type { WrappedPayload, Photo } from "@/lib/wrappedPayload";
 import { formatMmSs } from "@/lib/format";
 import { shareModel } from "@/lib/shareModel";
@@ -48,11 +50,25 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     [version, setVersion] = useState(0),
     [slide, setSlide] = useState(0),
     [notice, setNotice] = useState(""),
+    [stravaFeedback, setStravaFeedback] = useState<{ notice: string; path: string } | null>(null),
     [saving, setSaving] = useState(false),
     [selected, setSelected] = useState<Photo | null>(null);
   const heading = useRef<HTMLHeadingElement>(null),
     dialog = useRef<HTMLDialogElement>(null),
+    loaded = useRef<string | null>(null),
     touch = useRef<{ x: number; y: number } | null>(null);
+  const refresh = useCallback(() => setVersion((value) => value + 1), []);
+  useEffect(() => {
+    const feedback = callbackFeedback(window.location.href);
+    let cancelled = false;
+    if (feedback) queueMicrotask(() => {
+      if (!cancelled) { setStravaFeedback(feedback); setSlide(4); }
+    });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (stravaFeedback) window.history.replaceState(window.history.state, "", stravaFeedback.path);
+  }, [stravaFeedback]);
   useEffect(() => {
     const controller = new AbortController();
     fetch(`/api/runners/${encodeURIComponent(runnerId)}/wrapped`, {
@@ -67,11 +83,15 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         const body = await response.json();
         if (!response.ok)
           throw new Error(body.error || "Your recap could not load.");
+        loaded.current = runnerId;
         setPayload(body);
         setError("");
       })
       .catch((cause) => {
-        if (!controller.signal.aborted) setError(cause.message);
+        if (!controller.signal.aborted) {
+          if (loaded.current === runnerId) setNotice("Recap could not refresh. Your chip result is still here.");
+          else setError(cause.message);
+        }
       });
     return () => controller.abort();
   }, [runnerId, version]);
@@ -126,6 +146,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       <main className="story-state">
         <Link href="/">← Your races</Link>
         <h1>{error ? "Your recap needs a moment." : "Finding your race…"}</h1>
+        {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
         {error && (
           <>
             <p role="alert">{error}</p>
@@ -171,6 +192,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           </button>
         ))}
       </nav>
+      {stravaFeedback && <p className="strava-callback" role="status">{stravaFeedback.notice}</p>}
       <section className="story-content" key={slide}>
         {slide === 0 && (
           <div className="story-scene scene-intro">
@@ -343,42 +365,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
               <br />
               <span>comes first.</span>
             </h2>
-            <div className="enrichment">
-              <h3>Strava is not connected</h3>
-              <p>
-                Connection is not available in this demo yet. Your chip result,
-                splits and photos work independently.
-              </p>
-              {payload.status !== "unavailable" &&
-                payload.strava.state === "demo" &&
-                payload.strava.metrics && (
-                  <>
-                    <p className="demo-note">
-                      Seeded sample metrics · Not a live Strava activity
-                    </p>
-                    <dl className="metric-list">
-                      {Object.entries(payload.strava.metrics)
-                        .filter(([, value]) => value !== null)
-                        .map(([key, value]) => (
-                          <div key={key}>
-                            <dt>
-                              {
-                                {
-                                  avg_heartrate: "Average heart rate (bpm)",
-                                  max_heartrate: "Maximum heart rate (bpm)",
-                                  elevation_gain_m: "Elevation gain (m)",
-                                  calories: "Calories (kcal)",
-                                  avg_cadence: "Average cadence (spm)",
-                                }[key]
-                              }
-                            </dt>
-                            <dd>{value}</dd>
-                          </div>
-                        ))}
-                    </dl>
-                  </>
-                )}
-            </div>
+            <StravaCard runnerId={runnerId} input={payload.status === "unavailable" ? { state: "disconnected", metrics: null } : payload.strava} onRefresh={refresh} />
             <Image
               className="decoration decoration-context-watch"
               src={decorationUrl(recapDecorations.context[0])}

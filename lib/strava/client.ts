@@ -387,14 +387,15 @@ export async function saveStravaConnection(
 
 export async function loadStravaConnection(
   userId: string,
+  signal?: AbortSignal,
 ): Promise<StravaConnection | null> {
-  const { data, error } = await getSupabaseAdmin()
+  const query = getSupabaseAdmin()
     .from("strava_connections")
     .select(
       "user_id,athlete_id,status,access_token,refresh_token,expires_at,generation,operation_id,granted_scopes,credentials_uncertain",
     )
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
 
   if (error) {
     throw new Error("Strava storage is temporarily unavailable.");

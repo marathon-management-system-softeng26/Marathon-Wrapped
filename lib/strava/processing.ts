@@ -543,17 +543,17 @@ export async function processStravaJobs(limit = 10): Promise<void> {
   }
 }
 
-async function requireStravaRunnerAccess(userId: string, runnerId: string): Promise<void> {
+async function requireStravaRunnerAccess(userId: string, runnerId: string, signal?: AbortSignal): Promise<void> {
   if (!isRunnerId(runnerId)) {
     throw new StravaError("invalid_runner", 400);
   }
 
-  const { data, error } = await getSupabaseAdmin()
+  const query = getSupabaseAdmin()
     .from("runner_access")
     .select("runner_id")
     .eq("user_id", userId)
-    .eq("runner_id", runnerId)
-    .maybeSingle();
+    .eq("runner_id", runnerId);
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
 
   if (error) {
     throw new Error("Strava storage is temporarily unavailable.");
@@ -595,15 +595,17 @@ function safeCandidate(row: CandidateRow, activity: StravaActivity, athleteId: s
   };
 }
 
-export async function getRunnerStravaRoute(userId: string, runnerId: string): Promise<RunnerStravaRoute> {
-  await requireStravaRunnerAccess(userId, runnerId);
-  const connection = await loadStravaConnection(userId);
+export async function getRunnerStravaRoute(userId: string, runnerId: string, signal?: AbortSignal): Promise<RunnerStravaRoute> {
+  await requireStravaRunnerAccess(userId, runnerId, signal);
+  const connection = await loadStravaConnection(userId, signal);
   const state = connectionState(connection);
   if (state) return emptyRunnerState(state);
   const active = connection!;
   const db = getSupabaseAdmin();
-  const scoped = <const Fields extends string>(table: string, fields: Fields) => db.from(table).select(fields)
-    .eq("user_id", userId).eq("generation", active.generation);
+  const scoped = <const Fields extends string>(table: string, fields: Fields) => {
+    const query = db.from(table).select(fields).eq("user_id", userId).eq("generation", active.generation);
+    return signal ? query.abortSignal(signal) : query;
+  };
   const batchSize = 100;
   const loadCandidates = async () => {
     const rows: CandidateRow[] = [];
@@ -646,7 +648,7 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string): Pr
     metrics = availableMetrics(result.data ?? {});
   }
   // A disconnect/reconnect during the reads must not return an old generation's data.
-  const current = await loadStravaConnection(userId);
+  const current = await loadStravaConnection(userId, signal);
   const currentState = connectionState(current);
   if (currentState) return emptyRunnerState(currentState);
   if (current!.generation !== active.generation) return emptyRunnerState("importing");

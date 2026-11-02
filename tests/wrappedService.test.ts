@@ -5,6 +5,7 @@ vi.mock("@/lib/auth/access", () => ({ requireRunnerAccess: mocks.access }));
 vi.mock("@/controllers/runnerController", () => ({ getRunnerChipInput: mocks.input, getRunnerSummary: mocks.summary }));
 vi.mock("@/controllers/enrichmentController", () => ({ getRunnerEnrichment: mocks.enrichment }));
 import { getWrappedForUser } from "@/lib/wrappedService";
+import { shareModel } from "@/lib/shareModel";
 
 describe("authorized computed payload", () => {
   beforeEach(() => {
@@ -27,6 +28,15 @@ describe("authorized computed payload", () => {
     mocks.access.mockRejectedValue(new Error("denied"));
     await expect(getWrappedForUser("A", "B")).rejects.toThrow("denied");
     expect(mocks.input).not.toHaveBeenCalled();
+  });
+  it("scopes optional live data to the authenticated user and keeps chip/export values unchanged", async () => {
+    mocks.enrichment.mockResolvedValue({ strava: { state: "connected", metrics: { avg_heartrate: 145.5, avg_cadence: 80.5 } }, photos: [], warnings: [] });
+    const result = await getWrappedForUser("owner", ainaInput().runner_id);
+    expect(mocks.enrichment).toHaveBeenCalledWith(ainaInput().runner_id, "A1001", expect.any(AbortSignal), "owner");
+    if (!result || result.status === "unavailable") throw new Error("expected recap");
+    expect(result.stats.elapsed_seconds).toBe(1523);
+    expect(shareModel(result)).toMatchObject({ time: "25:23", pace: "5:05 /km", rank: "Category rank 1" });
+    expect(JSON.stringify(shareModel(result))).not.toMatch(/heartrate|cadence|145.5|80.5/);
   });
   it("distinguishes unavailable results from absent runners", async () => {
     mocks.input.mockResolvedValue(null);

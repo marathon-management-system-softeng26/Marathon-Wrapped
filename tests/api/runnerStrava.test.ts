@@ -8,6 +8,8 @@ vi.mock("@/lib/supabaseServer", () => ({ getSupabaseAdmin: () => ({ from: mocks.
 import { GET, PUT } from "@/app/api/runners/[runnerId]/strava/route";
 import { POST as disconnect } from "@/app/api/strava/disconnect/route";
 import { AuthenticationError } from "@/lib/auth/session";
+import { getRunnerEnrichment } from "@/controllers/enrichmentController";
+import { getRunnerStravaRoute } from "@/lib/strava/processing";
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
 const otherRunner = "22222222-2222-2222-2222-222222222222";
@@ -19,6 +21,7 @@ let storageError: string | null;
 let selectionOutcome: string;
 let revokeOutcome: "done" | "busy" | "uncertain" | "retry";
 let beforeRead: ((table: string) => void) | undefined;
+let querySignals: AbortSignal[];
 const context = (runner = runnerId) => ({ params: Promise.resolve({ runnerId: runner }) });
 const request = (method = "GET", body?: unknown, requestOrigin = origin) => new Request(`${origin}/api/runners/${runnerId}/strava`, {
   method, headers: { Origin: requestOrigin, "Content-Type": "application/json" },
@@ -56,7 +59,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.stubEnv("STRAVA_CALLBACK_URL", `${origin}/api/strava/callback`);
   mocks.user.mockResolvedValue({ id: "user" });
-  storageError = null; selectionCalls = []; selectionOutcome = "selected"; revokeOutcome = "done"; beforeRead = undefined;
+  storageError = null; selectionCalls = []; selectionOutcome = "selected"; revokeOutcome = "done"; beforeRead = undefined; querySignals = [];
   tables = {
     runner_access: [{ user_id: "user", runner_id: runnerId }],
     strava_connections: [{ user_id: "user", generation: "generation", status: "active", athlete_id: "123",
@@ -81,6 +84,7 @@ beforeEach(() => {
       neq: (key: string, value: unknown) => { filters.push((row) => row[key] !== value); return query; },
       order: (key: string) => { orderBy = key; return query; },
       range: (from: number, to: number) => { offset = from; count = to - from + 1; return query; },
+      abortSignal: (signal: AbortSignal) => { querySignals.push(signal); return query; },
       maybeSingle: async () => { const value = result(); return { ...value, data: value.data[0] ?? null }; },
       then: (resolve: (value: unknown) => void) => Promise.resolve(result()).then(resolve),
     };
@@ -109,6 +113,56 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("runner Strava access and safe states", () => {
+  it("uses selected live metrics ahead of demo without changing photo data", async () => {
+    candidate(); selected();
+    tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 999, avg_cadence: 180 }];
+    tables.fotoyu_photos = [{ id: "photo", bib_number: "A1001", photo_url: "/photos/demo-race.jpg" }];
+    const result = await getRunnerEnrichment(runnerId, "A1001", new AbortController().signal, "user");
+    expect(result.strava).toMatchObject({ state: "connected", metrics: { avg_heartrate: 145.5, max_heartrate: null, elevation_gain_m: 0, calories: null, avg_cadence: 80.5 } });
+    expect(result.photos).toHaveLength(1);
+  });
+  it("restores labeled demo metrics after disconnect and ignores unselected live rows", async () => {
+    candidate(); selected();
+    tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 155 }];
+    tables.strava_runner_activities = [];
+    let result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
+    expect(result.strava.state).toBe("needs_confirmation"); expect(result.strava.metrics).toBeNull();
+    tables.strava_connections[0].status = "disconnected";
+    result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
+    expect(result.strava).toMatchObject({ state: "demo", metrics: { avg_heartrate: 155, max_heartrate: null } });
+  });
+  it("never gives live health metrics to organizer-only baseline viewers", async () => {
+    candidate(); selected();
+    tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 155 }];
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "organizer");
+    expect(result.strava.state).toBe("demo"); expect(result.strava.metrics?.avg_heartrate).toBe(155);
+    expect(result.strava.controlsAvailable).toBe(false);
+    expect(JSON.stringify(result)).not.toContain("145.5");
+  });
+  it("reports unavailable and a warning for storage failure without leaking internals", async () => {
+    storageError = "private-token";
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
+    expect(result.strava).toMatchObject({ state: "unavailable", metrics: null });
+    expect(result.warnings.length).toBeGreaterThan(0); expect(JSON.stringify(result)).not.toContain("private-token");
+  });
+  it("reports disconnected when neither live nor demo data exists", async () => {
+    tables.strava_connections = [];
+    expect((await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user")).strava).toMatchObject({ state: "disconnected", metrics: null });
+  });
+  it("does not substitute samples when current provider import has failed", async () => {
+    tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 155 }];
+    tables.strava_jobs.push({ user_id: "user", generation: "generation", kind: "activity", status: "failed" });
+    const result = await getRunnerEnrichment(runnerId, null, new AbortController().signal, "user");
+    expect(result.strava).toMatchObject({ state: "unavailable", metrics: null });
+    expect(result.warnings).toHaveLength(1);
+  });
+  it("passes the optional-data abort signal to every live storage read", async () => {
+    candidate(); selected();
+    const signal = new AbortController().signal;
+    await getRunnerStravaRoute("user", runnerId, signal);
+    expect(querySignals.length).toBe(8);
+    expect(querySignals.every((value) => value === signal)).toBe(true);
+  });
   it.each(["GET", "PUT"])("requires authentication for %s", async (method) => {
     mocks.user.mockRejectedValue(new AuthenticationError());
     expect(await safe(await (method === "GET" ? GET(request(), context()) : PUT(request("PUT", { activityId: "10" }), context())), 401)).toEqual({ error: "sign_in_required" });

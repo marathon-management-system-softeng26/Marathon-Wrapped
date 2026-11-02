@@ -18,7 +18,7 @@ export async function getWrappedForUser(userId: string, runnerId: string): Promi
   let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
     optional = await Promise.race([
-      getRunnerEnrichment(runnerId, input.bib_number, controller.signal),
+      getRunnerEnrichment(runnerId, input.bib_number, controller.signal, userId),
       new Promise<never>((_resolve, reject) => {
         deadline = setTimeout(() => {
           controller.abort();
