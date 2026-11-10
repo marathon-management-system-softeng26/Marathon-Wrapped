@@ -3,7 +3,7 @@
 **Date:** November 10, 2026  
 **Integrated branch:** `codex/integrate-all-into-dev`  
 **Base:** `origin/dev` (`d82a4fa`)  
-**Application tree reviewed:** `e0c48d4`  
+**Application tree reviewed:** `e0c48d4`, with final recovery fixes at `4f9993f`  
 **Authority:** `PRODUCT.md`, `docs/SRS_v4.md`, and `docs/requirements-register.md`
 
 ## Scope reconciliation
@@ -15,7 +15,7 @@ The apparent Strava conflict in the pre-integration `PRODUCT.md` is resolved by 
 | PRD outcome or constraint | Status | Evidence |
 | --- | --- | --- |
 | Verified sessions and server-owned runner/event mappings protect personal and organizer data | Met in implementation | `lib/auth/session.ts`, `lib/auth/access.ts`, guarded runner/organizer APIs, and API authorization tests |
-| Chip data remains the baseline when enrichment fails | Met | `lib/wrappedService.ts` falls back to the chip recap; Strava, missing-photo, and timeout paths are covered by automated tests |
+| Chip data remains the baseline when enrichment fails | Met | `lib/wrappedService.ts` falls back to the chip recap; Strava, missing-photo, timeout, and post-OAuth queue-failure paths are covered by automated tests |
 | Missing timing is not invented; finisher, DNF, DNS, and missing-result states remain distinct | Met | Native input validation, `lib/insights.ts`, `lib/shareModel.ts`, and wrapped-service tests preserve null finish/pace values and distinct states |
 | Hydration is not inferred | Met | No hydration behavior exists in the product code; SRS v4 explicitly keeps it outside scope |
 | Demo metrics and stock photos are identified as demonstrations | Met | Strava demo state says "Seeded sample metrics" and exports identify synthetic race data; demo/live provenance has automated coverage |
@@ -26,11 +26,11 @@ The apparent Strava conflict in the pre-integration `PRODUCT.md` is resolved by 
 | Organizer can view results and create/update hero runners within an authorized event | Met in implementation; remote E2E not rerun | Guarded organizer APIs, atomic aggregate save, validation, rejection, and correction paths have automated coverage |
 | No public personal recap links | Met | `/wrapped/[runnerId]` is backed by a private, no-store API requiring both a verified session and runner access; no personalized-link service is implemented |
 | Local Figma Make export remains uncommitted | Met | No `ui reference` path is tracked by Git |
-| Full voluntary Strava connect/select/metrics/disconnect workflow | Partial acceptance | Automated route, service, privacy, matching, fallback, and lifecycle coverage passes. Real-provider consent/import/revocation acceptance is still pending |
+| Full voluntary Strava connect/select/metrics/disconnect workflow | Partial acceptance | Automated route, service, privacy, matching, fallback, and lifecycle coverage passes. Missing-result recaps preserve owner status/disconnect controls, and queue failures return to a durable retry action. Real-provider consent/import/revocation acceptance is still pending |
 
 ## Verification performed on the integrated tree
 
-- `npm test`: 328 passed; 17 credential-dependent integration tests skipped.
+- `npm test`: 336 passed; 17 credential-dependent integration tests skipped.
 - `npm run test:native`: 10 passed; 1 optional PostgreSQL/PGlite test skipped.
 - `npm run lint`: passed.
 - `npm run build`: passed, including TypeScript and production page generation.
