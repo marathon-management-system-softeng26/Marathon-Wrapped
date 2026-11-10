@@ -24,12 +24,12 @@ const descriptions: Record<WrappedPayloadStrava["state"], string> = {
 export function stravaViewModel(input: WrappedPayloadStrava, runnerId: string, pending = false) {
   const ids: Record<WrappedPayloadStrava["state"], StravaActionId[]> = {
     disconnected: ["connect"], demo: ["connect"], authorizing: ["cancel"],
-    importing: ["check", "disconnect"], needs_confirmation: ["check", "disconnect"], no_match: ["check", "disconnect"],
-    connected: ["check", "disconnect"], unavailable: ["check", "disconnect"], disconnecting: ["check", "disconnect"],
+    importing: ["check", "disconnect"], needs_confirmation: ["check", "disconnect"], no_match: ["connect", "check", "disconnect"],
+    connected: ["check", "disconnect"], unavailable: ["connect", "check", "disconnect"], disconnecting: ["check", "disconnect"],
     reauthorize_required: ["connect", "disconnect"],
   };
   const actions: Action[] = (input.controlsAvailable === false ? [] : ids[input.state]).map((id) => ({
-    id, label: id === "connect" ? input.reauthorizeToDisconnect ? "Authorize to finish disconnecting" : input.state === "reauthorize_required" ? "Authorize Strava" : "Connect Strava"
+    id, label: id === "connect" ? input.reauthorizeToDisconnect ? "Authorize to finish disconnecting" : input.state === "reauthorize_required" ? "Authorize Strava" : ["no_match", "unavailable"].includes(input.state) ? "Retry import" : "Connect Strava"
       : id === "disconnect" ? input.state === "disconnecting" ? "Retry disconnecting" : "Disconnect Strava"
       : id === "cancel" ? "Cancel connection" : "Check status",
     method: id === "check" ? "GET" : id === "cancel" ? "DELETE" : "POST",
@@ -84,6 +84,7 @@ export function callbackFeedback(href: string): { notice: string; path: string }
     ["expired", "Strava authorization expired. Connect again to try again."],
     ["athlete_conflict", "This Strava account is already connected elsewhere. Choose another account."],
     ["different_runner", "Strava is connected to another recap. Disconnect it there before connecting this recap."],
+    ["import_failed", "Strava connected, but activity import could not start. Retry import."],
   ]);
   const notice = messages.get(code ?? "") ?? "Strava could not connect. Try connecting again.";
   url.searchParams.delete("strava");

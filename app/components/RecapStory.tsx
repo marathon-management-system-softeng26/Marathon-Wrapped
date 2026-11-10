@@ -365,7 +365,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
               <br />
               <span>comes first.</span>
             </h2>
-            <StravaCard runnerId={runnerId} input={payload.status === "unavailable" ? { state: "disconnected", metrics: null } : payload.strava} onRefresh={refresh} />
+            <StravaCard runnerId={runnerId} input={payload.strava} onRefresh={refresh} />
             <Image
               className="decoration decoration-context-watch"
               src={decorationUrl(recapDecorations.context[0])}

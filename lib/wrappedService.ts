@@ -6,21 +6,14 @@ import { buildWrappedStats } from "@/lib/stats";
 import { mergeWrapped } from "@/lib/merge";
 import type { Enrichment, WrappedPayload } from "@/lib/wrappedPayload";
 
-export async function getWrappedForUser(userId: string, runnerId: string): Promise<WrappedPayload | null> {
-  await requireRunnerAccess(userId, runnerId);
-  const input = await getRunnerChipInput(runnerId);
-  if (!input) {
-    const runner = await getRunnerSummary(runnerId);
-    return runner ? { status: "unavailable", runner, reason: "missing_result" } : null;
-  }
-  let optional: Enrichment;
+async function loadEnrichment(userId: string, runnerId: string, bib: string | null): Promise<Enrichment> {
   const controller = new AbortController();
   let deadline: ReturnType<typeof setTimeout> | undefined;
   let grace: ReturnType<typeof setTimeout> | undefined;
   const fallback: Enrichment = { strava: { state: "unavailable", metrics: null }, photos: [], warnings: ["Extra details are unavailable. Your chip recap is ready."] };
   try {
-    const enrichment = getRunnerEnrichment(runnerId, input.bib_number, controller.signal, userId);
-    optional = await Promise.race([
+    const enrichment = getRunnerEnrichment(runnerId, bib, controller.signal, userId);
+    return await Promise.race([
       enrichment,
       new Promise<Enrichment>((resolve) => {
         deadline = setTimeout(() => {
@@ -34,10 +27,22 @@ export async function getWrappedForUser(userId: string, runnerId: string): Promi
       }),
     ]);
   } catch {
-    optional = fallback;
+    return fallback;
   } finally {
     if (deadline) clearTimeout(deadline);
     if (grace) clearTimeout(grace);
   }
+}
+
+export async function getWrappedForUser(userId: string, runnerId: string): Promise<WrappedPayload | null> {
+  await requireRunnerAccess(userId, runnerId);
+  const input = await getRunnerChipInput(runnerId);
+  if (!input) {
+    const runner = await getRunnerSummary(runnerId);
+    if (!runner) return null;
+    const optional = await loadEnrichment(userId, runnerId, runner.bib_number);
+    return { status: "unavailable", runner, reason: "missing_result", ...optional };
+  }
+  const optional = await loadEnrichment(userId, runnerId, input.bib_number);
   return mergeWrapped(buildWrappedStats(input), optional);
 }

@@ -44,6 +44,23 @@ describe("authorized computed payload", () => {
     mocks.summary.mockResolvedValue(null);
     expect(await getWrappedForUser("A", "B")).toBeNull();
   });
+  it.each(["connected", "disconnecting"] as const)("preserves %s Strava controls when the chip result is unavailable", async (state) => {
+    mocks.input.mockResolvedValue(null);
+    mocks.enrichment.mockResolvedValue({ strava: { state, metrics: null }, photos: [], warnings: [] });
+
+    const result = await getWrappedForUser("owner", ainaInput().runner_id);
+
+    expect(result).toMatchObject({ status: "unavailable", strava: { state } });
+    expect(mocks.enrichment).toHaveBeenCalledWith(ainaInput().runner_id, "A1001", expect.any(AbortSignal), "owner");
+  });
+  it("suppresses Strava controls for an organizer viewing a runner with no chip result", async () => {
+    mocks.input.mockResolvedValue(null);
+    mocks.enrichment.mockResolvedValue({ strava: { state: "demo", metrics: null, controlsAvailable: false }, photos: [], warnings: [] });
+
+    const result = await getWrappedForUser("organizer", ainaInput().runner_id);
+
+    expect(result).toMatchObject({ status: "unavailable", strava: { state: "demo", controlsAvailable: false } });
+  });
   it.each([[citraDnfInput(), "dnf"], [dewaDnsInput(), "dns"]] as const)("preserves non-finisher null fields", async (input, status) => {
     mocks.input.mockResolvedValue(input);
     const result = await getWrappedForUser("user", input.runner_id);

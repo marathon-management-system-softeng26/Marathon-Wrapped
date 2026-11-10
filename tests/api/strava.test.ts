@@ -314,6 +314,31 @@ describe("Strava OAuth", () => {
     expect(mocks.backfill).toHaveBeenCalledWith("verified-user", runnerId);
   });
 
+  it("redirects to a reachable import retry when backfill enqueue repeatedly fails", async () => {
+    mocks.backfill.mockRejectedValue(new Error("storage"));
+
+    const response = await callback(callbackRequest());
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=import_failed`);
+    expect(mocks.backfill).toHaveBeenCalledTimes(2);
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("returns to the trusted recap when credential persistence repeatedly fails", async () => {
+    const normal = mocks.rpc.getMockImplementation()!;
+    mocks.rpc.mockImplementation((name, args) => name === "strava_finish_oauth" && args.p_tokens
+      ? Promise.reject(new Error("storage")) : normal(name, args));
+
+    const response = await callback(callbackRequest());
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=authorization_failed`);
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(mocks.backfill).not.toHaveBeenCalled();
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
   it("does not queue backfill for provider denial", async () => {
     await callback(callbackRequest(`error=access_denied&state=${state}`));
     expect(mocks.backfill).not.toHaveBeenCalled();
@@ -336,6 +361,17 @@ describe("Strava OAuth", () => {
 
     expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=already_connected`);
     expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("returns to the recap when a requested import retry cannot be queued", async () => {
+    mocks.rpc.mockResolvedValue("already_connected");
+    mocks.backfill.mockRejectedValue(new Error("storage"));
+
+    const response = await connect(connectRequest());
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=import_failed`);
+    expect(mocks.backfill).toHaveBeenCalledTimes(2);
   });
 
   it("rejects missing configuration before creating an attempt", async () => {

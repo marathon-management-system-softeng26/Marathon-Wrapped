@@ -29,9 +29,9 @@ describe("Strava controls and readable state", () => {
     ["authorizing", "Authorize Strava", ["cancel"]],
     ["importing", "Importing your activity", ["check", "disconnect"]],
     ["needs_confirmation", "Choose your race activity", ["check", "disconnect"]],
-    ["no_match", "No race activity found", ["check", "disconnect"]],
+    ["no_match", "No race activity found", ["connect", "check", "disconnect"]],
     ["connected", "Your Strava activity", ["check", "disconnect"]],
-    ["unavailable", "Activity details are unavailable", ["check", "disconnect"]],
+    ["unavailable", "Activity details are unavailable", ["connect", "check", "disconnect"]],
     ["disconnecting", "Disconnecting Strava", ["check", "disconnect"]],
     ["reauthorize_required", "Authorize Strava again", ["connect", "disconnect"]],
   ] as const)("offers explicit actions for %s", (value, title, actions) => {
@@ -45,6 +45,10 @@ describe("Strava controls and readable state", () => {
     const model = stravaViewModel(state("demo"), runner, true);
     expect(model.actions[0]).toMatchObject({ id: "connect", method: "POST", path: "/api/strava/connect", disabled: true });
     expect(stravaViewModel({ ...state("demo"), controlsAvailable: false }, runner).actions).toEqual([]);
+  });
+  it.each(["no_match", "unavailable"] as const)("offers a durable import retry for %s", (value) => {
+    const retry = stravaViewModel(state(value), runner).actions[0];
+    expect(retry).toMatchObject({ id: "connect", label: "Retry import", method: "POST", path: "/api/strava/connect" });
   });
   it("names confirmation date and distance without route details", () => {
     const model = stravaViewModel(state("needs_confirmation"), runner);
@@ -70,6 +74,10 @@ describe("Strava controls and readable state", () => {
     expect(callbackFeedback("https://race.test/wrapped/runner?strava=connected&keep=yes#context")).toEqual({ notice: "Strava authorized. Checking your race activity.", path: "/wrapped/runner?keep=yes#context" });
     expect(callbackFeedback("https://race.test/wrapped/runner?strava=private-token")).toEqual({ notice: "Strava could not connect. Try connecting again.", path: "/wrapped/runner" });
     expect(callbackFeedback("https://race.test/wrapped/runner")).toBeNull();
+    expect(callbackFeedback("https://race.test/wrapped/runner?strava=import_failed")).toEqual({
+      notice: "Strava connected, but activity import could not start. Retry import.",
+      path: "/wrapped/runner",
+    });
   });
   it.each(["__proto__", "toString", "constructor"])("treats prototype callback key %s as unrecognized", (code) => {
     expect(callbackFeedback(`https://race.test/wrapped/runner?strava=${code}`)).toEqual({

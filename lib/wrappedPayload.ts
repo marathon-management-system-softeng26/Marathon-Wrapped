@@ -23,4 +23,4 @@ export type StravaCandidate = {
 export type Enrichment = { strava: WrappedPayloadStrava; photos: Photo[]; warnings: string[] };
 export type WrappedPayload =
   | { status: "finisher" | "dnf" | "dns"; stats: WrappedStats } & Enrichment
-  | { status: "unavailable"; runner: { runner_id: string; name: string; bib_number: string | null }; reason: "missing_result" };
+  | ({ status: "unavailable"; runner: { runner_id: string; name: string; bib_number: string | null }; reason: "missing_result" } & Enrichment);

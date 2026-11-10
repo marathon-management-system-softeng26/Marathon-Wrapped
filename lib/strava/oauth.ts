@@ -57,6 +57,7 @@ const outcomeCodes = new Set([
   "invalid_callback", "invalid_id", "invalid_provider_response", "provider_unavailable",
   "provider_rejected", "rate_limited", "authorization_revoked", "forbidden", "not_found",
   "authorization_failed", "different_runner",
+  "import_failed",
 ]);
 
 type RunnerOAuthAttempt = {
@@ -77,6 +78,20 @@ function outcome(status: string, returnPath = "/") {
   response.headers.set("Referrer-Policy", "no-referrer");
 
   return response;
+}
+
+async function enqueueBackfillWithRetry(userId: string, runnerId: string): Promise<boolean> {
+  try {
+    await enqueueRunnerStravaBackfill(userId, runnerId);
+    return true;
+  } catch {
+    try {
+      await enqueueRunnerStravaBackfill(userId, runnerId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export async function connectStrava(request: NextRequest) {
@@ -113,7 +128,9 @@ export async function connectStrava(request: NextRequest) {
   });
 
   if (result !== "ready") {
-    if (result === "already_connected") await enqueueRunnerStravaBackfill(user.id, runnerId);
+    if (result === "already_connected" && !await enqueueBackfillWithRetry(user.id, runnerId)) {
+      return outcome("import_failed", returnPath);
+    }
     return outcome(result, returnPath);
   }
 
@@ -189,12 +206,17 @@ export async function finishStravaAuthorization(request: NextRequest) {
   }
 
   const returnPath = attempt.return_path;
+  const complete = (result: string) => {
+    const response = outcome(result, returnPath);
+    response.cookies.set(cookiePrefix + stateHash, "", { ...cookieOptions, maxAge: 0 });
+    return response;
+  };
 
   if (attempt.status !== "claimed") {
-    if (attempt.status === "connected") {
-      await enqueueRunnerStravaBackfill(user.id, attempt.runner_id);
+    if (attempt.status === "connected" && !await enqueueBackfillWithRetry(user.id, attempt.runner_id)) {
+      return complete("import_failed");
     }
-    return outcome(attempt.status === "processing" ? "in_progress" : attempt.status, returnPath);
+    return complete(attempt.status === "processing" ? "in_progress" : attempt.status);
   }
 
   const params = request.nextUrl.searchParams;
@@ -239,17 +261,17 @@ export async function finishStravaAuthorization(request: NextRequest) {
     try {
       status = await saveStravaConnection(user.id, tokens, stateHash);
     } catch {
-      status = await saveStravaConnection(user.id, tokens, stateHash);
+      try {
+        status = await saveStravaConnection(user.id, tokens, stateHash);
+      } catch {
+        return complete("authorization_failed");
+      }
     }
   }
 
-  if (status === "connected") {
-    await enqueueRunnerStravaBackfill(user.id, attempt.runner_id);
+  if (status === "connected" && !await enqueueBackfillWithRetry(user.id, attempt.runner_id)) {
+    return complete("import_failed");
   }
 
-  const response = outcome(status, returnPath);
-
-  response.cookies.set(cookiePrefix + stateHash, "", { ...cookieOptions, maxAge: 0 });
-
-  return response;
+  return complete(status);
 }
