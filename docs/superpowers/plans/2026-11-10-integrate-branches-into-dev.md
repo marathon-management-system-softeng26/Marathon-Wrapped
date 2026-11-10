@@ -15,7 +15,7 @@
 - Data ownership must be enforced by verified Supabase sessions and server-owned mappings.
 - Chip data remains the baseline; enrichment must be independently failure-tolerant.
 - Do not infer hydration, invent missing timing, or describe demo metrics as live.
-- The approved October 20 product decision requires a clear disconnected Strava state; real OAuth acceptance is deferred.
+- The approved November 2 direction requires complete opt-in Strava behavior; real-provider acceptance remains deferred until credentials are supplied.
 - Synthetic fixtures and stock photo mappings must be labeled as demonstrations.
 - Recap exports must be exactly 1080 x 1350 PNG.
 - Public personal recap links are prohibited.
@@ -67,7 +67,7 @@
 
 **Files:**
 - Read: `PRODUCT.md`
-- Read: `docs/SRS_v3.md`
+- Read: `docs/SRS_v4.md`
 - Read: `docs/requirements-register.md`
 - Inspect: integrated application and tests
 
@@ -77,5 +77,5 @@
 
 - [ ] **Step 1: Map each `PRODUCT.md` success criterion and constraint to implementation and tests**
 - [ ] **Step 2: Classify each item as met, partial, unmet, deferred, or contradicted**
-- [ ] **Step 3: Highlight conflicts introduced by branch integration, especially live Strava OAuth versus the approved disconnected state**
+- [ ] **Step 3: Reconcile the superseded October 20 disconnected-only decision with the approved November 2 full opt-in Strava direction**
 - [ ] **Step 4: Report the integrated commit, verification evidence, and ordered PRD gaps**
