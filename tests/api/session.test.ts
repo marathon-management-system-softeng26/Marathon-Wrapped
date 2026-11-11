@@ -73,6 +73,18 @@ describe("session HTTP boundaries", () => {
     expect(response.status).toBe(401);
     expect(await response.text()).not.toContain("internal");
   });
+  it("tells a valid-password user when email confirmation is required", async () => {
+    mocks.login.mockResolvedValue({
+      error: { code: "email_not_confirmed", message: "Email not confirmed" },
+    });
+    const response = await login(
+      request({ email: "a@example.test", password: "test" }),
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({
+      error: "Confirm your email before signing in.",
+    });
+  });
   it("signs in through the cookie-aware client", async () => {
     const response = await login(
       request({ email: " a@example.test ", password: "test" }),
