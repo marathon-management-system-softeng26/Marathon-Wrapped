@@ -54,6 +54,22 @@ test(
         if (file.endsWith("strava_runner_scope_privacy.sql")) await db.exec("select pg_temp.verify_strava_scope_upgrade()");
       }
 
+      // Exercise the old contract before upgrading, then verify the replacement
+      // against persisted scopes, including inactive and obsolete attempts.
+      const attachmentFixture = (await readFile("tests/sql/strava-attachments.sql", "utf8"))
+        .split("-- AFTER MIGRATION");
+      await db.exec(attachmentFixture[0]);
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_runner_attachments_and_snapshots.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec(attachmentFixture[1]);
+      await db.exec(await readFile("tests/sql/strava-wrapped-snapshots.sql", "utf8"));
+      // Existing lifecycle and OAuth callers must remain operational after rollout.
+      for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-scope"]) {
+        await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
+      }
+
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
       await db.exec(`
