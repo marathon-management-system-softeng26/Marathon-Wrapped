@@ -34,6 +34,16 @@ After seeding, `npm run seed:photos` uploads the local sample to the dedicated p
 
 For Auth bootstrap, configure the documented variables in ignored `.env.local`, including an explicit matching `SUPABASE_DEMO_PROJECT_REF`, then run `npm run seed:users`. It creates two synthetic runner accounts and an event-scoped organizer, saving generated credentials to ignored `.env.demo.local`. Do not use this workflow on a production or unrelated project.
 
+### Grant access to an existing organizer account
+
+Have the organizer create an account and confirm their email. On a trusted machine, use ignored `.env.local` to set the dedicated `SUPABASE_URL`, its matching `SUPABASE_DEMO_PROJECT_REF`, and the project's server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. Use the intended row's numeric `events.id`.
+
+```sh
+npm run grant:organizer -- --email <email> --event-id <id>
+```
+
+The command matches the full Auth email case-insensitively and inserts the `(user_id, event_id)` pair in `organizer_access`. Repeating the grant leaves that pair in place. After the organizer signs in, `GET /api/session` includes the granted event in `events` and the home page shows **Manage event results**. The server checks the event mapping on organizer API requests from `/organizer`.
+
 Run `npm run build`, then `npm run start -- --port 3007` in one terminal and `npm run test:db` in another for real-session HTTP acceptance. `npm test` deliberately skips the database suite unless opted in; skipped tests are not evidence of database success. `db/tests/core.sql`, `integrity.sql` and `lifecycle.sql` contain additional SQL assertions; mutation checks roll back their changes. Run `npm run test:native` on Node 22.18+ for the dependency-free input boundary tests.
 
 - `reset.sql` — drops every table. **Wipes all data** — only run on purpose

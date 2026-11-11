@@ -52,7 +52,18 @@ Apply migrations in filename order to a local or dedicated non-production Supaba
 
 Then apply the plan's two new migrations in order, `strava_first_runner_claims` and `strava_runner_attachments_and_snapshots`. The Supabase CLI assigns their version prefixes when those migrations are created. Check for duplicate direct owners before adding the one-owner constraint, then verify migration history, functions, constraints, grants, RLS, and database advisors.
 
-Enable email confirmation in Supabase Auth. Set the Site URL to the application URL, allowlist the intended confirmation redirect URLs for the environments in use, and configure SMTP for confirmation delivery. Verify that a new user can receive the email, confirm, and sign in. A trusted operator uses the planned `scripts/grant-organizer.mts` with the dedicated project URL/ref, a confirmed Auth email, and an exact event identifier. The organizer can then issue seven-day, single-use claim codes for that event.
+Enable email confirmation in Supabase Auth. Set the Site URL to the application URL, allowlist the intended confirmation redirect URLs for the environments in use, and configure SMTP for confirmation delivery. Verify that a new user can receive the email, confirm, and sign in.
+
+### Organizer sign-in
+
+1. Create an account in the app and confirm its email.
+2. On a trusted machine, set `SUPABASE_DEMO_PROJECT_REF` in ignored `.env.local` to match the dedicated `SUPABASE_URL` (`https://<project-ref>.supabase.co`). Use that project's server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. Run the grant with the confirmed email and the numeric `events.id`.
+
+   ```sh
+   npm run grant:organizer -- --email <email> --event-id <id>
+   ```
+
+3. Sign in with the confirmed account. Check that `GET /api/session` includes the granted event in `events`, then open **Manage event results** on the home page. It opens `/organizer`, whose API checks the account's event access on the server before returning organizer data or accepting changes.
 
 ### Strava configuration
 

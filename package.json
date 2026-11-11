@@ -12,7 +12,8 @@
     "test:native": "node --test --experimental-strip-types tests/native/*.test.mts",
     "test:db": "node --env-file=.env.local --env-file=.env.demo.local node_modules/vitest/vitest.mjs run tests/integration",
     "seed:users": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-users.mts",
-    "seed:photos": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-photos.mts"
+    "seed:photos": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-photos.mts",
+    "grant:organizer": "node --env-file-if-exists=.env.local --conditions=react-server --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/grant-organizer.mts"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
