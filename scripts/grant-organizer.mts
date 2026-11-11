@@ -6,7 +6,7 @@ try {
   const email = flags.get("--email");
   const eventIdText = flags.get("--event-id");
   if (args.length !== 4 || !email || !eventIdText) {
-    throw new OrganizerGrantError("Usage: npm run grant:organizer -- --email <email> --event-id <id>");
+    throw new OrganizerGrantError("Usage: npm run --silent grant:organizer -- --email <email> --event-id <id>");
   }
 
   const eventId = /^\d+$/.test(eventIdText) ? Number(eventIdText) : NaN;

@@ -39,7 +39,7 @@ For Auth bootstrap, configure the documented variables in ignored `.env.local`, 
 Have the organizer create an account and confirm their email. On a trusted machine, use ignored `.env.local` to set the dedicated `SUPABASE_URL`, its matching `SUPABASE_DEMO_PROJECT_REF`, and the project's server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. Use the intended row's numeric `events.id`.
 
 ```sh
-npm run grant:organizer -- --email <email> --event-id <id>
+npm run --silent grant:organizer -- --email <email> --event-id <id>
 ```
 
 The command matches the full Auth email case-insensitively and inserts the `(user_id, event_id)` pair in `organizer_access`. Repeating the grant leaves that pair in place. After the organizer signs in, `GET /api/session` includes the granted event in `events` and the home page shows **Manage event results**. The server checks the event mapping on organizer API requests from `/organizer`.

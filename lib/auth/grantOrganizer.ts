@@ -30,16 +30,29 @@ export async function grantOrganizerAccessByEmail(
   const db = getSupabaseAdmin();
   const address = email.toLowerCase();
   const perPage = 50;
+  const seen = new Set<string>();
+  const incompleteScan = "Incomplete Auth user scan. Retry the grant.";
+  let total: number | undefined;
   let match: User | undefined;
   for (let page = 1; ; page++) {
     const { data, error } = await db.auth.admin.listUsers({ page, perPage });
     if (error) throw new OrganizerGrantError("Could not look up Auth users.");
+    // Count distinct IDs against the total because offset pages can overlap.
+    total ??= data.total;
+    if (!Number.isSafeInteger(total) || total < 0 || data.total !== total ||
+        data.users.length !== Math.min(perPage, total - seen.size)) {
+      throw new OrganizerGrantError(incompleteScan);
+    }
     for (const user of data.users) {
+      if (typeof user.id !== "string" || !user.id || seen.has(user.id)) {
+        throw new OrganizerGrantError(incompleteScan);
+      }
+      seen.add(user.id);
       if (user.email?.toLowerCase() !== address) continue;
       if (match) throw new OrganizerGrantError("Multiple Auth users match that email address.");
       match = user;
     }
-    if (data.users.length < perPage) break;
+    if (seen.size === total) break;
   }
   if (!match) throw new OrganizerGrantError("No Auth user matches that email address.");
   if (!match.email_confirmed_at) {

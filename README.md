@@ -60,8 +60,10 @@ Enable email confirmation in Supabase Auth. Set the Site URL to the application 
 2. On a trusted machine, set `SUPABASE_DEMO_PROJECT_REF` in ignored `.env.local` to match the dedicated `SUPABASE_URL` (`https://<project-ref>.supabase.co`). Use that project's server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. Run the grant with the confirmed email and the numeric `events.id`.
 
    ```sh
-   npm run grant:organizer -- --email <email> --event-id <id>
+   npm run --silent grant:organizer -- --email <email> --event-id <id>
    ```
+
+   Keep `--silent` so npm doesn't echo the command arguments.
 
 3. Sign in with the confirmed account. Check that `GET /api/session` includes the granted event in `events`, then open **Manage event results** on the home page. It opens `/organizer`, whose API checks the account's event access on the server before returning organizer data or accepting changes.
 

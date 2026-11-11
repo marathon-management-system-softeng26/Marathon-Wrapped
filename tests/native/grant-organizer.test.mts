@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +13,7 @@ const args = ["--email", email, "--event-id", "42"];
 
 type Fixture = {
   pages?: Array<Array<{ id: string; email: string; email_confirmed_at?: string }>>;
+  totals?: number[] | null;
   event?: boolean;
   rejectWrite?: boolean;
 };
@@ -30,12 +32,20 @@ function fakeSupabase(fixture: Fixture, expectedUserId: string, secret: string, 
       const pageSize = Number(url.searchParams.get("per_page"));
       const pages = fixture.pages ?? [];
       const users = pages[page - 1] ?? [];
-      const filler = { id: "other", email: "someone@example.test" };
-      return Response.json({
-        users: page < pages.length
-          ? [...users, ...Array(pageSize - users.length).fill(filler)]
-          : users,
-      });
+      const filler = page < pages.length
+        ? Array.from({ length: pageSize - users.length }, (_, index) => ({
+            id: `filler-${page}-${index}`,
+            email: "someone@example.test",
+          }))
+        : [];
+      const total = fixture.totals?.[page - 1] ??
+        (pages.length ? (pages.length - 1) * pageSize + pages.at(-1)!.length : 0);
+      const headers = new Headers();
+      if (fixture.totals !== null) {
+        headers.set("X-Total-Count", String(total));
+        headers.set("Link", `</admin/users?page=${Math.ceil(total / pageSize)}&per_page=${pageSize}>; rel="last"`);
+      }
+      return Response.json({ users: [...users, ...filler] }, { headers });
     }
     if (url.pathname === "/rest/v1/events" && url.searchParams.get("id") === "eq.42") {
       return Response.json(fixture.event === false ? [] : [{ id: 42 }]);
@@ -62,11 +72,12 @@ function run(
   cliArgs = args,
   fixture: Fixture = { pages: [[user]] },
   env: Partial<NodeJS.ProcessEnv> = {},
-  grantTwice = false,
+  mode: "node" | "npm" | "repeat" = "node",
 ) {
   const preload = `(${fakeSupabase.toString()})(${JSON.stringify(fixture)}, ${JSON.stringify(userId)}, ${JSON.stringify(password)}, ${JSON.stringify(key)})`;
+  const preloadUrl = `data:text/javascript,${encodeURIComponent(preload)}`;
   const cwd = fileURLToPath(new URL("../../", import.meta.url));
-  const entry = grantTwice
+  const entry = mode === "repeat"
     ? ["--input-type=module", "--eval", `
         import { grantOrganizerAccessByEmail } from "./lib/auth/grantOrganizer.ts";
         for (let i = 0; i < 2; i++) {
@@ -74,15 +85,23 @@ function run(
         }
       `]
     : ["scripts/grant-organizer.mts", ...cliArgs];
-  const result = spawnSync(process.execPath, [
-    "--conditions=react-server", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--experimental-strip-types",
-    "--import", `data:text/javascript,${encodeURIComponent(preload)}`, ...entry,
-  ], {
+  const npm = mode === "npm";
+  const npmCli = npm && process.platform === "win32"
+    ? process.env.npm_execpath ?? join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")
+    : undefined;
+  const command = npm && !npmCli ? "npm" : process.execPath;
+  const commandArgs = npm
+    ? [...(npmCli ? [npmCli] : []), "run", "--silent", "grant:organizer", "--", ...cliArgs]
+    : [
+        "--conditions=react-server", "--disable-warning=MODULE_TYPELESS_PACKAGE_JSON", "--experimental-strip-types",
+        "--import", preloadUrl, ...entry,
+      ];
+  const result = spawnSync(command, commandArgs, {
     cwd,
     encoding: "utf8",
     env: {
       ...process.env,
-      NODE_OPTIONS: "",
+      NODE_OPTIONS: npm ? `--import=${preloadUrl}` : "",
       SUPABASE_URL: "https://dedicated.supabase.co",
       SUPABASE_DEMO_PROJECT_REF: "dedicated",
       SUPABASE_SECRET_KEY: key,
@@ -147,6 +166,28 @@ test("rejects duplicate email matches across Auth pages", () => {
   assertRejected(run(args, fixture), /multiple auth users/i);
 });
 
+test("rejects an Auth ID repeated across pages even when the row count matches the total", () => {
+  const repeated = { id: "repeated-id", email: "someone@example.test" };
+  assertRejected(run(args, { pages: [[user, repeated], [repeated]] }), /incomplete auth user scan/i);
+});
+
+test("rejects Auth totals that change between pages even when the final total matches coverage", () => {
+  assertRejected(run(args, { pages: [[user], [{ id: "other", email: "someone@example.test" }]], totals: [52, 51] }),
+    /incomplete auth user scan/i);
+});
+
+test("rejects an Auth scan with fewer distinct IDs than the reported total", () => {
+  assertRejected(run(args, { pages: [[user]], totals: [2] }), /incomplete auth user scan/i);
+});
+
+test("rejects an Auth scan that reports fewer users than it returns", () => {
+  assertRejected(run(args, { pages: [[user]], totals: [0] }), /incomplete auth user scan/i);
+});
+
+test("rejects an Auth scan without total headers", () => {
+  assertRejected(run(args, { pages: [[user]], totals: null }), /incomplete auth user scan/i);
+});
+
 test("requires the matching Auth user to have confirmed their email", () => {
   const fixture = { pages: [[{ ...user, email_confirmed_at: undefined, confirmed_at: user.email_confirmed_at }]] };
   assertRejected(run(args, fixture), /confirm.*email/i);
@@ -157,14 +198,29 @@ test("requires the event to exist before writing a mapping", () => {
 });
 
 test("resolves an exact email on a later Auth page and prints only IDs", () => {
-  const result = run(args, { pages: [[], [user]] });
+  const result = run(args, { pages: [[], [user]] }, {}, "npm");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.trim(), `Organizer access granted for user ${userId} and event 42.`);
 });
 
+test("the silent npm command prints only the fixed error for malformed input", () => {
+  const sentinel = "synthetic-malformed-sentinel";
+  const result = run(["--email", sentinel, "--event-id", "42"], undefined, {}, "npm");
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr.trim(), "Enter a valid email address.");
+});
+
+test("the silent npm command shows the supported invocation when flags are missing", () => {
+  const result = run([], undefined, {}, "npm");
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr.trim(), "Usage: npm run --silent grant:organizer -- --email <email> --event-id <id>");
+});
+
 test("granting the same user and event twice succeeds", () => {
-  const result = run(args, undefined, {}, true);
+  const result = run(args, undefined, {}, "repeat");
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   const mapping = JSON.stringify({ userId, eventId: 42 });
