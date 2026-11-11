@@ -6,6 +6,13 @@ begin
   exception when others then if sqlstate=expected_state then return; end if; raise; end;
   raise exception 'Expected SQLSTATE % for %',expected_state,statement;
 end $$;
+create or replace function pg_temp.expect_snapshot_check_error(statement text, expected_state text) returns void
+language plpgsql security definer set search_path='' as $$
+begin
+  begin execute statement;
+  exception when others then if sqlstate=expected_state then return; end if; raise; end;
+  raise exception 'Expected SQLSTATE % for %',expected_state,statement;
+end $$;
 
 do $$
 declare u uuid := gen_random_uuid(); r uuid := gen_random_uuid(); r2 uuid := gen_random_uuid();
@@ -32,6 +39,12 @@ begin
   build := public.strava_begin_wrapped_snapshot(u,g,r,'race',1);
   assert build is not null;
   assert (select status='building' and payload is null and error_code is null from public.strava_wrapped_snapshots where runner_id=r);
+  perform pg_temp.expect_snapshot_error(format(
+    'update public.strava_wrapped_snapshots set status=''failed'',payload=null,error_code=''bypass'' where runner_id=%L',r),'42501');
+  perform pg_temp.expect_snapshot_error(format(
+    'insert into public.strava_wrapped_snapshots(user_id,generation,runner_id,activity_id,version) values(%L,%L,%L,''bypass'',1)',u,g,r),'42501');
+  perform pg_temp.expect_snapshot_error(format(
+    'delete from public.strava_wrapped_snapshots where runner_id=%L',r),'42501');
   assert public.strava_finish_wrapped_snapshot(u,g,r,'race',1,build,'ready','{"version":1,"distanceMeters":5000}',null)='ready';
   assert public.strava_finish_wrapped_snapshot(u,g,r,'race',1,build,'failed',null,'projection_failed')='obsolete', 'Terminal builds cannot be overwritten';
   newer := public.strava_begin_wrapped_snapshot(u,g,r,'race',1);
@@ -45,7 +58,7 @@ begin
     'status=''ready'',payload=null','status=''failed'',error_code=null',
     'status=''building'',error_code=''unexpected'''
   ] loop
-    perform pg_temp.expect_snapshot_error(format('update public.strava_wrapped_snapshots set %s where runner_id=%L',statement,r),'23514');
+    perform pg_temp.expect_snapshot_check_error(format('update public.strava_wrapped_snapshots set %s where runner_id=%L',statement,r),'23514');
   end loop;
   perform pg_temp.expect_snapshot_error(format('select public.strava_finish_wrapped_snapshot(%L,%L,%L,''race'',1,%L,''building'',null,null)',u,g,r,build),'22023');
   assert public.strava_begin_wrapped_snapshot(u,gen_random_uuid(),r,'race',1) is null;

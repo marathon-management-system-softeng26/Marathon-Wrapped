@@ -65,11 +65,25 @@ begin
     assert not has_function_privilege('authenticated',rpc,'execute');
     assert has_function_privilege('service_role',rpc,'execute');
   end loop;
+  foreach rpc in array array[
+    'public.strava_begin_wrapped_snapshot(uuid,uuid,uuid,text,integer)',
+    'public.strava_finish_wrapped_snapshot(uuid,uuid,uuid,text,integer,uuid,text,jsonb,text)',
+    'public.strava_cleanup_wrapped_selection()'
+  ] loop
+    assert (select prosecdef and proconfig @> array['search_path=""']::text[] from pg_proc where oid=rpc::regprocedure),
+      'Privileged snapshot functions are SECURITY DEFINER with an empty search_path';
+  end loop;
   foreach relation in array array['strava_runner_attachments','strava_wrapped_snapshots'] loop
     assert (select relrowsecurity from pg_class where oid=('public.'||relation)::regclass);
     assert not has_table_privilege('anon','public.'||relation,'select');
     assert not has_table_privilege('authenticated','public.'||relation,'insert,update,delete,select');
-    assert has_table_privilege('service_role','public.'||relation,'select,insert,update,delete');
+    assert has_table_privilege('service_role','public.'||relation,'select');
+    if relation='strava_runner_attachments' then
+      assert has_table_privilege('service_role','public.'||relation,'insert,update,delete');
+    else
+      assert not has_table_privilege('service_role','public.'||relation,'insert,update,delete'),
+        'Snapshot writes and deletes are available only through fenced functions and cleanup cascades';
+    end if;
   end loop;
 end $$;
 -- Keep the migration, discard only fixture data (the migration ran in this transaction).

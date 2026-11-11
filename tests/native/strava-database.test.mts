@@ -60,7 +60,7 @@ test(
         .split("-- AFTER MIGRATION");
       await db.exec(attachmentFixture[0]);
       for (const file of (await readdir("supabase/migrations"))
-        .filter((file) => file.endsWith("_strava_runner_attachments_and_snapshots.sql")).sort()) {
+        .filter((file) => /_(strava_runner_attachments_and_snapshots|strava_snapshot_write_fencing)\.sql$/.test(file)).sort()) {
         await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
       }
       await db.exec(attachmentFixture[1]);
