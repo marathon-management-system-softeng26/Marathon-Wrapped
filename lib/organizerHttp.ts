@@ -7,6 +7,7 @@ import { OrganizerSaveError, saveHeroRunner } from "@/controllers/organizerContr
 
 export const privateHeaders = { "Cache-Control": "private, no-store" };
 export const organizerError = (message: string, status: number) => Response.json({ error: message }, { status, headers: privateHeaders });
+export const organizerNotFound = () => organizerError("Runner not found for this event.", 404);
 export function eventIdFrom(value: string): number | null {
   const id = /^\d+$/.test(value) ? Number(value) : NaN;
   return Number.isSafeInteger(id) && id > 0 ? id : null;
