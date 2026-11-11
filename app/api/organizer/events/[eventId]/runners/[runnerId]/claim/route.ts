@@ -63,7 +63,7 @@ export async function DELETE(request: Request, context: { params: Promise<{ even
     try { body = await boundedJson(request); } catch { return fail("Send a valid claim identifier.", 400); }
     const claimId = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>).claimId : null;
     if (typeof claimId !== "string" || !isRunnerId(claimId)) return fail("Send a valid claim identifier.", 400);
-    await revokeRunnerClaim(user.id, eventId, claimId);
+    await revokeRunnerClaim(user.id, eventId, runnerId, claimId);
     return Response.json({ ok: true }, { headers: privateHeaders });
   } catch (cause) {
     if (cause instanceof AuthenticationError) return fail(cause.message, 401);

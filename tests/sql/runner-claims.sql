@@ -86,9 +86,10 @@ begin
   assert public.consume_runner_claim(gen_random_uuid(),repeat('c',64)) = 'invalid_claim';
   assert not exists(select 1 from public.runner_access a where a.runner_id=second_runner);
   assert exists(select 1 from public.runner_claims where id=revoked_claim and claimed_by is null and claimed_at is null);
-  assert public.revoke_runner_claim(outsider,event,revoked_claim) = false;
-  assert public.revoke_runner_claim(organizer,other_event,revoked_claim) = false;
-  assert public.revoke_runner_claim(organizer,event,revoked_claim) = true;
+  assert public.revoke_runner_claim(outsider,event,second_runner,revoked_claim) = false;
+  assert public.revoke_runner_claim(organizer,other_event,second_runner,revoked_claim) = false;
+  assert public.revoke_runner_claim(organizer,event,runner,revoked_claim) = false;
+  assert public.revoke_runner_claim(organizer,event,second_runner,revoked_claim) = true;
   assert public.consume_runner_claim(claimant,repeat('c',64)) = 'invalid_claim';
   claim := public.create_runner_claim(organizer,event,second_runner,repeat('d',64),now()+interval '7 days');
   update public.runner_claims set created_at=now()-interval '8 days',expires_at=now()-interval '1 day' where id=claim;
@@ -127,7 +128,7 @@ begin
     foreach signature in array array[
       'public.create_runner_claim(uuid,bigint,uuid,text,timestamp with time zone)',
       'public.consume_runner_claim(uuid,text)',
-      'public.revoke_runner_claim(uuid,bigint,uuid)'
+      'public.revoke_runner_claim(uuid,bigint,uuid,uuid)'
     ] loop
       assert not has_function_privilege(browser,signature,'EXECUTE');
       assert has_function_privilege('service_role',signature,'EXECUTE');

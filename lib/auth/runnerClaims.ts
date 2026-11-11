@@ -38,10 +38,10 @@ export async function consumeRunnerClaim(userId: string, token: string): Promise
   throw new Error(INVALID_CLAIM);
 }
 
-export async function revokeRunnerClaim(userId: string, eventId: number, claimId: string): Promise<void> {
+export async function revokeRunnerClaim(userId: string, eventId: number, runnerId: string, claimId: string): Promise<void> {
   await requireOrganizerAccess(userId, eventId);
-  if (!UUID_PATTERN.test(claimId)) throw new AccessDeniedError();
-  const { data, error } = await getSupabaseAdmin().rpc("revoke_runner_claim", { p_organizer: userId, p_event: eventId, p_claim: claimId });
+  if (!UUID_PATTERN.test(runnerId) || !UUID_PATTERN.test(claimId)) throw new AccessDeniedError();
+  const { data, error } = await getSupabaseAdmin().rpc("revoke_runner_claim", { p_organizer: userId, p_event: eventId, p_runner: runnerId, p_claim: claimId });
   if (error) throw new Error("Runner claim service is unavailable.");
   if (data !== true) throw new AccessDeniedError();
 }
