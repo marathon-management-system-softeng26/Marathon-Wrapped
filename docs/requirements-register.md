@@ -1,8 +1,23 @@
-# Requirement register — SRS V3
+# Requirement register
+
+## Active contract as of November 11, 2026
+
+The November 11 decision supersedes chip-first Wrapped generation and November 2 opt-in enrichment. Use [SRS V4](SRS_v4.md) and the [approved design](superpowers/specs/2026-11-11-strava-first-runner-claims-design.md) for requirement text and the [acceptance matrix](qa/acceptance-matrix.md) for verification.
+
+| V4 requirements | Current coverage |
+| --- | --- |
+| FR-01–FR-03 | Confirmed signup, event-scoped one-time claims, one direct owner per registration, and multiple claims per account |
+| FR-04–FR-08 | Strava action per runner, explicit OAuth, one athlete connection per account, separate registration attachments, bounded selection, stored projection, and ready-only showcase |
+| FR-09–FR-11 | Registration detach, account-wide disconnect, durable revocation, and retry/reconnect states |
+| FR-12–FR-15 | Optional BIB-matched photos and export from a ready snapshot |
+| FR-16–FR-19 | Event-scoped organizer access, legacy results, registration maintenance, and Strava race configuration |
+| NFR-01–NFR-09 | Usability, privacy, isolation, and deployment limits |
+
+## Historical V3 references
 
 **Baseline:** [SRS V3](SRS_v3.md), October 1, 2026. Stable requirement IDs are grouped by module without renaming established references. Lettered clauses retain their V2 parent as a traceability group. No retired ID may be reassigned.
 
-This register locates requirements and their function coverage. Requirement text, rationale and verification measures are in the SRS; user-to-system mapping is in section 7.4. Issue and executed-test references remain to be populated by the team; no implementation or acceptance is implied.
+The historical table preserves V3 requirements and their function coverage. Requirement text, rationale and verification measures are in the SRS; user-to-system mapping is in section 7.4. Issue and executed-test references remain to be populated by the team; no implementation or acceptance is implied.
 
 Implementation evidence through November 2, 2026 is recorded separately in the [acceptance matrix](qa/acceptance-matrix.md), with verified, deferred and unverified measures distinguished. The location rows below retain the original baseline and link the new Strava evidence where available; automated implementation does not imply live-provider acceptance.
 
@@ -84,6 +99,7 @@ Implementation evidence through November 2, 2026 is recorded separately in the [
 | V3 split | SR-F6a/b, SR-F15a/b, SR-F19a/b, SR-NF5a/b, SR-NF11a/b | Separate independent obligations; parent references remain valid groups. |
 | V3 new clarification | SR-F23, SR-F24 | Explicit result-unavailable and rejected-save paths in the new flowcharts. |
 | V3 desirable presentation | UR-D1–UR-D3, SR-D1–SR-D2 | Everyday explanations, optional-connect messaging, confirmed palette and disconnect feedback. |
-| November 2, 2026 Strava direction | UR-F3–UR-F4, SR-F8–SR-F12, SR-NF12, SR-D1–SR-D2 | Replace the October 20 disconnected-only delivery decision with the approved full opt-in implementation. Automated and local PostgreSQL evidence is recorded; real-provider, dedicated remote database, and manual browser acceptance remain pending. |
+| November 2, 2026 Strava direction (superseded) | UR-F3–UR-F4, SR-F8–SR-F12, SR-NF12, SR-D1–SR-D2 | Replace the October 20 disconnected-only delivery decision with the approved full opt-in implementation. Automated and local PostgreSQL evidence is recorded; real-provider, dedicated remote database, and manual browser acceptance remain pending. |
+| November 11, 2026 Strava-first direction | SRS V4 FR-01–FR-19, NFR-01–NFR-09 | Require confirmed signup, one-time registration claim, per-race athlete attachment, and a stored ready projection for Wrapped. Legacy organizer timing remains available. |
 
 Record future changes with the [change-request form](templates/requirements-change-request.md); update affected diagrams, function forms and tests together. Team review of the V3 additions is pending.

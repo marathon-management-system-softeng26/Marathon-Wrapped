@@ -1,4 +1,24 @@
-# SRS V4 implementation and evidence map
+# SRS V4 acceptance matrix
+
+## November 11, 2026 Strava-first contract
+
+The November 11 decision supersedes the chip-first runner flow. Every row below requires verification against the approved Strava-first workflow. The [implementation plan](../superpowers/plans/2026-11-11-strava-first-runner-claims.md) defines the staged checks.
+
+| Requirements | Acceptance check | Status |
+| --- | --- | --- |
+| FR-01–FR-03 | Complete signup and confirmation, reject an unconfirmed sign-in, claim two registrations, and test expiry, revocation, replay, concurrent redemption, and cross-event denial. Verify the server-owned mapping and one direct owner. | Pending |
+| FR-04, FR-08 | Check a Strava action on every claimed runner card. Exercise explicit consent, denial, insufficient scope, athlete mismatch, reconnect, and reuse of one athlete connection for a second registration. | Pending |
+| FR-05, FR-19 | Configure a category within the organizer's event. Test sole, ambiguous, missing-location, and no-match cases, plus a conflict when one activity is chosen twice in a connection generation. | Pending |
+| FR-06–FR-07 | Verify building, ready, and failed projection states. Compare stored output with the selected activity while legacy chip values disagree. Inspect dashboard and Wrapped reads for provider traffic. | Pending |
+| FR-09–FR-11 | Detach one of two registrations. Disconnect the athlete account and verify both live showcases disappear. Exercise revocation retry, obsolete generations, provider rate limits, and lost refresh credentials. | Pending |
+| FR-12–FR-15 | Verify exact BIB photos, a usable ready showcase without photos, 1080 × 1350 PNG export, and a recoverable export failure. | Pending |
+| FR-16–FR-19, NFR-06–NFR-07 | Verify event-scoped organizer tools, direct runner ownership, and private field omission in API, UI, logs, and export. | Pending |
+| NFR-01–NFR-05, NFR-08–NFR-09 | Check mobile/desktop workflow, keyboard focus, navigation, load budget, labeled test data, and service allowances. | Pending |
+| Deployment | Verify ordered migrations in the dedicated project, SMTP confirmation delivery, webhook challenge and refresh, authenticated scheduled worker calls, and private real-provider consent/import/revocation before reviewing athlete capacity for broader access. | Pending |
+
+## Historical evidence through November 3, 2026
+
+The table below and the runner-facing behavior recorded in [core foundation](core-foundation.md), [connected UI](connected-ui.md), [Strava integration](strava-integration.md), and the [November 10 PRD comparison](prd-comparison-2026-11-10.md) describe the superseded chip-first workflow. Those records also preserve tests of legacy organizer timing and results.
 
 Updated November 3, 2026. This distinguishes implementation from executed acceptance and preserves the V3 clause links used by the existing evidence. The October 20 disconnected-only decision was superseded by the approved full opt-in Strava direction. After the final review fixes, 328 local automated checks, 11 activated PGlite/PostgreSQL checks, 240 focused controlled-provider checks, 111 export/privacy checks, and the lint/type/build gates passed. The fixes cover durable runner/generation opt-in, unrelated activity-data removal, safe Connect failure returns, and organizer control suppression. The branch-wide whitespace gate is clean. Real-provider, dedicated remote database, webhook/scheduler, and manual browser acceptance remain pending because no corresponding credentials or usable authenticated browser fixture was supplied.
 

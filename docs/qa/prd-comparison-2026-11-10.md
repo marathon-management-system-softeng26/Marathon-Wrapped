@@ -6,7 +6,9 @@
 **Application tree reviewed:** `e0c48d4`, with final recovery fixes at `4f9993f`  
 **Authority:** `PRODUCT.md`, `docs/SRS_v4.md`, and `docs/requirements-register.md`
 
-## Scope reconciliation
+This report records the November 10 integration against the requirements in effect that day. The November 11 decision supersedes chip-first Wrapped generation and the runner workflow below. Follow the [acceptance matrix](acceptance-matrix.md) for the current checks.
+
+## Historical scope reconciliation
 
 The apparent Strava conflict in the pre-integration `PRODUCT.md` is resolved by the merged requirements history. The October 20 disconnected-only decision was superseded on November 2 by an approved complete opt-in integration. The integrated application is therefore graded against runner-bound OAuth, activity selection, five nullable metrics, fallback, and disconnect behavior. Real-provider acceptance remains deferred.
 
@@ -15,7 +17,7 @@ The apparent Strava conflict in the pre-integration `PRODUCT.md` is resolved by 
 | PRD outcome or constraint | Status | Evidence |
 | --- | --- | --- |
 | Verified sessions and server-owned runner/event mappings protect personal and organizer data | Met in implementation | `lib/auth/session.ts`, `lib/auth/access.ts`, guarded runner/organizer APIs, and API authorization tests |
-| Chip data remains the baseline when enrichment fails | Met | `lib/wrappedService.ts` falls back to the chip recap; Strava, missing-photo, timeout, and post-OAuth queue-failure paths are covered by automated tests |
+| Superseded chip-first rule kept chip data as the baseline when enrichment failed | Met | `lib/wrappedService.ts` falls back to the chip recap; Strava, missing-photo, timeout, and post-OAuth queue-failure paths are covered by automated tests |
 | Missing timing is not invented; finisher, DNF, DNS, and missing-result states remain distinct | Met | Native input validation, `lib/insights.ts`, `lib/shareModel.ts`, and wrapped-service tests preserve null finish/pace values and distinct states |
 | Hydration is not inferred | Met | No hydration behavior exists in the product code; SRS v4 explicitly keeps it outside scope |
 | Demo metrics and stock photos are identified as demonstrations | Met | Strava demo state says "Seeded sample metrics" and exports identify synthetic race data; demo/live provenance has automated coverage |
@@ -36,7 +38,7 @@ The apparent Strava conflict in the pre-integration `PRODUCT.md` is resolved by 
 - `npm run build`: passed, including TypeScript and production page generation.
 - Every surviving local and remote branch tip is an ancestor of the integrated branch.
 
-## Remaining acceptance gaps, in priority order
+## Acceptance gaps recorded on November 10
 
 1. Run real Strava consent, callback, activity import, reconnect, provider denial, and revocation checks with a dedicated test application.
 2. Run the Supabase lifecycle/concurrency and authenticated end-to-end suites against a dedicated non-production project.
