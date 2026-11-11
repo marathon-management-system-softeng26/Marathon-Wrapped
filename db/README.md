@@ -69,3 +69,19 @@ npm run test:native
 The native harness creates minimal Auth roles and applies the complete migration chain before `tests/sql/strava-lifecycle.sql`. Without `STRAVA_PGLITE_MODULE`, that one database test skips. The opt-in `RUN_STRAVA_DATABASE_TESTS=1` Vitest suite adds real multi-request selection/disconnect races; run it only against a fully migrated dedicated project whose host matches `SUPABASE_DEMO_PROJECT_REF`. It creates disposable Auth/event/runner fixtures and cleans them up. An unconfigured or skipped remote suite does not establish remote database success.
 
 Run `reset.sql` manually in the Supabase SQL Editor only when you intend to wipe the app data. Afterward, run the initial migration SQL there to recreate the schema; `db push` won’t reapply a migration already recorded as applied. The configured seed file is `db/seed.sql`.
+
+## Runner claim storage
+
+`20261111054520_strava_first_runner_claims.sql` adds server-only `runner_claims` and one direct owner per `runner_access.runner_id`. Its first statement aborts with `duplicate direct owners` if legacy ownership conflicts exist. Review and resolve those records explicitly before deploying; the migration never chooses or deletes an owner. One account may still own multiple registrations.
+
+The application generates a random code of at least 256 bits, hashes it with SHA-256, and sends only the lowercase 64-character hexadecimal hash to storage. The database accepts finite future expiry times up to seven days. It has no raw-code column. All claim foreign keys have leading indexes; pending expiry and revoked records have partial indexes for bounded cleanup. Auth user references retain claim audit history and restrict deletion until those references are handled explicitly.
+
+Only the server `service_role` can read/write claims or execute these RPCs. Browser roles and `PUBLIC` have no claim privileges. The functions use invoker rights, empty locked search paths, and schema-qualified relations; the server must supply IDs from its verified session, never from an untrusted form field.
+
+| RPC | Contract |
+| --- | --- |
+| `create_runner_claim(p_organizer uuid, p_event bigint, p_runner uuid, p_hash text, p_expires_at timestamptz)` | Returns the claim UUID. Requires the organizer's event mapping and the runner's current event. Unauthorized context raises `42501`; invalid hash/expiry raises `22023`. |
+| `consume_runner_claim(p_user uuid, p_hash text)` | Returns `claimed`, `already_claimed_by_you`, or `invalid_claim`. Invalid, expired, revoked, cross-event, missing-user and different-owner cases share the failure code. Locks the claim and current runner/event membership, inserts exclusive access, and records the claimant atomically. Replay never restores access removed later. |
+| `revoke_runner_claim(p_organizer uuid, p_event bigint, p_claim uuid)` | Returns true only when an authorized organizer revokes an unconsumed, unrevoked claim for their event. Other cases return false. Revocation does not remove previously granted access. |
+
+`tests/sql/runner-claims.sql` checks these outcomes and database catalogs for RLS, grants, function configuration and FK/index coverage. The native harness also checks competing consumption requests and the duplicate-owner preflight. PGlite serializes competing calls on one connection: this verifies outcomes and database uniqueness, but a dedicated non-production PostgreSQL integration run must still verify actual multi-connection scheduling before release. Run `supabase db advisors --type all` against the disposable local stack when available; catalog assertions do not replace the full advisor. No hosted migration is applied by the native suite.
