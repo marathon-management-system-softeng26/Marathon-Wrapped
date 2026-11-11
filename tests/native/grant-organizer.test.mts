@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const email = "organizer@example.test";
@@ -10,6 +12,7 @@ const key = "test-secret-key";
 const password = "test-secret-password";
 const user = { id: userId, email, email_confirmed_at: "2026-11-12T00:00:00Z" };
 const args = ["--email", email, "--event-id", "42"];
+const repo = fileURLToPath(new URL("../../", import.meta.url));
 
 type Fixture = {
   pages?: Array<Array<{ id: string; email: string; email_confirmed_at?: string }>>;
@@ -73,10 +76,10 @@ function run(
   fixture: Fixture = { pages: [[user]] },
   env: Partial<NodeJS.ProcessEnv> = {},
   mode: "node" | "npm" | "repeat" = "node",
+  cwd = repo,
 ) {
   const preload = `(${fakeSupabase.toString()})(${JSON.stringify(fixture)}, ${JSON.stringify(userId)}, ${JSON.stringify(password)}, ${JSON.stringify(key)})`;
   const preloadUrl = `data:text/javascript,${encodeURIComponent(preload)}`;
-  const cwd = fileURLToPath(new URL("../../", import.meta.url));
   const entry = mode === "repeat"
     ? ["--input-type=module", "--eval", `
         import { grantOrganizerAccessByEmail } from "./lib/auth/grantOrganizer.ts";
@@ -112,6 +115,18 @@ function run(
   });
   assert.ifError(result.error);
   return result;
+}
+
+function temporaryCheckout(t: TestContext) {
+  const cwd = mkdtempSync(join(tmpdir(), "marathon-grant-test-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  for (const path of ["package.json", "scripts/grant-organizer.mts", "lib/auth/grantOrganizer.ts", "lib/supabaseServer.ts"]) {
+    const target = join(cwd, path);
+    mkdirSync(dirname(target), { recursive: true });
+    copyFileSync(join(repo, path), target);
+  }
+  symlinkSync(join(repo, "node_modules"), join(cwd, "node_modules"), "junction");
+  return cwd;
 }
 
 function assertRejected(result: ReturnType<typeof run>, error: RegExp) {
@@ -197,11 +212,29 @@ test("requires the event to exist before writing a mapping", () => {
   assertRejected(run(args, { pages: [[user]], event: false }), /event.*not found/i);
 });
 
-test("resolves an exact email on a later Auth page and prints only IDs", () => {
-  const result = run(args, { pages: [[], [user]] }, {}, "npm");
+test("the silent npm command resolves a later-page email and prints only IDs without .env.local", (t) => {
+  const result = run(args, { pages: [[], [user]] }, {}, "npm", temporaryCheckout(t));
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
   assert.equal(result.stdout.trim(), `Organizer access granted for user ${userId} and event 42.`);
+});
+
+test("the silent npm command loads .env.local and preserves shell overrides", (t) => {
+  const cwd = temporaryCheckout(t);
+  writeFileSync(join(cwd, ".env.local"), "SUPABASE_DEMO_PROJECT_REF=dedicated\nSUPABASE_SECRET_KEY=file-override\n");
+  const result = run(args, undefined, { SUPABASE_DEMO_PROJECT_REF: undefined }, "npm", cwd);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.stdout.trim(), `Organizer access granted for user ${userId} and event 42.`);
+});
+
+test("the silent npm command reports a real .env.local read failure without exposing details", (t) => {
+  const cwd = temporaryCheckout(t);
+  mkdirSync(join(cwd, ".env.local"));
+  const result = run(args, undefined, {}, "npm", cwd);
+  assert.equal(result.status, 1);
+  assert.equal(result.stdout, "");
+  assert.equal(result.stderr.trim(), "Could not load .env.local.");
 });
 
 test("the silent npm command prints only the fixed error for malformed input", () => {
