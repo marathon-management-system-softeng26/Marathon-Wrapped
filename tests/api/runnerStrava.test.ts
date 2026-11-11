@@ -10,6 +10,7 @@ import { POST as disconnect } from "@/app/api/strava/disconnect/route";
 import { AuthenticationError } from "@/lib/auth/session";
 import { getRunnerEnrichment } from "@/controllers/enrichmentController";
 import { getRunnerStravaRoute } from "@/lib/strava/processing";
+import * as processing from "@/lib/strava/processing";
 import { stravaViewModel } from "@/lib/strava/viewModel";
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
@@ -64,8 +65,9 @@ beforeEach(() => {
   tables = {
     runner_access: [{ user_id: "user", runner_id: runnerId }],
     strava_oauth_attempts: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "connected" }],
+    strava_runner_attachments: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "active", created_at: "first" }],
     strava_connections: [{ user_id: "user", generation: "generation", status: "active", athlete_id: "123",
-      access_token: "private-token", refresh_token: null, credentials_uncertain: false }],
+      access_token: "private-token", refresh_token: null, credentials_uncertain: false, granted_scopes: ["activity:read_all"] }],
     strava_activity_candidates: [], strava_activities: [], strava_runner_activities: [], strava_live_metrics: [], strava_jobs: [],
   };
   mocks.from.mockImplementation((table: string) => {
@@ -93,6 +95,20 @@ beforeEach(() => {
     return query;
   });
   mocks.rpc.mockImplementation(async (name: string, args: Row) => {
+    if (name === "strava_attach_runner") {
+      if (!tables.runner_access.some((row) => row.user_id === args.p_user && row.runner_id === args.p_runner)) return { data: "forbidden" };
+      if (tables.strava_connections[0]?.status !== "active") return { data: "connection_required" };
+      if (!tables.strava_runner_attachments.some((row) => row.runner_id === args.p_runner)) {
+        tables.strava_runner_attachments.push({ user_id: args.p_user, runner_id: args.p_runner, generation: "generation", status: "active", created_at: "second" });
+      }
+      return { data: "attached" };
+    }
+    if (name === "strava_detach_runner") {
+      for (const table of ["strava_runner_attachments", "strava_activity_candidates", "strava_runner_activities", "strava_live_metrics", "strava_wrapped_snapshots"]) {
+        tables[table] = (tables[table] ?? []).filter((row) => row.runner_id !== args.p_runner);
+      }
+      return { data: "detached" };
+    }
     if (name === "strava_confirm_runner_activity") {
       selectionCalls.push(args);
       if (selectionOutcome === "selected") {
@@ -115,6 +131,55 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("runner Strava access and safe states", () => {
+  it("uses durable attachments after callback history is removed", async () => {
+    candidate(); selected(); tables.strava_oauth_attempts = [];
+    expect((await safe(await GET(request(), context()))).status).toBe("matched");
+  });
+  it("attaches a second owned runner without replacing the first or its connection", async () => {
+    tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
+    const result = await processing.attachRunnerToStrava("user", otherRunner);
+    expect(result.status).toBe("no_match");
+    expect(tables.strava_runner_attachments.map((row) => row.runner_id)).toEqual([runnerId, otherRunner]);
+    expect(tables.strava_connections[0].generation).toBe("generation");
+  });
+  it("requires OAuth before the first attachment", async () => {
+    tables.strava_connections = [];
+    await expect(processing.attachRunnerToStrava("user", runnerId)).rejects.toMatchObject({ code: "not_connected", status: 409 });
+  });
+  it("does not reuse an active connection with incomplete consent", async () => {
+    tables.strava_connections[0].granted_scopes = ["activity:read"];
+    await expect(processing.attachRunnerToStrava("user", runnerId)).rejects.toMatchObject({ code: "not_connected", status: 409 });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("does not mark this runner unavailable because another attachment's import failed", async () => {
+    tables.strava_jobs = [{ user_id: "user", generation: "generation", kind: "backfill", status: "failed", payload: { runner_id: otherRunner } }];
+    expect((await safe(await GET(request(), context()))).status).toBe("no_match");
+  });
+  it.each(["foreign", "organizer"])("denies %s attachment and detach without direct ownership", async (user) => {
+    await expect(processing.attachRunnerToStrava(user, runnerId)).rejects.toMatchObject({ code: "runner_not_found" });
+    await expect(processing.detachRunnerFromStrava(user, runnerId)).rejects.toMatchObject({ code: "runner_not_found" });
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("detaches only the requested runner and preserves the other snapshot", async () => {
+    tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
+    tables.strava_runner_attachments.push({ user_id: "user", generation: "generation", runner_id: otherRunner, status: "active", created_at: "second" });
+    tables.strava_wrapped_snapshots = [{ runner_id: runnerId }, { runner_id: otherRunner }];
+    expect(await processing.detachRunnerFromStrava("user", runnerId)).toBe("detached");
+    expect(tables.strava_wrapped_snapshots).toEqual([{ runner_id: otherRunner }]);
+    expect(tables.strava_connections[0].status).toBe("active");
+    expect((await safe(await GET(request(), context()))).status).toBe("disconnected");
+  });
+  it.each(["detached", "reattached"])("suppresses loaded metrics when %s during the read", async (change) => {
+    candidate(); selected();
+    beforeRead = (table) => {
+      if (table === "strava_live_metrics") {
+        if (change === "detached") tables.strava_runner_attachments = [];
+        else tables.strava_runner_attachments[0].created_at = "replacement";
+      }
+    };
+    const result = await safe(await GET(request(), context()));
+    expect(result.activityId).toBeNull(); expect(result.metrics).toEqual({});
+  });
   it("uses selected live metrics ahead of demo without changing photo data", async () => {
     candidate(); selected();
     tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 999, avg_cadence: 180 }];
@@ -172,9 +237,9 @@ describe("runner Strava access and safe states", () => {
   it.each(["other_runner", "old_generation", "pending"])("does not expose or confirm data outside the completed runner scope: %s", async (kind) => {
     candidate(); selected();
     tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
-    if (kind === "other_runner") tables.strava_oauth_attempts[0].runner_id = otherRunner;
-    if (kind === "old_generation") tables.strava_oauth_attempts[0].generation = "old";
-    if (kind === "pending") tables.strava_oauth_attempts[0].status = "pending";
+    if (kind === "other_runner") tables.strava_runner_attachments[0].runner_id = otherRunner;
+    if (kind === "old_generation") tables.strava_runner_attachments[0].generation = "old";
+    if (kind === "pending") tables.strava_runner_attachments = [];
     expect(await safe(await GET(request(), context()))).toEqual({ status: "disconnected", activityId: null, candidates: [], metrics: {} });
     await safe(await PUT(request("PUT", { activityId: "10" }), context()), 409);
     expect(selectionCalls).toEqual([]);
@@ -190,7 +255,7 @@ describe("runner Strava access and safe states", () => {
     candidate(); selected();
     const signal = new AbortController().signal;
     await getRunnerStravaRoute("user", runnerId, signal);
-    expect(querySignals.length).toBe(9);
+    expect(querySignals.length).toBe(10);
     expect(querySignals.every((value) => value === signal)).toBe(true);
   });
   it.each(["GET", "PUT"])("requires authentication for %s", async (method) => {
@@ -343,4 +408,29 @@ describe("disconnect outcomes", () => {
       expect(await safe(await disconnect(request("POST")), http as number)).toEqual({ status });
     },
   );
+});
+
+describe("runner attachment HTTP boundaries", () => {
+  const handler = async (action: "attach" | "detach") => action === "attach"
+    ? (await import("@/app/api/runners/[runnerId]/strava/attach/route")).POST
+    : (await import("@/app/api/runners/[runnerId]/strava/detach/route")).POST;
+  it.each(["attach", "detach"] as const)("%s rejects cross-origin requests before authentication", async (action) => {
+    await safe(await (await handler(action))(request("POST", undefined, "https://evil.example"), context()), 403);
+    expect(mocks.user).not.toHaveBeenCalled(); expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it.each(["attach", "detach"] as const)("%s requires the verified session", async (action) => {
+    mocks.user.mockRejectedValue(new AuthenticationError());
+    await safe(await (await handler(action))(request("POST"), context()), 401);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it.each(["attach", "detach"] as const)("%s conceals unowned and organizer-only runners", async (action) => {
+    tables.organizer_access = [{ user_id: "user", event_id: 1 }];
+    await safe(await (await handler(action))(request("POST"), context(otherRunner)), 404);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it.each(["attach", "detach"] as const)("%s ignores body identities and uses asynchronous route params", async (action) => {
+    const body = await safe(await (await handler(action))(request("POST", { userId: "other", athleteId: "456", runnerId: otherRunner }), context()));
+    expect(body.status).toBe(action === "attach" ? "no_match" : "detached");
+    expect(mocks.rpc).toHaveBeenCalledWith(`strava_${action}_runner`, { p_user: "user", p_runner: runnerId });
+  });
 });

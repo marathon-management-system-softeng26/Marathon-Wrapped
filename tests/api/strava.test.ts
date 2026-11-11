@@ -42,6 +42,7 @@ vi.mock("@/lib/strava/processing", async (original) => ({
   enqueueWebhookEvent: mocks.enqueue,
   processStravaJobs: mocks.process,
   enqueueRunnerStravaBackfill: mocks.backfill,
+  requireStravaRunnerAccess: mocks.access,
 }));
 
 import { POST as connect, DELETE as cancel } from "@/app/api/strava/connect/route";
@@ -360,6 +361,15 @@ describe("Strava OAuth", () => {
     const response = await connect(connectRequest());
 
     expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=already_connected`);
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("reuses the active athlete connection for another owned runner without new cookies or code exchange", async () => {
+    mocks.rpc.mockResolvedValue("already_connected");
+    const response = await connect(connectRequest(otherRunnerId));
+    expect(response.headers.get("location")).toBe(`${origin}/wrapped/${otherRunnerId}?strava=already_connected`);
+    expect(mocks.backfill).toHaveBeenCalledWith("verified-user", otherRunnerId);
+    expect(mocks.fetch).not.toHaveBeenCalled();
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 

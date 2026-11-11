@@ -69,6 +69,14 @@ test(
       for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-scope"]) {
         await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
       }
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_multi_runner_lifecycle.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec(await readFile("tests/sql/strava-multi-runner.sql", "utf8"));
+      for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-wrapped-snapshots"]) {
+        await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
+      }
 
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.

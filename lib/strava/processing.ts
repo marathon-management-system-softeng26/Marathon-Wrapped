@@ -15,7 +15,7 @@ import {
   stravaId,
   verifyStravaAuthorization,
 } from "./client";
-import { loadRunnerRaceConfigs, loadStravaRunnerScope, stravaRpc } from "./store";
+import { loadRunnerRaceConfigs, loadStravaRunnerAttachment, loadStravaRunnerAttachments, stravaRpc } from "./store";
 import { matchActivityToRace } from "./matching";
 
 export type StravaWebhookEvent = {
@@ -182,11 +182,12 @@ export async function enqueueStravaBackfill(
     throw new StravaError("not_connected", 409);
   }
 
-  const runnerId = await loadStravaRunnerScope(userId, connection.generation);
-  const [race] = runnerId ? await loadRunnerRaceConfigs(userId, runnerId) : [];
-  if (!race || after !== Math.floor(Date.parse(race.config.startTimeFrom) / 1000) - 1 ||
-    before !== Math.ceil(Date.parse(race.config.startTimeTo) / 1000) + 1) throw new StravaError("invalid_window", 400);
-  await enqueueRunnerStravaBackfill(userId, runnerId!);
+  const attachments = await loadStravaRunnerAttachments(userId, connection.generation);
+  const races = (await Promise.all(attachments.map(({ runner_id }) => loadRunnerRaceConfigs(userId, runner_id)))).flat()
+    .filter(({ config }) => after === Math.floor(Date.parse(config.startTimeFrom) / 1000) - 1 &&
+      before === Math.ceil(Date.parse(config.startTimeTo) / 1000) + 1);
+  if (!races.length) throw new StravaError("invalid_window", 400);
+  for (const race of races) await enqueueRunnerStravaBackfill(userId, race.runnerId);
 }
 
 async function currentConnection(job: StravaJob) {
@@ -216,7 +217,7 @@ export async function enqueueRunnerStravaBackfill(userId: string, runnerId: stri
   }
   const connection = await loadStravaConnection(userId);
   if (!connection || connection.status !== "active") throw new StravaError("not_connected", 409);
-  if (await loadStravaRunnerScope(userId, connection.generation) !== runnerId) throw new StravaError("runner_not_connected", 409);
+  if (!await loadStravaRunnerAttachment(userId, connection.generation, runnerId)) throw new StravaError("runner_not_connected", 409);
   // Strava's after/before bounds are exclusive; the matcher includes both endpoints.
   const after = Math.floor(Date.parse(race.config.startTimeFrom) / 1000) - 1;
   const before = Math.ceil(Date.parse(race.config.startTimeTo) / 1000) + 1;
@@ -267,9 +268,10 @@ export async function processActivityEvent(
     return [];
   }
 
-  const runner = await loadStravaRunnerScope(job.user_id, job.generation);
-  if (!runner) return [{ id: String(event.object_id), activity: null }];
-  if (job.kind === "activity" && job.payload.runner_id !== undefined && job.payload.runner_id !== runner) return [];
+  const attachments = await loadStravaRunnerAttachments(job.user_id, job.generation);
+  if (!attachments.length) return [{ id: String(event.object_id), activity: null }];
+  if (job.kind === "activity" && job.payload.runner_id !== undefined &&
+    !attachments.some(({ runner_id }) => runner_id === job.payload.runner_id)) return [];
 
   try {
     const activity = await withAccess(connection, (access) =>
@@ -436,7 +438,8 @@ export async function processStravaJobs(limit = 10): Promise<void> {
       } else if (job.kind === "backfill") {
         const connection = await currentConnection(job);
 
-        const runner = connection ? await loadStravaRunnerScope(job.user_id, job.generation) : null;
+        const runner = connection && typeof job.payload.runner_id === "string" &&
+          await loadStravaRunnerAttachment(job.user_id, job.generation, job.payload.runner_id) ? job.payload.runner_id : null;
         const [race] = runner ? await loadRunnerRaceConfigs(job.user_id, runner) : [];
         if (connection && race && job.payload.runner_id === runner) {
           const { after, before, page } = job.payload as {
@@ -488,9 +491,9 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         }
       }
 
-      const scope = job.kind === "revoke" || !await currentConnection(job)
-        ? null : await loadStravaRunnerScope(job.user_id, job.generation);
-      const races = scope ? await loadRunnerRaceConfigs(job.user_id, scope) : [];
+      const attachments = job.kind === "revoke" || !await currentConnection(job)
+        ? [] : await loadStravaRunnerAttachments(job.user_id, job.generation);
+      const races = (await Promise.all(attachments.map(({ runner_id }) => loadRunnerRaceConfigs(job.user_id, runner_id)))).flat();
       const retained = new Set<string>();
       const runnerCandidates = races.map(({ runnerId, config }) => ({
         runner_id: runnerId,
@@ -559,7 +562,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
   }
 }
 
-async function requireStravaRunnerAccess(userId: string, runnerId: string, signal?: AbortSignal): Promise<void> {
+export async function requireStravaRunnerAccess(userId: string, runnerId: string, signal?: AbortSignal): Promise<void> {
   if (!isRunnerId(runnerId)) {
     throw new StravaError("invalid_runner", 400);
   }
@@ -578,6 +581,28 @@ async function requireStravaRunnerAccess(userId: string, runnerId: string, signa
   if (!data) {
     throw new StravaError("runner_not_found", 404);
   }
+}
+
+export async function attachRunnerToStrava(userId: string, runnerId: string): Promise<RunnerStravaRoute> {
+  await requireStravaRunnerAccess(userId, runnerId);
+  const connection = await loadStravaConnection(userId);
+  if (!connection || connectionState(connection) || !connection.granted_scopes.includes("activity:read_all")) {
+    throw new StravaError("not_connected", 409);
+  }
+  const result = await stravaRpc<string>("strava_attach_runner", { p_user: userId, p_runner: runnerId });
+  if (result === "forbidden") throw new StravaError("runner_not_found", 404);
+  if (result === "connection_required") throw new StravaError("not_connected", 409);
+  if (result !== "attached") throw new StravaError("temporarily_unavailable");
+  await enqueueRunnerStravaBackfill(userId, runnerId);
+  return getRunnerStravaRoute(userId, runnerId);
+}
+
+export async function detachRunnerFromStrava(userId: string, runnerId: string): Promise<"detached"> {
+  await requireStravaRunnerAccess(userId, runnerId);
+  const result = await stravaRpc<string>("strava_detach_runner", { p_user: userId, p_runner: runnerId });
+  if (result === "forbidden") throw new StravaError("runner_not_found", 404);
+  if (result !== "detached") throw new StravaError("temporarily_unavailable");
+  return "detached";
 }
 
 function connectionState(connection: StravaConnection | null): RunnerStravaRoute["status"] | null {
@@ -617,7 +642,8 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   const state = connectionState(connection);
   if (state) return emptyRunnerState(state);
   const active = connection!;
-  if (await loadStravaRunnerScope(userId, active.generation, signal) !== runnerId) return emptyRunnerState("disconnected");
+  const attachment = await loadStravaRunnerAttachment(userId, active.generation, runnerId, signal);
+  if (!attachment) return emptyRunnerState("disconnected");
   const db = getSupabaseAdmin();
   const scoped = <const Fields extends string>(table: string, fields: Fields) => {
     const query = db.from(table).select(fields).eq("user_id", userId).eq("generation", active.generation);
@@ -638,7 +664,7 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   const [candidateRows, selection, jobs] = await Promise.all([
     loadCandidates(),
     scoped("strava_runner_activities", "activity_id").eq("runner_id", runnerId).maybeSingle(),
-    scoped("strava_jobs", "kind,status").in("kind", ["backfill", "activity", "webhook"]).neq("status", "complete"),
+    scoped("strava_jobs", "kind,status,payload").in("kind", ["backfill", "activity", "webhook"]).neq("status", "complete"),
   ]);
   if (selection.error || jobs.error) {
     throw new Error("Strava storage is temporarily unavailable.");
@@ -669,9 +695,14 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   const currentState = connectionState(current);
   if (currentState) return emptyRunnerState(currentState);
   if (current!.generation !== active.generation) return emptyRunnerState("importing");
+  const currentAttachment = await loadStravaRunnerAttachment(userId, active.generation, runnerId, signal);
+  if (!currentAttachment) return emptyRunnerState("disconnected");
+  if (currentAttachment.created_at !== attachment.created_at) return emptyRunnerState("importing");
+  const runnerJobs = jobs.data?.filter((job) => job.kind === "webhook" ||
+    !job.payload?.runner_id || job.payload.runner_id === runnerId);
   return {
-    status: selected ? "matched" : jobs.data?.some((job) => job.status === "failed") ? "unavailable"
-      : jobs.data?.length ? "importing" : candidates.length ? "needs_confirmation" : "no_match",
+    status: selected ? "matched" : runnerJobs?.some((job) => job.status === "failed") ? "unavailable"
+      : runnerJobs?.length ? "importing" : candidates.length ? "needs_confirmation" : "no_match",
     activityId: selected?.activityId ?? null, candidates, metrics,
   };
 }
@@ -681,7 +712,7 @@ export async function confirmRunnerStravaActivity(userId: string, runnerId: stri
   if (typeof activityId !== "string" || !/^[1-9]\d{0,18}$/.test(activityId)) throw new StravaError("invalid_activity", 400);
   const connection = await loadStravaConnection(userId);
   if (!connection || connectionState(connection)) throw new StravaError("not_connected", 409);
-  if (await loadStravaRunnerScope(userId, connection.generation) !== runnerId) throw new StravaError("not_connected", 409);
+  if (!await loadStravaRunnerAttachment(userId, connection.generation, runnerId)) throw new StravaError("not_connected", 409);
   const db = getSupabaseAdmin();
   const [candidate, detail] = await Promise.all([
     db.from("strava_activity_candidates").select("activity_id,match_status,reason")

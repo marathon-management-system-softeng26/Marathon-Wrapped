@@ -2,7 +2,6 @@ import "server-only";
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "../auth/session";
-import { requireRunnerAccess } from "../auth/access";
 import { privateHeaders } from "../authHttp";
 import { isRunnerId } from "../runnerValidation";
 import {
@@ -16,7 +15,7 @@ import {
 } from "./client";
 import { requireStravaOrigin } from "./http";
 import { stravaRpc } from "./store";
-import { enqueueRunnerStravaBackfill } from "./processing";
+import { enqueueRunnerStravaBackfill, requireStravaRunnerAccess } from "./processing";
 
 const cookiePrefix = "strava_oauth_";
 const hash = (state: string) =>
@@ -115,7 +114,7 @@ export async function connectStrava(request: NextRequest) {
 
   const runnerId = runner.toLowerCase();
 
-  await requireRunnerAccess(user.id, runnerId);
+  await requireStravaRunnerAccess(user.id, runnerId);
 
   const returnPath = `/wrapped/${runnerId}`;
   const callback = validateStravaConfiguration();

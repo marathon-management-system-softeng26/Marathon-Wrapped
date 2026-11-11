@@ -4,13 +4,23 @@ import { validateRaceMatchConfig, type RaceMatchConfig } from "./matching";
 
 export type RunnerRaceConfig = { runnerId: string; config: RaceMatchConfig };
 
-/** A completed OAuth attempt is the durable opt-in for exactly this generation. */
-export async function loadStravaRunnerScope(userId: string, generation: string, signal?: AbortSignal): Promise<string | null> {
-  const query = getSupabaseAdmin().from("strava_oauth_attempts").select("runner_id")
-    .eq("user_id", userId).eq("generation", generation).eq("status", "connected");
+export type StravaRunnerAttachment = { runner_id: string; created_at: string };
+
+/** Consent survives OAuth history cleanup, but never a detach or generation change. */
+export async function loadStravaRunnerAttachments(userId: string, generation: string, signal?: AbortSignal): Promise<StravaRunnerAttachment[]> {
+  const query = getSupabaseAdmin().from("strava_runner_attachments").select("runner_id,created_at")
+    .eq("user_id", userId).eq("generation", generation).eq("status", "active");
+  const { data, error } = await (signal ? query.abortSignal(signal) : query);
+  if (error) throw new Error("Strava storage is temporarily unavailable.");
+  return data ?? [];
+}
+
+export async function loadStravaRunnerAttachment(userId: string, generation: string, runnerId: string, signal?: AbortSignal): Promise<StravaRunnerAttachment | null> {
+  const query = getSupabaseAdmin().from("strava_runner_attachments").select("runner_id,created_at")
+    .eq("user_id", userId).eq("generation", generation).eq("runner_id", runnerId).eq("status", "active");
   const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
   if (error) throw new Error("Strava storage is temporarily unavailable.");
-  return data?.runner_id ?? null;
+  return data;
 }
 
 /** Only direct runner ownership can authorize athlete data; organizer access is insufficient. */
