@@ -33,8 +33,52 @@ const rawActivity = {
   sport_type: "Run",
   start_date: "2026-10-28T10:00:00Z",
   distance: 1000,
+  moving_time: 300,
+  elapsed_time: 320,
   start_latlng: [],
   map: { summary_polyline: "summary" },
+};
+
+const metricSplit = {
+  split: 1,
+  distance: 1001.5,
+  moving_time: 290,
+  elapsed_time: 300,
+  average_speed: 3.453,
+  elevation_difference: -3,
+  pace_zone: 1,
+};
+
+const detailedRun = {
+  id: 1,
+  athlete: { id: 2, resource_state: 1 },
+  resource_state: 3,
+  name: "Evening Run",
+  description: "Private note",
+  sport_type: "Run",
+  start_date: "2026-10-28T17:00:00+07:00",
+  start_date_local: "2026-10-28T17:00:00Z",
+  timezone: "(GMT+07:00) Asia/Jakarta",
+  distance: 2050.4,
+  moving_time: 610,
+  elapsed_time: 645,
+  average_speed: 3.361,
+  max_speed: 5.75,
+  average_heartrate: 151.5,
+  max_heartrate: 184,
+  total_elevation_gain: 21.7,
+  calories: 182,
+  average_cadence: 86.4,
+  start_latlng: [-6.2, 106.8],
+  end_latlng: [-6.21, 106.81],
+  map: { id: "a1", polyline: "private-route", summary_polyline: "summary" },
+  embed_token: "private-token",
+  splits_metric: [
+    { split: 2, distance: 999.9, moving_time: 305, elapsed_time: 330, elevation_difference: 4, pace_zone: 1 },
+    metricSplit,
+    { split: 3, distance: 49, moving_time: 15, elapsed_time: 15, average_speed: 3.267, elevation_difference: 0, pace_zone: 1 },
+  ],
+  splits_standard: [metricSplit],
 };
 
 beforeEach(() => {
@@ -187,6 +231,110 @@ describe("Strava client", () => {
       calories: 702,
       averageCadence: 86.4,
     });
+  });
+
+  it("normalizes the documented timing, speeds and sorted metric splits into an allowlisted record", async () => {
+    mocks.fetch.mockResolvedValue(Response.json(detailedRun));
+
+    expect(await getStravaActivity("access", "1", "2")).toEqual({
+      id: "1",
+      athleteId: "2",
+      sportType: "Run",
+      startDate: "2026-10-28T10:00:00.000Z",
+      distanceMeters: 2050.4,
+      startLatLng: [-6.2, 106.8],
+      movingTimeSeconds: 610,
+      elapsedTimeSeconds: 645,
+      averageSpeedMps: 3.361,
+      maxSpeedMps: 5.75,
+      metricSplits: [
+        { kilometer: 1, elapsedSeconds: 300, movingSeconds: 290, distanceMeters: 1001.5, averageSpeedMps: 3.453 },
+        { kilometer: 2, elapsedSeconds: 330, movingSeconds: 305, distanceMeters: 999.9, averageSpeedMps: null },
+        { kilometer: 3, elapsedSeconds: 15, movingSeconds: 15, distanceMeters: 49, averageSpeedMps: 3.267 },
+      ],
+      averageHeartrate: 151.5,
+      maxHeartrate: 184,
+      elevationGainMeters: 21.7,
+      calories: 182,
+      averageCadence: 86.4,
+    });
+  });
+
+  it("keeps missing speed and splits absent on listed activities", async () => {
+    mocks.fetch.mockResolvedValue(Response.json([rawActivity]));
+
+    const [activity] = await listStravaActivities("access", 1, 2, 1, "2");
+    expect(activity).toMatchObject({
+      movingTimeSeconds: 300,
+      elapsedTimeSeconds: 320,
+      averageSpeedMps: null,
+      maxSpeedMps: null,
+      metricSplits: null,
+    });
+  });
+
+  it("accepts explicit null for unavailable detail metrics and zero for recorded time and speed", async () => {
+    mocks.fetch.mockResolvedValue(Response.json({
+      ...rawActivity,
+      distance: 0,
+      moving_time: 0,
+      elapsed_time: 0,
+      average_speed: 0,
+      max_speed: 0,
+      average_heartrate: null,
+      splits_metric: null,
+    }));
+
+    expect(await getStravaActivity("access", "1", "2")).toMatchObject({
+      distanceMeters: 0,
+      movingTimeSeconds: 0,
+      elapsedTimeSeconds: 0,
+      averageSpeedMps: 0,
+      maxSpeedMps: 0,
+      averageHeartrate: null,
+      metricSplits: null,
+    });
+  });
+
+  it.each([
+    ["missing moving time", { moving_time: undefined }],
+    ["string elapsed time", { elapsed_time: "645" }],
+    ["NaN moving time", { moving_time: Number.NaN }],
+    ["infinite elapsed time", { elapsed_time: Infinity }],
+    ["negative moving time", { moving_time: -1 }],
+    ["fractional elapsed time", { elapsed_time: 645.5 }],
+    ["time above the signed integer bound", { elapsed_time: 2_147_483_648 }],
+    ["elapsed time shorter than moving time", { elapsed_time: 609 }],
+    ["negative distance", { distance: -1 }],
+    ["infinite distance", { distance: Infinity }],
+    ["string speed", { average_speed: "3.361" }],
+    ["negative maximum speed", { max_speed: -1 }],
+  ])("rejects %s in provider activity detail", async (_name, override) => {
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ ...detailedRun, ...override }) });
+
+    await expect(getStravaActivity("access", "1", "2")).rejects.toMatchObject({ code: "invalid_provider_response" });
+  });
+
+  it.each([
+    ["non-array splits", {}],
+    ["duplicate markers", [metricSplit, metricSplit]],
+    ["zero marker", [{ ...metricSplit, split: 0 }]],
+    ["fractional marker", [{ ...metricSplit, split: 1.5 }]],
+    ["missing time", [{ ...metricSplit, moving_time: undefined }]],
+    ["string time", [{ ...metricSplit, elapsed_time: "300" }]],
+    ["fractional time", [{ ...metricSplit, moving_time: 290.5 }]],
+    ["negative time", [{ ...metricSplit, moving_time: -1 }]],
+    ["impossible timing", [{ ...metricSplit, elapsed_time: 289 }]],
+    ["zero elapsed time with distance", [{ ...metricSplit, moving_time: 0, elapsed_time: 0 }]],
+    ["negative distance", [{ ...metricSplit, distance: -1 }]],
+    ["NaN distance", [{ ...metricSplit, distance: Number.NaN }]],
+    ["distance spanning two kilometer markers", [{ ...metricSplit, distance: 2000 }]],
+    ["infinite speed", [{ ...metricSplit, average_speed: Infinity }]],
+    ["excessive split count", Array.from({ length: 257 }, (_, index) => ({ ...metricSplit, split: index + 1 }))],
+  ])("rejects %s in provider metric splits", async (_name, splits) => {
+    mocks.fetch.mockResolvedValue({ ok: true, json: async () => ({ ...detailedRun, splits_metric: splits }) });
+
+    await expect(getStravaActivity("access", "1", "2")).rejects.toMatchObject({ code: "invalid_provider_response" });
   });
 
   it.each([

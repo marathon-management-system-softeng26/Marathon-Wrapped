@@ -14,6 +14,14 @@ export type StravaTokens = StravaCredentials & {
   scopes: string[];
 };
 
+export type StravaSplit = {
+  kilometer: number;
+  elapsedSeconds: number;
+  movingSeconds: number;
+  distanceMeters: number;
+  averageSpeedMps: number | null;
+};
+
 export type StravaActivity = {
   id: string;
   athleteId: string;
@@ -21,6 +29,11 @@ export type StravaActivity = {
   startDate: string;
   distanceMeters: number;
   startLatLng: [number, number] | null;
+  movingTimeSeconds: number;
+  elapsedTimeSeconds: number;
+  averageSpeedMps: number | null;
+  maxSpeedMps: number | null;
+  metricSplits: StravaSplit[] | null;
   averageHeartrate: number | null;
   maxHeartrate: number | null;
   elevationGainMeters: number | null;
@@ -497,6 +510,68 @@ export async function getUserStravaAccessToken(
   return refreshed.accessToken;
 }
 
+const MAX_PROVIDER_INTEGER = 2_147_483_647;
+const MAX_METRIC_SPLITS = 256;
+const TWO_KILOMETERS_METERS = 2000;
+
+function nonnegativeMetric(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return value;
+}
+
+function optionalMetric(value: unknown): number | null {
+  return value == null ? null : nonnegativeMetric(value);
+}
+
+function providerInteger(value: unknown): number {
+  const integer = nonnegativeMetric(value);
+  if (!Number.isInteger(integer) || integer > MAX_PROVIDER_INTEGER) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  return integer;
+}
+
+function normalizeMetricSplits(value: unknown): StravaSplit[] | null {
+  if (value == null) return null;
+  if (!Array.isArray(value) || value.length > MAX_METRIC_SPLITS) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  const seen = new Set<number>();
+  const splits = value.map((item) => {
+    const data = record(item);
+    const kilometer = providerInteger(data.split);
+    const elapsedSeconds = providerInteger(data.elapsed_time);
+    const movingSeconds = providerInteger(data.moving_time);
+    const distanceMeters = nonnegativeMetric(data.distance);
+
+    if (
+      kilometer === 0 ||
+      seen.has(kilometer) ||
+      movingSeconds > elapsedSeconds ||
+      distanceMeters >= TWO_KILOMETERS_METERS ||
+      (elapsedSeconds === 0 && distanceMeters > 0)
+    ) {
+      throw new StravaError("invalid_provider_response");
+    }
+
+    seen.add(kilometer);
+    return {
+      kilometer,
+      elapsedSeconds,
+      movingSeconds,
+      distanceMeters,
+      averageSpeedMps: optionalMetric(data.average_speed),
+    };
+  });
+
+  return splits.sort((a, b) => a.kilometer - b.kilometer);
+}
+
 function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
   const data = record(value);
   const owner = stravaId(record(data.athlete).id);
@@ -510,11 +585,14 @@ function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
     !data.sport_type ||
     typeof data.start_date !== "string" ||
     !/(Z|[+-]\d{2}:\d{2})$/.test(data.start_date) ||
-    !Number.isFinite(Date.parse(data.start_date)) ||
-    typeof data.distance !== "number" ||
-    !Number.isFinite(data.distance) ||
-    data.distance < 0
+    !Number.isFinite(Date.parse(data.start_date))
   ) {
+    throw new StravaError("invalid_provider_response");
+  }
+
+  const movingTimeSeconds = providerInteger(data.moving_time);
+  const elapsedTimeSeconds = providerInteger(data.elapsed_time);
+  if (movingTimeSeconds > elapsedTimeSeconds) {
     throw new StravaError("invalid_provider_response");
   }
 
@@ -537,35 +615,26 @@ function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
       throw new StravaError("invalid_provider_response");
     }
 
-    start = coords as [number, number];
+    start = [coords[0], coords[1]];
   }
-
-  const metric = (name: string): number | null => {
-    const value = data[name];
-
-    if (value === undefined) {
-      return null;
-    }
-
-    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
-      throw new StravaError("invalid_provider_response");
-    }
-
-    return value;
-  };
 
   return {
     id: stravaId(data.id),
     athleteId: owner,
     sportType: data.sport_type,
     startDate: new Date(data.start_date).toISOString(),
-    distanceMeters: data.distance,
+    distanceMeters: nonnegativeMetric(data.distance),
     startLatLng: start,
-    averageHeartrate: metric("average_heartrate"),
-    maxHeartrate: metric("max_heartrate"),
-    elevationGainMeters: metric("total_elevation_gain"),
-    calories: metric("calories"),
-    averageCadence: metric("average_cadence"),
+    movingTimeSeconds,
+    elapsedTimeSeconds,
+    averageSpeedMps: optionalMetric(data.average_speed),
+    maxSpeedMps: optionalMetric(data.max_speed),
+    metricSplits: normalizeMetricSplits(data.splits_metric),
+    averageHeartrate: optionalMetric(data.average_heartrate),
+    maxHeartrate: optionalMetric(data.max_heartrate),
+    elevationGainMeters: optionalMetric(data.total_elevation_gain),
+    calories: optionalMetric(data.calories),
+    averageCadence: optionalMetric(data.average_cadence),
   };
 }
 
