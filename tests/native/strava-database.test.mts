@@ -93,6 +93,20 @@ test(
       }
       assert.deepEqual(fenceErrors, [], "Attachment regression cases");
 
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_webhook_retry_and_selection.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      const retryErrors: string[] = [];
+      for (const scenario of (await readFile("tests/sql/strava-webhook-retry.sql", "utf8")).split("-- CASE ").slice(1)) {
+        const newline = scenario.indexOf("\n");
+        await db.exec("begin");
+        try { await db.exec(scenario.slice(newline)); }
+        catch (error) { retryErrors.push(`${scenario.slice(0, newline)}: ${(error as Error).message}`); }
+        finally { await db.exec("rollback"); }
+      }
+      assert.deepEqual(retryErrors, [], "Webhook retry regression cases");
+
       // Hold a token exchange across a committed detach, then deliver its grant
       // through the actual completion RPC. This is a pending async operation,
       // not merely a terminal callback replay or an expired attempt fixture.
