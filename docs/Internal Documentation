@@ -202,3 +202,40 @@ During Week 5, the team achieved a major project milestone by transitioning from
 * Execute Strava V3 OAuth integration flow test scenarios (Embun Kahuripan).
 * Finalize hero runner seed profiles (3–5 complete runners) in production Supabase tables (Rakhansyah).
 * Maintain weekly working documentation and update requirement traceability matrices (Harry Analta).
+
+# Week 6 — Internal Documentation & Technical Progress
+
+**Documentation Owner:** Harry Analta | **Technical Lead:** Embun Kahuripan (`kahur2005`) | **Database Lead:** Rakhansyah (`RKNSYAH`) | **Project Manager:** Marbella Elpantja (`bellamarbellaa`)
+
+**Context:** Capstone Project — Software Engineering 2026/2027 (Sampoerna University × University of Arizona)
+
+**Week 6:** Friday, 23 October – Thursday, 29 October 2026
+
+**Sprint Phase:** Sprint 2 — Polishing & Integration
+
+**Specification Baseline:** SRS V3
+
+---
+
+### 1. Key Progress & Repository Activity (Oct 23–29, 2026)
+
+During Week 6, the team focused on UI/UX polish, updating architectural documentation, and preparing realistic demo assets. The team also managed a complex integration challenge regarding Strava OAuth security.
+
+#### Major Commits & Deliverables
+
+* **UML & Specification Governance (`f50989e`, `e01ed88`):** Marbella Elpantja (`bellamarbellaa`) — Updated SRS documentation and published Capstone UML Version 5, prioritizing architectural clarity and aligning system models with Sprint 2 implementation realities. *(Supports overall system traceability and governance)*
+
+* **UI/UX Polish & Brand Decorations (`2c366b1`):** Marbella Elpantja (`bellamarbellaa`) — Added aesthetic decorations across all Wrapped UI/UX cards, enhancing visual engagement and solidifying the Soekarno Run 2027 brand identity. *(Satisfies UR-D3, UR-NF1)*
+
+* **Demo Assets & Hero Runner Media (`67e3eae`):** Marbella Elpantja (`bellamarbellaa`) — Uploaded demo pictures categorized into three distinct runner profiles to support realistic hero-runner demonstration scenarios. *(Satisfies SR-F22, SR-NF19)*
+
+* **Strava Integration & Security Revert (`60dfec5`, `a847c0c`):** Rakhansyah (`RKNSYAH`) — Attempted implementation of Strava token encryption, authentication, and disconnection flows. The commit was safely reverted following a failed status check, ensuring the baseline application remains usable while the security implementation is debugged. *(Targets SR-F8, SR-F11, SR-NF12; Revert enforces SR-NF3)*
+
+* **Branch Merges (`800d96c`):** Marbella Elpantja (`bellamarbellaa`) — Executed routine branch merges to keep the main production branch updated with recent UI improvements.
+
+### 2. Action Items & Next Steps
+
+* **Strava Token Debugging:** Investigate and resolve the Strava token encryption build issue to successfully re-merge the authentication and disconnection features (Rakhansyah & Embun Kahuripan).
+* **Hero Runner Mapping:** Verify that the newly added demo pictures integrate correctly with the FotoYu photo pipeline and Supabase hero runner seeds (Indra Putra A.T. & Harry Analta).
+* **Capstone Report Prep:** Begin drafting the final Capstone Report based on the newly published UML Version 5 diagrams (Harry Analta).
+* **QA Resilience Testing:** Ensure the reverted Strava state does not break baseline Wrapped functionality (Shan Gilbert).
