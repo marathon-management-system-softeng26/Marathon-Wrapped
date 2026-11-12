@@ -23,7 +23,7 @@ import {
   toStoredStravaActivity,
   type StoredStravaActivity,
 } from "./store";
-import { matchActivityToRace } from "./matching";
+import { matchActivityToRace, validateRaceMatchConfig } from "./matching";
 import { buildStravaWrappedProjection } from "./projection";
 
 export type StravaWebhookEvent = {
@@ -74,26 +74,41 @@ function availableMetrics(value: Record<string, unknown>): Partial<Record<Strava
 }
 
 function validProjection(value: unknown): boolean {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-  const row = value as Record<string, unknown>;
-  const required = ["version", "runner", "event", "distanceMeters", "movingTimeSeconds", "elapsedTimeSeconds",
+  const object = (v: unknown, keys: string[]): v is Record<string, unknown> =>
+    v !== null && typeof v === "object" && !Array.isArray(v) &&
+    Object.keys(v).length === keys.length && keys.every((key) => Object.hasOwn(v, key));
+  const number = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
+  const integer = (v: unknown) => number(v) && Number.isSafeInteger(v);
+  const nullable = (v: unknown, check: (value: unknown) => boolean) => v === null || check(v);
+  const string = (v: unknown) => typeof v === "string";
+  const keys = ["version", "runner", "event", "distanceMeters", "movingTimeSeconds", "elapsedTimeSeconds",
     "averagePaceSecondsPerKm", "averageSpeedMps", "maxSpeedMps", "splits", "fastestKilometer", "slowestKilometer",
     "paceTrend", "averageHeartrate", "maxHeartrate", "elevationGainMeters", "calories", "averageCadence"];
-  if (Object.keys(row).length !== required.length || required.some((key) => !(key in row)) || row.version !== 1 ||
-    !row.runner || typeof row.runner !== "object" || !row.event || typeof row.event !== "object" || !Array.isArray(row.splits)) return false;
-  const nonnegative = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0;
-  const nullable = (v: unknown) => v === null || nonnegative(v);
-  if (![row.distanceMeters, row.movingTimeSeconds, row.elapsedTimeSeconds].every(nonnegative) ||
-    ![row.averagePaceSecondsPerKm, row.averageSpeedMps, row.maxSpeedMps, row.averageHeartrate, row.maxHeartrate,
-      row.elevationGainMeters, row.calories, row.averageCadence].every(nullable)) return false;
-  const isPlainInsight = (v: unknown) => v === null || (typeof v === "object" && !Array.isArray(v));
-  return [row.fastestKilometer, row.slowestKilometer, row.paceTrend].every(isPlainInsight) && row.splits.every((v: unknown) => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
-    const split = v as Record<string, unknown>;
-    return [split.kilometer, split.distanceMeters, split.movingSeconds, split.elapsedSeconds].every(nonnegative) &&
-      [split.averageSpeedMps, split.paceSecondsPerKm].every(nullable);
-  });
+  if (!object(value, keys) || value.version !== 1 ||
+    !object(value.runner, ["id", "name", "bibNumber"]) || !string(value.runner.id) || !string(value.runner.name) ||
+    !nullable(value.runner.bibNumber, string) || !object(value.event, ["name", "date", "category"]) ||
+    ![value.event.name, value.event.date, value.event.category].every(string) ||
+    !number(value.distanceMeters) || !integer(value.movingTimeSeconds) || !integer(value.elapsedTimeSeconds) ||
+    ![value.averagePaceSecondsPerKm].every((v) => nullable(v, integer)) ||
+    ![value.averageSpeedMps, value.maxSpeedMps, value.averageHeartrate, value.maxHeartrate,
+      value.elevationGainMeters, value.calories, value.averageCadence].every((v) => nullable(v, number))) return false;
+  const kilometerPace = (v: unknown) => object(v, ["kilometer", "paceSecondsPerKm"]) &&
+    integer(v.kilometer) && (v.kilometer as number) > 0 && integer(v.paceSecondsPerKm);
+  const trend = (v: unknown) => object(v, ["direction", "earlyPaceSecondsPerKm", "latePaceSecondsPerKm"]) &&
+    ["faster", "slower", "even"].includes(v.direction as string) && integer(v.earlyPaceSecondsPerKm) && integer(v.latePaceSecondsPerKm);
+  return nullable(value.fastestKilometer, kilometerPace) && nullable(value.slowestKilometer, kilometerPace) &&
+    nullable(value.paceTrend, trend) && Array.isArray(value.splits) && value.splits.every((v: unknown) =>
+      object(v, ["kilometer", "distanceMeters", "movingSeconds", "elapsedSeconds", "averageSpeedMps", "paceSecondsPerKm"]) &&
+      integer(v.kilometer) && (v.kilometer as number) > 0 && number(v.distanceMeters) &&
+      integer(v.movingSeconds) && integer(v.elapsedSeconds) && nullable(v.averageSpeedMps, number) && nullable(v.paceSecondsPerKm, integer));
 }
+
+type ProjectionContext = {
+  runner_id: string;
+  distance_km: number;
+  race: null | { start_time_from: string; start_time_to: string; start_latitude: number | null;
+    start_longitude: number | null; start_radius_m: number | null; allowed_sport_types: string[] };
+};
 
 type StravaJob = {
   id: string;
@@ -460,7 +475,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
   const deadline = Date.now() + 20000;
 
   for (let i = 0; i < limit && Date.now() < deadline; i++) {
-    const job = await stravaRpc<StravaJob | null>("strava_claim_job");
+    const job = await stravaRpc<StravaJob | null>("strava_claim_projection_aware_job");
 
     if (!job) {
       return;
@@ -468,6 +483,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
 
     try {
       let activities: ActivityWrite[] = [];
+      let projectionContext: ProjectionContext[] | null = null;
       let continuation: {
         key: string;
         payload: Record<string, unknown>;
@@ -534,6 +550,8 @@ export async function processStravaJobs(limit = 10): Promise<void> {
           await stravaRpc("strava_commit_job", { p_job: job.id, p_lease: job.lease_id });
           continue;
         }
+        projectionContext = await stravaRpc<ProjectionContext[]>("strava_projection_context", { p_user: job.user_id, p_generation: job.generation });
+        if (!Array.isArray(projectionContext)) throw new Error("storage_unavailable");
         const db = getSupabaseAdmin();
         const [selection, detail, registration] = await Promise.all([
           db.from("strava_runner_activities").select("activity_id").eq("user_id", job.user_id).eq("generation", job.generation).eq("runner_id", runner).maybeSingle(),
@@ -560,10 +578,10 @@ export async function processStravaJobs(limit = 10): Promise<void> {
               categoryName: category.data.name });
             if (!validProjection(payload)) throw new TypeError("invalid_projection");
           } catch {
-            await stravaRpc("strava_commit_projection_job", { p_job: job.id, p_lease: job.lease_id, p_payload: null, p_error: "invalid_projection" });
+            await stravaRpc("strava_commit_projection_fenced", { p_context: projectionContext, p_job: job.id, p_lease: job.lease_id, p_payload: null, p_error: "invalid_projection" });
             continue;
           }
-          await stravaRpc("strava_commit_projection_job", { p_job: job.id, p_lease: job.lease_id, p_payload: payload, p_error: null });
+          await stravaRpc("strava_commit_projection_fenced", { p_context: projectionContext, p_job: job.id, p_lease: job.lease_id, p_payload: payload, p_error: null });
           continue;
         }
       } else if (job.kind === "activity") {
@@ -591,7 +609,13 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         continuation = null;
         discoveries.length = 0;
       }
-      const races = (await Promise.all((attachments ?? []).map(({ runner_id }) => loadRunnerRaceConfigs(job.user_id, runner_id)))).flat();
+      const races = job.kind === "project" && projectionContext
+        ? projectionContext.flatMap(({ runner_id, distance_km, race }) => race ? [{ runnerId: runner_id, config: validateRaceMatchConfig({
+          startTimeFrom: race.start_time_from, startTimeTo: race.start_time_to, startLatitude: race.start_latitude,
+          startLongitude: race.start_longitude, startRadiusMeters: race.start_radius_m, distanceMeters: Number(distance_km) * 1000,
+          allowedSportTypes: race.allowed_sport_types,
+        }) }] : [])
+        : (await Promise.all((attachments ?? []).map(({ runner_id }) => loadRunnerRaceConfigs(job.user_id, runner_id)))).flat();
       const retained = new Set<string>();
       const runnerCandidates = races.map(({ runnerId, config }) => ({
         runner_id: runnerId,
@@ -613,7 +637,8 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         id,
         activity: activity && retained.has(id) ? toStoredStravaActivity(activity) : null,
       }));
-      await stravaRpc(job.kind === "project" ? "strava_commit_projection_refresh_job" : "strava_commit_runner_job", {
+      await stravaRpc(job.kind === "project" ? "strava_commit_projection_refresh_fenced" : "strava_commit_runner_job", {
+        ...(job.kind === "project" ? { p_context: projectionContext } : {}),
         p_job: job.id,
         p_lease: job.lease_id,
         p_activities: storedActivities,

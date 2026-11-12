@@ -355,7 +355,7 @@ describe("runner Strava access and safe states", () => {
     vi.stubGlobal("fetch", fetchActivity);
     const defaultRpc = mocks.rpc.getMockImplementation()!;
     mocks.rpc.mockImplementation(async (name: string, args: Row) => {
-      if (name === "strava_claim_job") return { data: {
+      if (name === "strava_claim_projection_aware_job") return { data: {
         id: "job", lease_id: "lease", user_id: "user", generation: "generation", kind: "activity", attempts: 1,
         attachment_fences: { [runnerId]: "first" }, payload: { runner_id: runnerId, object_id: "10", owner_id: "123" },
       } };

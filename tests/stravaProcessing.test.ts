@@ -108,7 +108,7 @@ beforeEach(() => {
     return { data: single ? rows[table] : [rows[table]] };
   });
   mocks.rpc.mockImplementation(async (name) =>
-    name === "strava_claim_job" ? null : true,
+    name === "strava_claim_projection_aware_job" ? null : true,
   );
 });
 
@@ -120,7 +120,8 @@ const claim = (value: Record<string, unknown> = job) => {
   let claimed = false;
 
   mocks.rpc.mockImplementation(async (name) =>
-    name === "strava_claim_job"
+    name === "strava_projection_context" ? [{ runner_id: runnerId, distance_km: 5, race: raceConfig }] :
+    name === "strava_claim_projection_aware_job"
       ? claimed
         ? null
         : (claimed = true, value)
@@ -144,7 +145,7 @@ describe("Strava processing", () => {
     await processStravaJobs();
 
     expect(mocks.activity).toHaveBeenCalledWith("access", "1", "2");
-    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_refresh_job", expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_refresh_fenced", expect.objectContaining({
       p_job: "job", p_lease: "lease", p_activities: [{ id: "1", activity: storedRaceActivity }],
       p_runner_candidates: [expect.objectContaining({ runner_id: runnerId })],
     }));
@@ -163,7 +164,7 @@ describe("Strava processing", () => {
     claim({ ...job, kind: "project", payload: { runner_id: runnerId, activity_id: "1", build_id: "build", version: 1 } });
     await processStravaJobs();
     expect(mocks.activity).not.toHaveBeenCalled();
-    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_job", expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_fenced", expect.objectContaining({
       p_job: "job", p_lease: "lease", p_payload: expect.objectContaining({ version: 1, movingTimeSeconds: 1480 }),
     }));
   });
@@ -193,7 +194,32 @@ describe("Strava processing", () => {
     claim({ ...job, kind: "project", payload: { runner_id: runnerId, activity_id: "1", build_id: "build", version: 1 } });
     try {
       await processStravaJobs();
-      expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_job", expect.objectContaining({ p_payload: null, p_error: "invalid_projection" }));
+      expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_fenced", expect.objectContaining({ p_payload: null, p_error: "invalid_projection" }));
+    } finally { broken.mockRestore(); }
+  });
+
+  it.each([
+    ["unexpected runner field", (p: ReturnType<typeof projection.buildStravaWrappedProjection>) => { Object.assign(p.runner, { location: [1, 2] }); }],
+    ["invalid split", (p: ReturnType<typeof projection.buildStravaWrappedProjection>) => { p.splits = [Object.assign({ kilometer: 1, distanceMeters: 1000, movingSeconds: 100, elapsedSeconds: 100, averageSpeedMps: null, paceSecondsPerKm: 100 }, { route: "secret" })]; }],
+    ["invalid insight", (p: ReturnType<typeof projection.buildStravaWrappedProjection>) => { p.paceTrend = { direction: "other" as "faster", earlyPaceSecondsPerKm: 10, latePaceSecondsPerKm: 20 }; }],
+    ["fractional duration", (p: ReturnType<typeof projection.buildStravaWrappedProjection>) => { p.movingTimeSeconds = 0.5; }],
+  ])("rejects %s in a projection", async (_name, change) => {
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => {
+      if (table === "strava_runner_activities") return Promise.resolve({ data: { activity_id: "1" } });
+      if (table === "strava_activities") return Promise.resolve({ data: { activity: storedRaceActivity } });
+      if (table === "runners") return Promise.resolve({ data: { category_id: 7, name: "Runner", bib_number: "12" } });
+      if (table === "categories") return Promise.resolve({ data: { name: "5K", event_id: 8 } });
+      if (table === "events") return Promise.resolve({ data: { name: "Race", event_date: "2027-08-17" } });
+      return normal(table, filters, single);
+    });
+    const payload = projection.buildStravaWrappedProjection(storedRaceActivity, { runnerId, runnerName: "Runner", bibNumber: "12", eventName: "Race", eventDate: "2027-08-17", categoryName: "5K" });
+    change(payload);
+    const broken = vi.spyOn(projection, "buildStravaWrappedProjection").mockReturnValue(payload);
+    claim({ ...job, kind: "project", payload: { runner_id: runnerId, activity_id: "1", build_id: "build", version: 1 } });
+    try {
+      await processStravaJobs();
+      expect(mocks.rpc).toHaveBeenCalledWith("strava_commit_projection_fenced", expect.objectContaining({ p_payload: null, p_error: "invalid_projection" }));
     } finally { broken.mockRestore(); }
   });
 
