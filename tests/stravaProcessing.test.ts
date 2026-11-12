@@ -151,6 +151,19 @@ describe("Strava processing", () => {
     }));
   });
 
+  it("routes revoked legacy project refetch through the fenced failure only", async () => {
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => table === "strava_runner_activities"
+      ? Promise.resolve({ data: { activity_id: "1" } }) : table === "strava_activities"
+        ? Promise.resolve({ data: { activity: { ...storedRaceActivity, movingTimeSeconds: undefined } } })
+        : normal(table, filters, single));
+    mocks.activity.mockRejectedValue(new StravaError("authorization_revoked", 409));
+    claim({ ...job, kind: "project", payload: { runner_id: runnerId, activity_id: "1", build_id: "old", version: 1 } });
+    await processStravaJobs();
+    expect(mocks.rpc).not.toHaveBeenCalledWith("strava_provider_revoked", expect.anything());
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_fail_projection_job", expect.objectContaining({ p_error: "authorization_revoked" }));
+  });
+
   it("commits a ready projection from complete selected detail", async () => {
     const normal = mocks.rows.getMockImplementation()!;
     mocks.rows.mockImplementation((table, filters, single) => {

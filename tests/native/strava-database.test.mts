@@ -178,7 +178,7 @@ test(
       } finally { await db.exec("rollback"); }
 
       for (const file of (await readdir("supabase/migrations"))
-        .filter((file) => file.endsWith("_strava_projection_backfill.sql") || file.endsWith("_strava_projection_review_fixes.sql")).sort()) {
+        .filter((file) => file.endsWith("_strava_projection_backfill.sql") || file.endsWith("_strava_projection_review_fixes.sql") || file.endsWith("_strava_projection_review_round2.sql")).sort()) {
         await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
       }
       const projectionReviewErrors: string[] = [];

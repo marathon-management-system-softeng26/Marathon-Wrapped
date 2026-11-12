@@ -130,6 +130,18 @@ describe("Strava client", () => {
     expect(saved.p_generation).toBe("g");
   });
 
+  it("uses project-fenced credential operations for a legacy refetch", async () => {
+    const row = { user_id: "u", status: "active", generation: "g", operation_id: "op",
+      expires_at: "2020-01-01T00:00:00Z", refresh_token: await encryptToken("refresh") };
+    mocks.connection.mockResolvedValue({ data: row });
+    mocks.rpc.mockImplementation(async (name) => name === "strava_claim_project_credentials" ? row : false);
+    mocks.fetch.mockResolvedValue(new Response("", { status: 401 }));
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toThrow();
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_claim_project_credentials", expect.objectContaining({ p_job: "j", p_lease: "l" }));
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_finish_project_refresh", expect.objectContaining({ p_job: "j", p_lease: "l", p_reauth: true }));
+    expect(mocks.rpc).not.toHaveBeenCalledWith("strava_finish_refresh", expect.anything());
+  });
+
   it("does not return a refreshed token when disconnect wins", async () => {
     const row = {
       user_id: "u",

@@ -59,6 +59,11 @@ begin
   assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{runner,location}','[1,2]')), 'nested extra field';
   assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{splits,0,movingSeconds}','0.5')), 'fractional duration';
   assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{paceTrend,direction}','"sideways"')), 'invalid direction';
+  assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{runner,id}','null')), 'runner id cannot be null';
+  assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{event,date}','null')), 'event date cannot be null';
+  assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{splits,0,kilometer}','null')), 'split marker cannot be null';
+  assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{fastestKilometer,paceSecondsPerKm}','null')), 'insight pace cannot be null';
+  assert not public.strava_valid_snapshot_v1(jsonb_set(p,'{paceTrend,earlyPaceSecondsPerKm}','null')), 'trend pace cannot be null';
   assert not public.strava_valid_snapshot_v1(p-'event'), 'required event';
   declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb; ctx jsonb;
   begin
@@ -124,4 +129,99 @@ do $$ begin
   assert has_function_privilege('service_role','public.strava_commit_projection_fenced(uuid,uuid,jsonb,text,jsonb)','execute');
   assert not has_function_privilege('service_role','public.strava_commit_projection_job(uuid,uuid,jsonb,text)','execute');
   assert not has_function_privilege('service_role','public.strava_commit_projection_refresh_job(uuid,uuid,jsonb,jsonb,jsonb,jsonb)','execute');
+end $$;
+-- CASE processing without lease is an orphan
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; old_build uuid;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates');
+  perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  select build_id into old_build from public.strava_wrapped_snapshots where runner_id=a;
+  update public.strava_jobs set status='processing',lease_id=null,lease_until=null where user_id=u and kind='project';
+  perform public.strava_backfill_selected_projections();
+  assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and build_id<>old_build and status='building');
+  assert exists(select 1 from public.strava_jobs where user_id=u and kind='project' and status='pending');
+end $$;
+-- CASE null trend direction rejected at persistence
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; b uuid; p jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  select build_id into b from public.strava_wrapped_snapshots where runner_id=a;
+  p:=jsonb_build_object('version',1,'runner',jsonb_build_object('id',a,'name','A','bibNumber',null),'event',jsonb_build_object('name','Fence regression','date','2027-08-17','category','5K'),'distanceMeters',5000,'movingTimeSeconds',1500,'elapsedTimeSeconds',1500,'averagePaceSecondsPerKm',300,'averageSpeedMps',null,'maxSpeedMps',null,'splits','[]'::jsonb,'fastestKilometer',null,'slowestKilometer',null,'paceTrend',jsonb_build_object('direction',null,'earlyPaceSecondsPerKm',300,'latePaceSecondsPerKm',300),'averageHeartrate',null,'maxHeartrate',null,'elevationGainMeters',null,'calories',null,'averageCadence',null);
+  begin perform public.strava_finish_wrapped_snapshot(u,g,a,'10',1,b,'ready',p,null); raise exception 'null direction accepted';
+  exception when check_violation then null; end;
+end $$;
+-- CASE old generic failure releases projection without connection effects
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job();
+  perform public.strava_commit_job((j->>'id')::uuid,(j->>'lease_id')::uuid,p_error=>'reauth_required',p_reauth=>true);
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='pending');
+  assert exists(select 1 from public.strava_connections where user_id=u and status='active');
+  assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and status='building');
+end $$;
+-- CASE stale project credential failure cannot reauthorize replacement
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb; claim jsonb; replacement uuid;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job();
+  claim:=public.strava_claim_project_credentials(u,'refresh',(j->>'id')::uuid,(j->>'lease_id')::uuid);
+  assert claim->>'operation_id' is not null;
+  replacement:=public.strava_enqueue_projection(u,g,a,'10');
+  assert not public.strava_finish_project_refresh(u,(claim->>'operation_id')::uuid,g,null,true,false,(j->>'id')::uuid,(j->>'lease_id')::uuid);
+  perform public.strava_fail_projection_job((j->>'id')::uuid,(j->>'lease_id')::uuid,'authorization_revoked',null,false);
+  assert exists(select 1 from public.strava_connections where user_id=u and status='active' and operation_id is null);
+  assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and build_id=replacement and status='building');
+end $$;
+-- CASE legacy runner acknowledgement releases leased projection
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job();
+  assert public.strava_commit_runner_job((j->>'id')::uuid,(j->>'lease_id')::uuid,'[]',null,'[]','[]');
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='pending' and lease_id is null);
+  assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and status='building');
+  assert public.strava_claim_projection_aware_job()->>'kind'='project';
+end $$;
+-- CASE fenced legacy refresh remains functional
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb; ctx jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job(); ctx:=public.strava_projection_context(u,g);
+  assert public.strava_commit_projection_refresh_fenced((j->>'id')::uuid,(j->>'lease_id')::uuid,pg_temp.fence_detail('10'),null,'[]',jsonb_build_array(pg_temp.fence_batch(a,'10')),ctx);
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='complete');
+end $$;
+-- CASE registration locks are ordered from parents to children
+do $$
+declare definition text:=pg_get_functiondef('public.strava_projection_context_matches(uuid,uuid,jsonb)'::regprocedure);
+begin
+  assert position('from public.events e' in definition)<position('from public.categories cat' in definition);
+  assert position('from public.categories cat' in definition)<position('from public.runners r' in definition);
+  assert position('from public.runners r' in definition)<position('from public.runner_access access' in definition);
+  assert position('from public.runner_access access' in definition)<position('from public.strava_race_configs race' in definition);
+end $$;
+-- CASE deleting a classification configuration retries
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; c bigint; j jsonb; ctx jsonb;
+begin
+  select category_id into c from public.runners where id=a;
+  insert into public.strava_race_configs(category_id,start_time_from,start_time_to) values(c,'2027-08-17T00:00Z','2027-08-17T02:00Z');
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job(); ctx:=public.strava_projection_context(u,g);
+  delete from public.strava_race_configs where category_id=c;
+  perform public.strava_commit_projection_refresh_fenced((j->>'id')::uuid,(j->>'lease_id')::uuid,'[]',null,'[]','[]',ctx);
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='pending');
 end $$;

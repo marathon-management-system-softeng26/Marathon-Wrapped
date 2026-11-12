@@ -295,8 +295,10 @@ async function currentJobAttachments(job: StravaJob) {
 async function withAccess<T>(
   connection: StravaConnection,
   work: (token: string) => Promise<T>,
+  job?: StravaJob,
 ): Promise<T> {
-  let access = await getUserStravaAccessToken(connection.user_id);
+  const project = job?.kind === "project" ? { job: job.id, lease: job.lease_id } : undefined;
+  let access = project ? await getUserStravaAccessToken(connection.user_id, false, project) : await getUserStravaAccessToken(connection.user_id);
 
   if (!access) {
     throw new StravaError("not_connected", 409);
@@ -309,7 +311,7 @@ async function withAccess<T>(
       throw error;
     }
 
-    access = await getUserStravaAccessToken(connection.user_id, true);
+    access = project ? await getUserStravaAccessToken(connection.user_id, true, project) : await getUserStravaAccessToken(connection.user_id, true);
 
     if (!access) {
       throw new StravaError("not_connected", 409);
@@ -338,6 +340,7 @@ export async function processActivityEvent(
   try {
     const activity = await withAccess(connection, (access) =>
       getStravaActivity(access, String(event.object_id), connection.athlete_id!),
+      job,
     );
 
     return [{ id: activity.id, activity }];
@@ -547,7 +550,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         }
         if (!connection || !attachments || typeof runner !== "string" || typeof id !== "string" ||
           !attachments.some((attachment) => attachment.runner_id === runner)) {
-          await stravaRpc("strava_commit_job", { p_job: job.id, p_lease: job.lease_id });
+          await stravaRpc("strava_discard_projection_job", { p_job: job.id, p_lease: job.lease_id });
           continue;
         }
         projectionContext = await stravaRpc<ProjectionContext[]>("strava_projection_context", { p_user: job.user_id, p_generation: job.generation });
@@ -560,7 +563,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         ]);
         if (selection.error || detail.error || registration.error) throw new Error("storage_unavailable");
         if (selection.data?.activity_id !== id || !detail.data?.activity || !registration.data) {
-          await stravaRpc("strava_commit_job", { p_job: job.id, p_lease: job.lease_id });
+          await stravaRpc("strava_discard_projection_job", { p_job: job.id, p_lease: job.lease_id });
           continue;
         }
         const activity: unknown = detail.data.activity;
@@ -650,7 +653,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
       const known = error instanceof StravaError;
       const code = known ? error.code : "storage_unavailable";
 
-      if (code === "authorization_revoked") {
+      if (code === "authorization_revoked" && job.kind !== "project") {
         await stravaRpc("strava_provider_revoked", {
           p_user: job.user_id,
           p_generation: job.generation,
