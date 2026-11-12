@@ -110,7 +110,7 @@ beforeEach(() => {
       }
       return { data: "detached" };
     }
-    if (name === "strava_confirm_runner_activity") {
+    if (name === "strava_confirm_runner_activity_and_project") {
       selectionCalls.push(args);
       if (selectionOutcome === "selected") {
         tables.strava_runner_activities = [{ user_id: args.p_user, generation: args.p_generation, runner_id: args.p_runner, activity_id: args.p_activity }];

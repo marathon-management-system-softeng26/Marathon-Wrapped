@@ -9,6 +9,34 @@ export type StravaRunnerAttachment = { runner_id: string; created_at: string; at
 
 export type StoredStravaActivity = Omit<StravaActivity, "startLatLng"> & { gpsAvailable: boolean };
 
+/** Older cache rows predate normalized timing and split fields. */
+export function isCompleteStoredStravaActivity(value: unknown, id: string, athleteId: string): value is StoredStravaActivity {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  const finiteNonnegative = (n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0;
+  const optionalMetric = (n: unknown) => n === null || finiteNonnegative(n);
+  if (row.id !== id || row.athleteId !== athleteId || row.sportType !== "Run" || typeof row.startDate !== "string" ||
+    !Number.isFinite(Date.parse(row.startDate)) || !finiteNonnegative(row.distanceMeters) ||
+    !Number.isSafeInteger(row.movingTimeSeconds) || !Number.isSafeInteger(row.elapsedTimeSeconds) ||
+    !finiteNonnegative(row.movingTimeSeconds) || !finiteNonnegative(row.elapsedTimeSeconds) ||
+    (row.movingTimeSeconds as number) > (row.elapsedTimeSeconds as number) || typeof row.gpsAvailable !== "boolean" ||
+    ![row.averageSpeedMps, row.maxSpeedMps, row.averageHeartrate, row.maxHeartrate, row.elevationGainMeters, row.calories, row.averageCadence].every(optionalMetric)) return false;
+  if (row.metricSplits === null) return true;
+  if (!Array.isArray(row.metricSplits) || row.metricSplits.length > 256) return false;
+  const markers = new Set<number>();
+  return row.metricSplits.every((split: unknown) => {
+    if (!split || typeof split !== "object" || Array.isArray(split)) return false;
+    const s = split as Record<string, unknown>;
+    if (!Number.isSafeInteger(s.kilometer) || (s.kilometer as number) < 1 || markers.has(s.kilometer as number) ||
+      !Number.isSafeInteger(s.movingSeconds) || !Number.isSafeInteger(s.elapsedSeconds) ||
+      !finiteNonnegative(s.movingSeconds) || !finiteNonnegative(s.elapsedSeconds) ||
+      (s.movingSeconds as number) > (s.elapsedSeconds as number) || !finiteNonnegative(s.distanceMeters) ||
+      !optionalMetric(s.averageSpeedMps)) return false;
+    markers.add(s.kilometer as number);
+    return true;
+  });
+}
+
 export function toStoredStravaActivity(activity: StravaActivity): StoredStravaActivity {
   return {
     id: activity.id,

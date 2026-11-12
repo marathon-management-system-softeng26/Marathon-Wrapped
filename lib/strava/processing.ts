@@ -18,11 +18,13 @@ import {
   loadRunnerRaceConfigs,
   loadStravaRunnerAttachment,
   loadStravaRunnerAttachments,
+  isCompleteStoredStravaActivity,
   stravaRpc,
   toStoredStravaActivity,
   type StoredStravaActivity,
 } from "./store";
 import { matchActivityToRace } from "./matching";
+import { buildStravaWrappedProjection } from "./projection";
 
 export type StravaWebhookEvent = {
   object_type: "activity" | "athlete";
@@ -71,11 +73,33 @@ function availableMetrics(value: Record<string, unknown>): Partial<Record<Strava
   return result;
 }
 
+function validProjection(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  const required = ["version", "runner", "event", "distanceMeters", "movingTimeSeconds", "elapsedTimeSeconds",
+    "averagePaceSecondsPerKm", "averageSpeedMps", "maxSpeedMps", "splits", "fastestKilometer", "slowestKilometer",
+    "paceTrend", "averageHeartrate", "maxHeartrate", "elevationGainMeters", "calories", "averageCadence"];
+  if (Object.keys(row).length !== required.length || required.some((key) => !(key in row)) || row.version !== 1 ||
+    !row.runner || typeof row.runner !== "object" || !row.event || typeof row.event !== "object" || !Array.isArray(row.splits)) return false;
+  const nonnegative = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0;
+  const nullable = (v: unknown) => v === null || nonnegative(v);
+  if (![row.distanceMeters, row.movingTimeSeconds, row.elapsedTimeSeconds].every(nonnegative) ||
+    ![row.averagePaceSecondsPerKm, row.averageSpeedMps, row.maxSpeedMps, row.averageHeartrate, row.maxHeartrate,
+      row.elevationGainMeters, row.calories, row.averageCadence].every(nullable)) return false;
+  const isPlainInsight = (v: unknown) => v === null || (typeof v === "object" && !Array.isArray(v));
+  return [row.fastestKilometer, row.slowestKilometer, row.paceTrend].every(isPlainInsight) && row.splits.every((v: unknown) => {
+    if (!v || typeof v !== "object" || Array.isArray(v)) return false;
+    const split = v as Record<string, unknown>;
+    return [split.kilometer, split.distanceMeters, split.movingSeconds, split.elapsedSeconds].every(nonnegative) &&
+      [split.averageSpeedMps, split.paceSecondsPerKm].every(nullable);
+  });
+}
+
 type StravaJob = {
   id: string;
   user_id: string;
   generation: string;
-  kind: "webhook" | "activity" | "backfill" | "revoke";
+  kind: "webhook" | "activity" | "backfill" | "revoke" | "project";
   payload: Record<string, unknown>;
   lease_id: string;
   attempts: number;
@@ -234,6 +258,14 @@ export async function enqueueRunnerStravaBackfill(userId: string, runnerId: stri
     p_attachment: attachment.attachment_id, p_after: after, p_before: before,
   });
   if (!enqueued) throw new StravaError("runner_not_connected", 409);
+}
+
+/** Rebuild a selected snapshot through the durable worker. */
+export async function enqueueStravaProjection(userId: string, runnerId: string, generation: string, activityId: string): Promise<void> {
+  const build = await stravaRpc<string | null>("strava_enqueue_projection", {
+    p_user: userId, p_generation: generation, p_runner: runnerId, p_activity: activityId,
+  });
+  if (!build) throw new StravaError("invalid_selection", 409);
 }
 
 async function currentJobAttachments(job: StravaJob) {
@@ -488,6 +520,52 @@ export async function processStravaJobs(limit = 10): Promise<void> {
             };
           }
         }
+      } else if (job.kind === "project") {
+        const connection = await currentConnection(job);
+        const attachments = connection ? await currentJobAttachments(job) : null;
+        const runner = job.payload.runner_id;
+        const id = job.payload.activity_id;
+        if (connection && !attachments) {
+          await stravaRpc("strava_retry_projection_attachments", { p_job: job.id, p_lease: job.lease_id });
+          continue;
+        }
+        if (!connection || !attachments || typeof runner !== "string" || typeof id !== "string" ||
+          !attachments.some((attachment) => attachment.runner_id === runner)) {
+          await stravaRpc("strava_commit_job", { p_job: job.id, p_lease: job.lease_id });
+          continue;
+        }
+        const db = getSupabaseAdmin();
+        const [selection, detail, registration] = await Promise.all([
+          db.from("strava_runner_activities").select("activity_id").eq("user_id", job.user_id).eq("generation", job.generation).eq("runner_id", runner).maybeSingle(),
+          db.from("strava_activities").select("activity").eq("user_id", job.user_id).eq("generation", job.generation).eq("activity_id", id).maybeSingle(),
+          db.from("runners").select("name,bib_number,category_id").eq("id", runner).maybeSingle(),
+        ]);
+        if (selection.error || detail.error || registration.error) throw new Error("storage_unavailable");
+        if (selection.data?.activity_id !== id || !detail.data?.activity || !registration.data) {
+          await stravaRpc("strava_commit_job", { p_job: job.id, p_lease: job.lease_id });
+          continue;
+        }
+        const activity: unknown = detail.data.activity;
+        if (!isCompleteStoredStravaActivity(activity, id, connection.athlete_id!)) {
+          activities = await processActivityEvent({ object_id: id, owner_id: connection.athlete_id! }, job);
+        } else {
+          const category = await db.from("categories").select("name,event_id").eq("id", registration.data.category_id).maybeSingle();
+          if (category.error || !category.data) throw new Error("storage_unavailable");
+          const event = await db.from("events").select("name,event_date").eq("id", category.data.event_id).maybeSingle();
+          if (event.error || !event.data) throw new Error("storage_unavailable");
+          let payload;
+          try {
+            payload = buildStravaWrappedProjection(activity, { runnerId: runner, runnerName: registration.data.name,
+              bibNumber: registration.data.bib_number, eventName: event.data.name, eventDate: event.data.event_date,
+              categoryName: category.data.name });
+            if (!validProjection(payload)) throw new TypeError("invalid_projection");
+          } catch {
+            await stravaRpc("strava_commit_projection_job", { p_job: job.id, p_lease: job.lease_id, p_payload: null, p_error: "invalid_projection" });
+            continue;
+          }
+          await stravaRpc("strava_commit_projection_job", { p_job: job.id, p_lease: job.lease_id, p_payload: payload, p_error: null });
+          continue;
+        }
       } else if (job.kind === "activity") {
         activities = await processActivityEvent(
           {
@@ -535,7 +613,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
         id,
         activity: activity && retained.has(id) ? toStoredStravaActivity(activity) : null,
       }));
-      await stravaRpc("strava_commit_runner_job", {
+      await stravaRpc(job.kind === "project" ? "strava_commit_projection_refresh_job" : "strava_commit_runner_job", {
         p_job: job.id,
         p_lease: job.lease_id,
         p_activities: storedActivities,
@@ -576,7 +654,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
           ? error.retryAfter
           : Math.min(3600, 5 * 2 ** Math.min(job.attempts, 10)) + crypto.randomInt(5);
 
-      await stravaRpc("strava_commit_job", {
+      await stravaRpc(job.kind === "project" ? "strava_fail_projection_job" : "strava_commit_job", {
         p_job: job.id,
         p_lease: job.lease_id,
         p_error: code,
@@ -768,7 +846,7 @@ export async function confirmRunnerStravaActivity(userId: string, runnerId: stri
   }
   // Recheck identity and derive metrics from the current stored detail under the
   // database connection/candidate locks, so a worker refresh cannot race this read.
-  const outcome = await stravaRpc<string>("strava_confirm_runner_activity", {
+  const outcome = await stravaRpc<string>("strava_confirm_runner_activity_and_project", {
     p_user: userId, p_generation: connection.generation, p_runner: runnerId, p_activity: activityId,
   });
   if (outcome === "forbidden") throw new StravaError("runner_not_found", 404);

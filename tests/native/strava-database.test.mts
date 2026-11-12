@@ -151,6 +151,16 @@ test(
         await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
       }
 
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_projection_worker.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      for (const scenario of (await readFile("tests/sql/strava-projection-worker.sql", "utf8")).split("-- CASE ").slice(1)) {
+        await db.exec("begin");
+        try { await db.exec(scenario.slice(scenario.indexOf("\n"))); }
+        finally { await db.exec("rollback"); }
+      }
+
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
       await db.exec(`
