@@ -47,6 +47,9 @@ describe("share composition", () => {
         status: "unavailable",
         runner: { runner_id: "x", name: "Adi", bib_number: null },
         reason: "missing_result",
+        strava: { state: "disconnected", metrics: null },
+        photos: [],
+        warnings: [],
       }),
     ).toMatchObject({
       name: "Adi",

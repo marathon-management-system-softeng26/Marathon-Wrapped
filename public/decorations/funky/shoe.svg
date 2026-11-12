@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .sole-cushion { fill: #CCFF00; filter: drop-shadow(0px 8px 18px rgba(204, 255, 0, 0.45)); stroke: #121212; stroke-width: 3.5; stroke-linejoin: round; }
+      .sole-tread { fill: #00E5FF; stroke: #121212; stroke-width: 3; }
+      
+      .mesh-upper { fill: #FF0055; filter: drop-shadow(0px 10px 22px rgba(255, 0, 85, 0.45)); stroke: #121212; stroke-width: 3.5; }
+      .heel-counter { fill: #7000FF; stroke: #121212; stroke-width: 3; }
+      .collar-lining { fill: #121212; }
+      
+      .mesh-texture { fill: none; stroke: #2B0914; stroke-width: 1.8; opacity: 0.35; stroke-dasharray: 3 3; }
+      .air-bubble { fill: #00E5FF; stroke: #121212; stroke-width: 2.5; opacity: 0.9; }
+      .flywire-line { fill: none; stroke: #00E5FF; stroke-width: 3; stroke-linecap: round; }
+      .lace-detail { fill: none; stroke: #FFFFFF; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3)); }
+      
+      .brand-swoosh { fill: #CCFF00; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .sparkle-cyan { fill: #00E5FF; }
+      .star-white { fill: #FFFFFF; }
+      .speed-line { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+      .speed-line-cyan { fill: none; stroke: #00E5FF; stroke-width: 3; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="detailed-running-shoe-sticker">
+    <!-- Speed Motion Trails Behind Shoe -->
+    <path class="speed-line" d="M 40,260 Q 90,230 150,260" />
+    <path class="speed-line-cyan" d="M 70,330 Q 120,300 180,330" />
+    <path class="speed-line" d="M 320,380 Q 380,350 440,380" />
+
+    <!-- Main Highly Detailed Running Shoe (Angled Upward) -->
+    <g transform="translate(10, 10) rotate(-16, 250, 250)">
+      
+      <!-- OUTSOLE & MIDSOLE (Ultra Cushion Performance Sole) -->
+      <!-- Bottom Rubber Grip Tread (Electric Cyan) -->
+      <path class="sole-tread" d="
+        M 65,345 
+        C 115,372 205,352 285,308 
+        C 345,273 420,223 450,178 
+        C 438,208 385,250 325,290 
+        C 235,345 145,355 65,345 Z" />
+
+      <!-- Thick Performance Midsole Cushion (Chartreuse Yellow) -->
+      <path class="sole-cushion" d="
+        M 65,345 
+        C 105,315 165,295 245,260 
+        C 315,225 385,175 425,128 
+        C 445,133 455,158 450,178 
+        C 420,223 345,273 285,308 
+        C 205,352 115,372 65,345 Z" />
+
+      <!-- Visible Air Cushion Pods in Heel (Electric Cyan Transparent Windows) -->
+      <g id="air-pods">
+        <rect class="air-bubble" x="105" y="325" width="28" height="16" rx="8" transform="rotate(-12, 119, 333)" />
+        <rect class="air-bubble" x="142" y="315" width="28" height="16" rx="8" transform="rotate(-15, 156, 323)" />
+        <rect class="air-bubble" x="180" y="303" width="28" height="16" rx="8" transform="rotate(-18, 194, 311)" />
+      </g>
+
+      <!-- Midsole Flex Grooves / Segment Details -->
+      <path d="M 235,282 L 245,298 M 275,262 L 285,278 M 315,240 L 325,256 M 355,215 L 365,231" stroke="#121212" stroke-width="2.5" stroke-linecap="round" />
+
+      <!-- HEEL COUNTER & ANKLE COLLAR (Deep Electric Purple) -->
+      <path class="heel-counter" d="
+        M 285,115 
+        C 295,80 325,60 345,75 
+        C 360,90 395,130 415,145 
+        C 385,155 345,130 285,115 Z" />
+      
+      <!-- Padded Ankle Collar Opening & Inner Lining -->
+      <path class="collar-lining" d="M 315,82 C 310,65 325,55 338,62 C 348,70 338,82 325,85 Z" />
+      <path class="heel-counter" d="M 305,95 C 298,75 312,68 322,75 C 328,82 318,92 305,95 Z" />
+
+      <!-- MAIN SHOE UPPER (Hot Pink / Magenta Engineered Breathable Mesh) -->
+      <path class="mesh-upper" d="
+        M 65,345 
+        C 105,310 160,230 190,120 
+        C 210,115 230,128 240,148 
+        C 265,185 300,90 345,75 
+        C 365,128 400,138 425,128 
+        C 385,175 315,225 245,260 
+        C 165,295 105,315 65,345 Z" />
+
+      <!-- Engineered Breathable Mesh Texture (Cross-Hatch Pattern overlay) -->
+      <path class="mesh-texture" d="
+        M 80,330 L 180,240 M 100,320 L 200,230 M 120,310 L 220,220 M 140,300 L 240,210 M 160,280 L 260,190 M 180,260 L 280,170 
+        M 100,290 L 160,340 M 120,270 L 190,330 M 140,250 L 220,310 M 160,230 L 250,290 M 180,210 L 280,270 M 200,190 L 300,250" />
+
+      <!-- Dynamic Flywire Support Cables (Electric Cyan Lines) -->
+      <path class="flywire-line" d="M 125,285 L 182,185 M 145,270 L 200,165 M 165,252 L 218,145 M 185,235 L 235,130" />
+
+      <!-- Toe Cap Reinforcement Overlay -->
+      <path d="M 65,345 C 90,330 120,300 135,270 C 115,285 85,320 65,345 Z" fill="#FF0055" stroke="#121212" stroke-width="2.5" opacity="0.9" />
+
+      <!-- HIGH-TECH SHADOW / BRAND ACCENT SWOOSH (Neon Chartreuse Chevron) -->
+      <path class="brand-swoosh" d="M 215,215 L 300,140 L 325,158 L 245,245 Z" />
+
+      <!-- DETAILED LACING SYSTEM & BOW -->
+      <g id="lacing-system">
+        <!-- White Eyelet Reinforced Tabs -->
+        <circle cx="180" cy="188" r="4" fill="#121212" stroke="#CCFF00" stroke-width="1.5" />
+        <circle cx="198" cy="168" r="4" fill="#121212" stroke="#CCFF00" stroke-width="1.5" />
+        <circle cx="216" cy="148" r="4" fill="#121212" stroke="#CCFF00" stroke-width="1.5" />
+        <circle cx="234" cy="128" r="4" fill="#121212" stroke="#CCFF00" stroke-width="1.5" />
+
+        <!-- Crisp White Criss-Cross Laces -->
+        <path class="lace-detail" d="M 180,188 L 225,158 M 165,208 L 210,178 M 150,228 L 195,198 M 135,248 L 180,218" />
+        
+        <!-- Tied Lace Bow loops -->
+        <path class="lace-detail" d="M 190,120 C 165,85 140,110 170,138 C 182,150 190,120 190,120 Z" />
+        <path class="lace-detail" d="M 190,120 C 175,155 140,142 160,120 C 172,108 190,120 190,120 Z" />
+        <!-- Dangling Lace Aglets/Ends -->
+        <path class="lace-detail" d="M 190,120 C 205,145 215,170 210,185" />
+      </g>
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(390, 40) rotate(20) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Lime Sparkle -->
+    <path class="sparkle-cyan" d="M 50,360 Q 70,360 70,340 Q 70,360 90,360 Q 70,360 70,380 Q 70,360 50,360 Z" />
+
+    <!-- Top Left Pink Sparkle -->
+    <path class="sparkle-pink" d="M 70,100 Q 90,100 90,80 Q 90,100 110,100 Q 90,100 90,120 Q 90,100 70,100 Z" />
+
+    <!-- Floating Sparkle Stars & Dots -->
+    <polygon class="star-white" transform="translate(430, 220) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(180, 35) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="450" cy="370" r="9" fill="#CCFF00" />
+    <circle cx="425" cy="400" r="5" fill="#00E5FF" />
+    <circle cx="95" cy="410" r="6" fill="#FF0055" />
+  </g>
+</svg>

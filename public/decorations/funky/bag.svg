@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .bag-body { fill: #FFD600; stroke: #121212; stroke-width: 4; stroke-linejoin: round; filter: drop-shadow(0px 10px 22px rgba(255, 214, 0, 0.45)); }
+      .bag-dark { fill: #E6B800; stroke: #121212; stroke-width: 3; }
+      .bag-accent-pink { fill: #FF0055; stroke: #121212; stroke-width: 3.5; }
+      .bag-accent-purple { fill: #7000FF; stroke: #121212; stroke-width: 3.5; }
+      
+      .strap-black { fill: #121212; stroke: #00E5FF; stroke-width: 3; stroke-linejoin: round; }
+      .strap-pad { fill: #CCFF00; stroke: #121212; stroke-width: 3; }
+      .zipper-line { fill: none; stroke: #121212; stroke-width: 3.5; stroke-linecap: round; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .sparkle-cyan { fill: #00E5FF; }
+      .star-white { fill: #FFFFFF; }
+      
+      .speed-line { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+      .speed-line-pink { fill: none; stroke: #FF0055; stroke-width: 3; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="duffel-bag-item-sticker">
+    <!-- Speed Motion Trails Behind Bag -->
+    <path class="speed-line" d="M 50,220 Q 90,190 140,220" />
+    <path class="speed-line-pink" d="M 80,310 Q 130,280 180,310" />
+    <path class="speed-line" d="M 340,360 Q 390,330 440,360" />
+
+    <!-- Main Dynamic Duffel Bag (Angled at -8deg) -->
+    <g transform="translate(10, 20) rotate(-8, 250, 250)">
+      
+      <!-- Back Shoulder Strap -->
+      <path class="strap-black" d="M 110,130 C 120,60 330,60 340,130 L 310,140 C 300,90 150,90 140,140 Z" />
+      <!-- Shoulder Pad (Chartreuse Yellow) -->
+      <rect class="strap-pad" x="180" y="65" width="90" height="26" rx="8" transform="rotate(-5, 225, 78)" />
+
+      <!-- Side Cylinder Cap Left (Electric Purple) -->
+      <ellipse cx="110" cy="260" rx="45" ry="85" class="bag-accent-purple" />
+      <ellipse cx="110" cy="260" rx="25" ry="55" fill="#FF0055" stroke="#121212" stroke-width="2.5" />
+
+      <!-- Main Bag Body (Vibrant Yellow) -->
+      <path class="bag-body" d="
+        M 110,175 
+        L 370,175 
+        C 415,175 440,215 435,260 
+        C 430,305 395,345 350,345 
+        L 110,345 
+        Z" />
+
+      <!-- Bottom Shadow Contour -->
+      <path class="bag-dark" d="
+        M 110,310 
+        L 360,310 
+        C 395,310 425,285 430,260 
+        C 425,290 385,345 350,345 
+        L 110,345 Z" />
+
+      <!-- Front Zipper Pocket (Hot Pink) -->
+      <rect class="bag-accent-pink" x="170" y="225" width="170" height="90" rx="18" />
+      <!-- Pocket Zipper Line -->
+      <line x1="185" y1="245" x2="325" y2="245" class="zipper-line" />
+      <circle cx="195" cy="245" r="5" fill="#CCFF00" stroke="#121212" stroke-width="2" />
+
+      <!-- Carrying Handle Straps (Black with Cyan Edge) -->
+      <path class="strap-black" d="M 160,170 L 160,345 L 185,345 L 185,170 Z" />
+      <path class="strap-black" d="M 310,170 L 310,345 L 335,345 L 335,170 Z" />
+      
+      <!-- Top Joined Handle Grip (Hot Pink) -->
+      <rect class="bag-accent-pink" x="200" y="145" width="90" height="32" rx="10" />
+
+      <!-- Side Pocket Zipper Line (Right Side) -->
+      <path class="zipper-line" d="M 375,200 L 370,300" />
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(390, 45) rotate(22) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Cyan Sparkle -->
+    <path class="sparkle-cyan" d="M 50,360 Q 70,360 70,340 Q 70,360 90,360 Q 70,360 70,380 Q 70,360 50,360 Z" />
+
+    <!-- Top Left Pink Sparkle -->
+    <path class="sparkle-pink" d="M 70,110 Q 90,110 90,90 Q 90,110 110,110 Q 90,110 90,130 Q 90,110 70,110 Z" />
+
+    <!-- Floating Sparkle Stars & Dots -->
+    <polygon class="star-white" transform="translate(425, 230) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(60, 220) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="445" cy="370" r="9" fill="#CCFF00" />
+    <circle cx="420" cy="400" r="5" fill="#00E5FF" />
+    <circle cx="90" cy="410" r="6" fill="#FF0055" />
+  </g>
+</svg>

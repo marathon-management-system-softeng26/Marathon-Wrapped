@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .card-bg { fill: #8B0018; stroke: #FF0033; stroke-width: 4; filter: drop-shadow(0px 10px 24px rgba(230, 0, 51, 0.45)); }
+      .track-line { fill: none; stroke: #CCFF00; stroke-width: 6; stroke-linecap: round; }
+      .dot-passed { fill: #00E5FF; stroke: #121212; stroke-width: 3; }
+      .dot-skipped { fill: #FF0055; stroke: #121212; stroke-width: 3; }
+      .drop-icon { fill: #00E5FF; }
+      
+      .stat-card { fill: #FFF2E6; stroke: #121212; stroke-width: 3.5; stroke-linejoin: round; }
+      .badge-hydration { fill: #CCFF00; stroke: #121212; stroke-width: 3.5; stroke-linejoin: round; }
+      
+      .text-black { fill: #121212; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-white { fill: #FFFFFF; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-lime { fill: #CCFF00; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-pink { fill: #FF0055; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-cyan { fill: #00E5FF; }
+      .star-white { fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <g id="hydration-tracker-sticker">
+    <!-- Main Crimson Story Frame Base (Frame 4 Inspo) -->
+    <g transform="translate(15, 10) rotate(-5, 250, 250)">
+      
+      <!-- Story Frame Background -->
+      <rect class="card-bg" x="50" y="75" width="400" height="320" rx="36" />
+
+      <!-- Header Label -->
+      <rect x="80" y="102" width="130" height="28" rx="14" fill="#121212" />
+      <text class="text-lime" x="145" y="121" font-size="13" letter-spacing="3">HYDRATION</text>
+
+      <!-- Main Headline Quote -->
+      <text class="text-white" x="80" y="160" font-size="24" text-anchor="start" letter-spacing="0">You stayed</text>
+      <text class="text-lime" x="80" y="188" font-size="24" text-anchor="start" letter-spacing="0">hydrated all the way.</text>
+
+      <!-- Track Timeline Line -->
+      <path class="track-line" d="M 90,240 L 410,240" />
+
+      <!-- Station 1 (KM 2) -->
+      <g transform="translate(120, 240)">
+        <circle class="dot-passed" cx="0" cy="0" r="12" />
+        <path class="drop-icon" d="M 0,-6 C 0,-6 -5,1 -5,4 C -5,7 -2,9 0,9 C 2,9 5,7 5,4 C 5,1 0,-6 0,-6 Z" />
+        <text class="text-white" x="0" y="26" font-size="10" letter-spacing="1">KM 2</text>
+        <text class="text-lime" x="0" y="38" font-size="10">5 SEC</text>
+      </g>
+
+      <!-- Station 2 (KM 4) -->
+      <g transform="translate(200, 240)">
+        <circle class="dot-passed" cx="0" cy="0" r="12" />
+        <path class="drop-icon" d="M 0,-6 C 0,-6 -5,1 -5,4 C -5,7 -2,9 0,9 C 2,9 5,7 5,4 C 5,1 0,-6 0,-6 Z" />
+        <text class="text-white" x="0" y="26" font-size="10" letter-spacing="1">KM 4</text>
+        <text class="text-lime" x="0" y="38" font-size="10">7 SEC</text>
+      </g>
+
+      <!-- Station 3 (KM 6 - Skipped) -->
+      <g transform="translate(280, 240)">
+        <circle class="dot-skipped" cx="0" cy="0" r="12" />
+        <line x1="-5" y1="-5" x2="5" y2="5" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+        <line x1="5" y1="-5" x2="-5" y2="5" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+        <text class="text-white" x="0" y="26" font-size="10" letter-spacing="1">KM 6</text>
+        <text class="text-pink" x="0" y="38" font-size="9">SKIPPED</text>
+      </g>
+
+      <!-- Station 4 (KM 8) -->
+      <g transform="translate(360, 240)">
+        <circle class="dot-passed" cx="0" cy="0" r="12" />
+        <path class="drop-icon" d="M 0,-6 C 0,-6 -5,1 -5,4 C -5,7 -2,9 0,9 C 2,9 5,7 5,4 C 5,1 0,-6 0,-6 Z" />
+        <text class="text-white" x="0" y="26" font-size="10" letter-spacing="1">KM 8</text>
+        <text class="text-lime" x="0" y="38" font-size="10">3 SEC</text>
+      </g>
+
+      <!-- Bottom Summary Cards -->
+      <!-- Card 1: 3/4 Stations -->
+      <g transform="translate(80, 310)">
+        <rect class="stat-card" x="0" y="0" width="155" height="55" rx="18" />
+        <text class="text-black" x="77" y="30" font-size="24" letter-spacing="1">3 / 4</text>
+        <text class="text-black" x="77" y="45" font-size="9" opacity="0.7">STATIONS VISITED</text>
+      </g>
+
+      <!-- Card 2: ~254 ml Consumed -->
+      <g transform="translate(250, 310)">
+        <rect class="badge-hydration" x="0" y="0" width="160" height="55" rx="18" />
+        <text class="text-black" x="80" y="30" font-size="22" letter-spacing="0">~254 ml</text>
+        <text class="text-black" x="80" y="45" font-size="9" opacity="0.8">AMOUNT CONSUMED</text>
+      </g>
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(420, 35) rotate(22) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Cyan Sparkle -->
+    <path class="sparkle-cyan" d="M 35,350 Q 55,350 55,330 Q 55,350 75,350 Q 55,350 55,370 Q 55,370 35,350 Z" />
+
+    <!-- Floating Stars & Dots -->
+    <polygon class="star-white" transform="translate(440, 220) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(50, 50) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="455" cy="380" r="8" fill="#CCFF00" />
+    <circle cx="430" cy="410" r="5" fill="#00E5FF" />
+    <circle cx="80" cy="420" r="6" fill="#FF0055" />
+  </g>
+</svg>

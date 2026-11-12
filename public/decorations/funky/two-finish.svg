@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      /* Colors */
+      .skin-dark { fill: #C67C52; }
+      .skin-light { fill: #FFB380; }
+      .hair-dark { fill: #121212; }
+      .hair-maroon { fill: #2B0914; }
+      
+      .top-pink { fill: #FF0055; filter: drop-shadow(0px 8px 18px rgba(255, 0, 85, 0.4)); }
+      .top-purple { fill: #7000FF; filter: drop-shadow(0px 8px 18px rgba(112, 0, 255, 0.4)); }
+      .bottom-lime { fill: #CCFF00; }
+      .bottom-cyan { fill: #00E5FF; }
+      .shoe-yellow { fill: #FFD600; stroke: #121212; stroke-width: 2.5; }
+      .shoe-lime { fill: #CCFF00; stroke: #121212; stroke-width: 2.5; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .sparkle-cyan { fill: #00E5FF; }
+      .star-white { fill: #FFFFFF; }
+      
+      .speed-trail-cyan { fill: none; stroke: #00E5FF; stroke-width: 5; stroke-linecap: round; }
+      .speed-trail-lime { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+      .speed-trail-pink { fill: none; stroke: #FF0055; stroke-width: 3; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="group-runners-item-sticker">
+    <!-- Motion Speed Trails Behind Group -->
+    <path class="speed-trail-cyan" d="M 40,250 C 90,230 160,240 220,210" />
+    <path class="speed-trail-lime" d="M 20,290 C 70,270 140,280 200,250" />
+    <path class="speed-trail-pink" d="M 60,340 C 110,320 180,330 250,300" />
+
+    <!-- Group Runners Silhouette Assembly -->
+    <g transform="translate(10, -10) rotate(-10, 250, 250)">
+      
+      <!-- RUNNER 1: Male Runner (Background / Left) -->
+      <g id="runner-male-back" transform="translate(-20, 20)">
+        <!-- Back Leg -->
+        <path class="skin-dark" d="M 170,280 C 130,310 90,345 50,380 C 40,390 55,402 70,392 C 110,355 150,320 190,295 Z" />
+        <path class="shoe-yellow" d="M 50,380 C 35,395 25,408 40,415 C 55,417 70,402 70,392 Z" />
+
+        <!-- Back Arm -->
+        <path class="skin-dark" d="M 180,180 C 140,200 100,225 75,250 C 68,258 80,266 88,258 C 110,236 150,212 188,195 Z" />
+
+        <!-- Torso & Activewear -->
+        <path class="top-purple" d="M 175,150 C 200,135 230,140 245,158 C 235,190 220,220 200,240 C 185,230 170,195 175,150 Z" />
+        <path class="bottom-cyan" d="M 200,240 C 218,225 235,225 245,238 C 252,258 228,285 212,288 C 195,280 190,255 200,240 Z" />
+
+        <!-- Front Leg -->
+        <path class="skin-dark" d="M 212,275 C 252,255 292,238 318,268 C 326,280 302,320 290,350 C 282,360 270,350 278,335 C 290,305 306,278 282,270 C 258,262 228,278 212,275 Z" />
+        <path class="shoe-yellow" d="M 290,350 C 285,368 292,385 310,380 C 322,375 318,358 305,346 Z" />
+
+        <!-- Head & Hair -->
+        <circle cx="210" cy="112" r="22" class="skin-dark" />
+        <path class="hair-dark" d="M 195,98 C 175,78 210,68 225,78 C 235,85 238,98 232,106 C 225,92 210,84 195,98 Z" />
+      </g>
+
+      <!-- RUNNER 2: Female Runner (Foreground / Right - Leading) -->
+      <g id="runner-female-front" transform="translate(30, 0)">
+        <!-- Back Leg -->
+        <path class="skin-light" d="M 220,270 C 160,300 100,340 50,380 C 40,390 55,405 70,395 C 120,350 180,310 240,285 Z" />
+        <path class="shoe-lime" d="M 50,380 C 35,395 25,410 40,418 C 55,420 70,405 70,395 Z" />
+
+        <!-- Back Arm -->
+        <path class="skin-light" d="M 230,160 C 180,180 130,210 100,240 C 92,248 105,258 115,250 C 145,225 195,195 240,175 Z" />
+
+        <!-- Torso & Activewear -->
+        <path class="top-pink" d="M 220,130 C 250,115 285,120 300,140 C 290,180 270,210 250,230 C 230,220 215,180 220,130 Z" />
+        <path class="bottom-lime" d="M 250,230 C 270,210 290,210 300,225 C 310,250 280,285 260,290 C 240,280 235,250 250,230 Z" />
+
+        <!-- Front Driving High-Knee Leg -->
+        <path class="skin-light" d="M 260,275 C 310,250 360,230 390,265 C 400,280 370,330 355,370 C 345,380 330,370 340,350 C 355,315 375,280 345,270 C 315,260 280,280 260,275 Z" />
+        <path class="shoe-lime" d="M 355,370 C 350,390 360,410 380,405 C 395,400 390,380 375,365 Z" />
+
+        <!-- Front Bent Arm -->
+        <path class="skin-light" d="M 265,145 C 305,170 345,200 325,230 C 315,240 295,225 308,210 C 320,192 288,170 255,155 Z" />
+        <!-- Wristband -->
+        <rect x="305" y="210" width="12" height="18" rx="5" fill="#00E5FF" stroke="#121212" stroke-width="2" transform="rotate(25, 305, 210)" />
+
+        <!-- Head & Swishing Ponytail -->
+        <circle cx="260" cy="85" r="26" class="skin-light" />
+        <path class="hair-maroon" d="M 240,70 C 190,40 140,60 110,85 C 150,105 190,95 245,90 C 270,88 280,70 260,65 Z" />
+        <!-- Visor -->
+        <path d="M 250,75 C 275,68 300,72 310,82 C 295,90 270,88 250,82 Z" fill="#CCFF00" stroke="#121212" stroke-width="2.5" />
+      </g>
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(410, 45) rotate(22) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Cyan Sparkle -->
+    <path class="sparkle-cyan" d="M 50,360 Q 70,360 70,340 Q 70,360 90,360 Q 70,360 70,380 Q 70,360 50,360 Z" />
+
+    <!-- Top Left Pink Sparkle -->
+    <path class="sparkle-pink" d="M 80,100 Q 100,100 100,80 Q 100,100 120,100 Q 100,100 100,120 Q 100,100 80,100 Z" />
+
+    <!-- Floating Sparkle Stars & Dots -->
+    <polygon class="star-white" transform="translate(435, 220) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(170, 35) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="455" cy="360" r="9" fill="#CCFF00" />
+    <circle cx="430" cy="390" r="5" fill="#00E5FF" />
+    <circle cx="95" cy="180" r="7" fill="#FF0055" />
+  </g>
+</svg>

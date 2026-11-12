@@ -21,7 +21,11 @@ export type StravaActivity = {
   startDate: string;
   distanceMeters: number;
   startLatLng: [number, number] | null;
-  polyline: string | null;
+  averageHeartrate: number | null;
+  maxHeartrate: number | null;
+  elevationGainMeters: number | null;
+  calories: number | null;
+  averageCadence: number | null;
 };
 
 export type StravaConnection = {
@@ -383,14 +387,15 @@ export async function saveStravaConnection(
 
 export async function loadStravaConnection(
   userId: string,
+  signal?: AbortSignal,
 ): Promise<StravaConnection | null> {
-  const { data, error } = await getSupabaseAdmin()
+  const query = getSupabaseAdmin()
     .from("strava_connections")
     .select(
       "user_id,athlete_id,status,access_token,refresh_token,expires_at,generation,operation_id,granted_scopes,credentials_uncertain",
     )
-    .eq("user_id", userId)
-    .maybeSingle();
+    .eq("user_id", userId);
+  const { data, error } = await (signal ? query.abortSignal(signal) : query).maybeSingle();
 
   if (error) {
     throw new Error("Strava storage is temporarily unavailable.");
@@ -535,14 +540,19 @@ function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
     start = coords as [number, number];
   }
 
-  const map = data.map ? record(data.map) : {};
-  const polyline = [map.polyline, map.summary_polyline].find(
-    (v) => typeof v === "string" && v.length > 0,
-  );
+  const metric = (name: string): number | null => {
+    const value = data[name];
 
-  if (typeof polyline === "string" && polyline.length > 1000000) {
-    throw new StravaError("invalid_provider_response");
-  }
+    if (value === undefined) {
+      return null;
+    }
+
+    if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+      throw new StravaError("invalid_provider_response");
+    }
+
+    return value;
+  };
 
   return {
     id: stravaId(data.id),
@@ -551,7 +561,11 @@ function normalizeActivity(value: unknown, athleteId?: string): StravaActivity {
     startDate: new Date(data.start_date).toISOString(),
     distanceMeters: data.distance,
     startLatLng: start,
-    polyline: typeof polyline === "string" ? polyline : null,
+    averageHeartrate: metric("average_heartrate"),
+    maxHeartrate: metric("max_heartrate"),
+    elevationGainMeters: metric("total_elevation_gain"),
+    calories: metric("calories"),
+    averageCadence: metric("average_cadence"),
   };
 }
 

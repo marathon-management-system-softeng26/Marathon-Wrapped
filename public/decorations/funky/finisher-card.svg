@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .badge-bg { fill: #FF0055; filter: drop-shadow(0px 8px 20px rgba(255, 0, 85, 0.4)); }
+      .badge-stroke { fill: none; stroke: #CCFF00; stroke-width: 6; stroke-linejoin: round; }
+      .star-accent { fill: #CCFF00; }
+      .text-heading { fill: #FFFFFF; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .text-highlight { fill: #CCFF00; font-family: 'Arial Black', 'Impact', sans-serif; font-weight: 900; text-anchor: middle; }
+      .sparkle { fill: #00E5FF; }
+      .bolt { fill: #FFD600; stroke: #1A1A1A; stroke-width: 3; stroke-linejoin: round; }
+      .circle-dot { fill: #FFFFFF; }
+    </style>
+  </defs>
+
+  <g id="finisher-badge" transform="translate(0, 0)">
+    <!-- Decorative Sparkles Background -->
+    <!-- Left Blue Sparkle -->
+    <path class="sparkle" d="M 70,180 Q 85,180 85,165 Q 85,180 100,180 Q 85,180 85,195 Q 85,180 70,180 Z" />
+    <!-- Right Blue Sparkle -->
+    <path class="sparkle" d="M 400,110 Q 415,110 415,95 Q 415,110 430,110 Q 415,110 415,125 Q 415,110 400,110 Z" />
+    <!-- Lime Dots -->
+    <circle class="star-accent" cx="95" cy="120" r="8" />
+    <circle class="star-accent" cx="410" cy="380" r="10" />
+    <circle class="circle-dot" cx="390" cy="405" r="5" />
+
+    <!-- Main Dynamic Badge Body (Slight Angle) -->
+    <g transform="rotate(-6, 250, 250)">
+      
+      <!-- Outer Neon Stroke Layer -->
+      <rect class="badge-stroke" x="65" y="125" width="370" height="250" rx="36" />
+      
+      <!-- Main Crimson/Pink Badge Fill -->
+      <rect class="badge-bg" x="65" y="125" width="370" height="250" rx="36" />
+
+      <!-- Top Mini Header Tag -->
+      <g transform="translate(250, 175)">
+        <!-- Small Pill Accent -->
+        <rect x="-70" y="-18" width="140" height="28" rx="14" fill="#000000" opacity="0.3" />
+        <text class="text-highlight" y="2" font-size="14" letter-spacing="3">SOEKARNO RUN</text>
+      </g>
+
+      <!-- Main "FINISHER" Bold Text -->
+      <text class="text-heading" x="250" y="255" font-size="58" letter-spacing="2">FINISHER</text>
+
+      <!-- Subtitle Stats / Quote -->
+      <text class="text-highlight" x="250" y="295" font-size="22" letter-spacing="1">YOU RAN THE WHOLE THING</text>
+      <text class="text-heading" x="250" y="325" font-size="15" opacity="0.9" letter-spacing="4">10.0 KM • 48:09</text>
+
+      <!-- Decorative Stars inside Badge -->
+      <!-- Left Yellow Star -->
+      <polygon class="star-accent" transform="translate(100, 165) scale(0.7)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+      <!-- Right Yellow Star -->
+      <polygon class="star-accent" transform="translate(380, 165) scale(0.7)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+
+    </g>
+
+    <!-- Top Right Floating Energy Lightning Bolt -->
+    <g transform="translate(365, 80) rotate(15)">
+      <polygon class="bolt" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Floating Star -->
+    <g transform="translate(60, 330) rotate(-12)">
+      <polygon class="star-accent" points="25,0 32,18 50,18 35,29 40,47 25,35 10,47 15,29 0,18 18,18" />
+    </g>
+  </g>
+</svg>

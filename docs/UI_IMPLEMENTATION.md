@@ -7,6 +7,7 @@ The supplied local Figma Make export is a read-only reference. Its source and po
 ## Flows
 
 - `/login`: Supabase password sign-in with same-origin writes and private responses.
+- `/register`: Supabase email/password account creation. Confirmed sessions enter the app immediately; projects with email confirmation enabled show an inbox handoff before login.
 - `/`: authorized runner selection; organizers see only their event scope.
 - `/wrapped/[runnerId]`: intro, distance/status, recorded splits, optional Strava context, BIB-mapped photos and export. Keyboard arrows, direct page buttons and horizontal swipes navigate. DNF/DNS and unpublished results retain honest missing statistics.
 - `/organizer`: event results plus atomic create/update of runner identity, eligibility, category, chip timing, splits, optional sample metrics and photo mappings. Failed saves preserve the draft and announce the rejection as an alert; successful saves use a separate status message. BIB stays immutable. Photo URLs must belong to this project's race-photos bucket.

@@ -1,7 +1,7 @@
 import {afterEach,describe,it,expect,vi} from "vitest";
 import {exportWrapped} from "@/lib/exportWrapped";
 import type {WrappedPayload} from "@/lib/wrappedPayload";
-const payload:WrappedPayload={status:"unavailable",runner:{runner_id:"missing",name:"Adi",bib_number:null},reason:"missing_result"};
+const payload:WrappedPayload={status:"unavailable",runner:{runner_id:"missing",name:"Adi",bib_number:null},reason:"missing_result",strava:{state:"disconnected",metrics:null},photos:[],warnings:[]};
 afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers();});
 describe("export failures",()=>{
  it("reports canvas unavailability without creating a download",async()=>{

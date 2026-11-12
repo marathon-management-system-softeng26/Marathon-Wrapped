@@ -14,41 +14,31 @@ export async function renderWrapped(
   if (!ctx) throw new Error("Image export is unavailable in this browser.");
   ctx.fillStyle = "#a61729";
   ctx.fillRect(0, 0, 1080, 1350);
-  ctx.fillStyle = "#fff6ec";
-  ctx.font = "700 32px sans-serif";
-  ctx.fillText(model.event, 72, 100, 936);
-  ctx.fillStyle = "#c8f02e";
-  ctx.font = '800 100px "Bricolage", sans-serif';
-  ctx.fillText("Your race,", 72, 245);
-  ctx.fillText("wrapped.", 72, 350);
+  ctx.fillStyle = "rgba(255, 246, 236, 0.1)";
+  ctx.font = '800 220px "Bricolage", sans-serif';
+  ctx.fillText("2027", 490, 250, 540);
   ctx.fillStyle = "#fff6ec";
   ctx.beginPath();
-  ctx.roundRect(72, 425, 936, 685, 32);
+  ctx.roundRect(145, 285, 790, 790, 34);
   ctx.fill();
-  ctx.fillStyle = "#7a051d";
-  ctx.font = '800 64px "Bricolage", sans-serif';
-  ctx.fillText(model.name, 120, 520, 840);
-  ctx.font = "500 28px sans-serif";
-  ctx.fillText(
-    `BIB ${model.bib ?? "unassigned"} · ${model.result}`,
-    120,
-    575,
-    840,
-  );
-  ctx.font = '800 120px "Bricolage", sans-serif';
-  ctx.fillText(model.distance, 120, 745, 840);
-  ctx.font="500 28px sans-serif";
-  ctx.fillText(model.distanceLabel,120,790,840);
-  ctx.font = '800 68px "Bricolage", sans-serif';
-  ctx.fillText(model.time, 120, 875);
-  ctx.fillText(model.pace, 570, 875, 390);
-  ctx.font = "500 28px sans-serif";
-  ctx.fillText("Finish time", 120, 925);
-  ctx.fillText("Average pace", 570, 925);
-  ctx.fillText(model.rank || model.result, 120, 1040, 840);
+  ctx.fillStyle = "#a61729";
+  ctx.textAlign = "center";
+  ctx.font = '800 34px "Bricolage", sans-serif';
+  ctx.fillText("MARATHON WRAPPED", 540, 380, 650);
+  const [distanceValue, distanceUnit = ""] = model.distance.split(" ");
+  ctx.font = '800 170px "Bricolage", sans-serif';
+  ctx.fillText(distanceValue, 540, 595, 650);
+  ctx.font = '800 112px "Bricolage", sans-serif';
+  ctx.fillText(distanceUnit, 540, 700, 650);
+  ctx.font = '700 31px "Bricolage", sans-serif';
+  ctx.fillText(`${model.time} · JAKARTA 2027`, 540, 820, 650);
+  ctx.fillText(`${model.pace} average pace`, 540, 875, 650);
+  ctx.fillText(`${model.name} · BIB ${model.bib ?? "unassigned"}`, 540, 975, 650);
+  ctx.fillText(model.result, 540, 1025, 650);
   ctx.fillStyle = "#fff6ec";
-  ctx.font = "700 29px sans-serif";
-  ctx.fillText("MARATHON WRAPPED · DEMO RACE DATA", 72, 1220, 936);
+  ctx.font = '700 28px "Bricolage", sans-serif';
+  ctx.fillText("SOEKARNO RUN · SYNTHETIC DEMO RACE DATA", 540, 1220, 936);
+  ctx.textAlign = "start";
 }
 export async function exportWrapped(payload: WrappedPayload) {
   const canvas = document.createElement("canvas");

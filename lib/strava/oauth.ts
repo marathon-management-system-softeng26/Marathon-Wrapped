@@ -2,7 +2,9 @@ import "server-only";
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "../auth/session";
+import { requireRunnerAccess } from "../auth/access";
 import { privateHeaders } from "../authHttp";
+import { isRunnerId } from "../runnerValidation";
 import {
   createStravaAuthorizationUrl,
   exchangeAuthorizationCode,
@@ -14,6 +16,7 @@ import {
 } from "./client";
 import { requireStravaOrigin } from "./http";
 import { stravaRpc } from "./store";
+import { enqueueRunnerStravaBackfill } from "./processing";
 
 const cookiePrefix = "strava_oauth_";
 const hash = (state: string) =>
@@ -48,10 +51,26 @@ function boundState(request: NextRequest) {
   return hash(state);
 }
 
-function outcome(status: string) {
-  const destination = new URL("/", stravaCallbackUrl());
+const outcomeCodes = new Set([
+  "already_connected", "connected", "cancelled", "disconnecting", "expired",
+  "failed", "in_progress", "invalid_state", "athlete_conflict", "insufficient_scope",
+  "invalid_callback", "invalid_id", "invalid_provider_response", "provider_unavailable",
+  "provider_rejected", "rate_limited", "authorization_revoked", "forbidden", "not_found",
+  "authorization_failed", "different_runner",
+  "import_failed",
+]);
 
-  destination.searchParams.set("strava", status);
+type RunnerOAuthAttempt = {
+  status: string;
+  runner_id: string | null;
+  return_path: string | null;
+  generation: string | null;
+};
+
+function outcome(status: string, returnPath = "/") {
+  const destination = new URL(returnPath, stravaCallbackUrl());
+
+  destination.searchParams.set("strava", outcomeCodes.has(status) ? status : "authorization_failed");
 
   const response = NextResponse.redirect(destination, 303);
 
@@ -61,19 +80,58 @@ function outcome(status: string) {
   return response;
 }
 
+async function enqueueBackfillWithRetry(userId: string, runnerId: string): Promise<boolean> {
+  try {
+    await enqueueRunnerStravaBackfill(userId, runnerId);
+    return true;
+  } catch {
+    try {
+      await enqueueRunnerStravaBackfill(userId, runnerId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
 export async function connectStrava(request: NextRequest) {
   requireStravaOrigin(request);
 
   const user = await requireUser();
+  let form: FormData;
+
+  try {
+    form = await request.formData();
+  } catch {
+    throw new StravaError("invalid_runner", 400);
+  }
+
+  const runners = form.getAll("runnerId");
+  const runner = runners[0];
+
+  if (runners.length !== 1 || typeof runner !== "string" || !isRunnerId(runner)) {
+    throw new StravaError("invalid_runner", 400);
+  }
+
+  const runnerId = runner.toLowerCase();
+
+  await requireRunnerAccess(user.id, runnerId);
+
+  const returnPath = `/wrapped/${runnerId}`;
   const callback = validateStravaConfiguration();
   const state = crypto.randomBytes(32).toString("hex");
-  const result = await stravaRpc<string>("strava_begin_oauth", {
+  const result = await stravaRpc<string>("strava_begin_runner_oauth", {
     p_user: user.id,
+    p_runner: runnerId,
     p_hash: hash(state),
+    p_return_path: returnPath,
   });
 
   if (result !== "ready") {
-    return outcome(result);
+    if (result === "already_connected" && !await enqueueBackfillWithRetry(user.id, runnerId)) {
+      return outcome("import_failed", returnPath);
+    }
+    return outcome(result, returnPath);
   }
 
   const response = NextResponse.redirect(
@@ -130,13 +188,35 @@ export async function cancelStravaAuthorization(request: NextRequest) {
 export async function finishStravaAuthorization(request: NextRequest) {
   const user = await requireUser();
   const stateHash = boundState(request);
-  const result = await stravaRpc<string>("strava_claim_oauth", {
+  const attempt = await stravaRpc<RunnerOAuthAttempt>("strava_claim_runner_oauth", {
     p_user: user.id,
     p_hash: stateHash,
   });
 
-  if (result !== "claimed") {
-    return outcome(result === "processing" ? "in_progress" : result);
+  // Missing/removed access has no trusted recap destination. Never recover it from the URL.
+  if (attempt?.status === "invalid_state" && attempt.runner_id === null && attempt.return_path === null) {
+    return outcome("invalid_state");
+  }
+
+  if (
+    !attempt || typeof attempt.runner_id !== "string" || !isRunnerId(attempt.runner_id) ||
+    attempt.return_path !== `/wrapped/${attempt.runner_id}`
+  ) {
+    throw new StravaError("invalid_state", 400);
+  }
+
+  const returnPath = attempt.return_path;
+  const complete = (result: string) => {
+    const response = outcome(result, returnPath);
+    response.cookies.set(cookiePrefix + stateHash, "", { ...cookieOptions, maxAge: 0 });
+    return response;
+  };
+
+  if (attempt.status !== "claimed") {
+    if (attempt.status === "connected" && !await enqueueBackfillWithRetry(user.id, attempt.runner_id)) {
+      return complete("import_failed");
+    }
+    return complete(attempt.status === "processing" ? "in_progress" : attempt.status);
   }
 
   const params = request.nextUrl.searchParams;
@@ -175,19 +255,23 @@ export async function finishStravaAuthorization(request: NextRequest) {
         p_hash: stateHash,
       });
 
-      return outcome(error instanceof StravaError ? error.code : "authorization_failed");
+      return outcome(error instanceof StravaError ? error.code : "authorization_failed", returnPath);
     }
 
     try {
       status = await saveStravaConnection(user.id, tokens, stateHash);
     } catch {
-      status = await saveStravaConnection(user.id, tokens, stateHash);
+      try {
+        status = await saveStravaConnection(user.id, tokens, stateHash);
+      } catch {
+        return complete("authorization_failed");
+      }
     }
   }
 
-  const response = outcome(status);
+  if (status === "connected" && !await enqueueBackfillWithRetry(user.id, attempt.runner_id)) {
+    return complete("import_failed");
+  }
 
-  response.cookies.set(cookiePrefix + stateHash, "", { ...cookieOptions, maxAge: 0 });
-
-  return response;
+  return complete(status);
 }

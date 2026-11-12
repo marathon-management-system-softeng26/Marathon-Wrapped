@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     return Response.json(
       { status },
       {
-        status: status === "disconnected" ? 200 : 202,
+        status: status === "disconnected" ? 200 : status === "reauthorize_to_disconnect" ? 409 : 202,
         headers: privateHeaders,
       },
     );
