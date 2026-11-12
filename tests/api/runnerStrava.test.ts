@@ -65,7 +65,7 @@ beforeEach(() => {
   tables = {
     runner_access: [{ user_id: "user", runner_id: runnerId }],
     strava_oauth_attempts: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "connected" }],
-    strava_runner_attachments: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "active", created_at: "first" }],
+    strava_runner_attachments: [{ user_id: "user", generation: "generation", runner_id: runnerId, status: "active", created_at: "first", attachment_id: "first" }],
     strava_connections: [{ user_id: "user", generation: "generation", status: "active", athlete_id: "123",
       access_token: "private-token", refresh_token: null, credentials_uncertain: false, granted_scopes: ["activity:read_all"] }],
     strava_activity_candidates: [], strava_activities: [], strava_runner_activities: [], strava_live_metrics: [], strava_jobs: [],
@@ -99,7 +99,7 @@ beforeEach(() => {
       if (!tables.runner_access.some((row) => row.user_id === args.p_user && row.runner_id === args.p_runner)) return { data: "forbidden" };
       if (tables.strava_connections[0]?.status !== "active") return { data: "connection_required" };
       if (!tables.strava_runner_attachments.some((row) => row.runner_id === args.p_runner)) {
-        tables.strava_runner_attachments.push({ user_id: args.p_user, runner_id: args.p_runner, generation: "generation", status: "active", created_at: "second" });
+        tables.strava_runner_attachments.push({ user_id: args.p_user, runner_id: args.p_runner, generation: "generation", status: "active", created_at: "second", attachment_id: "second" });
       }
       return { data: "attached" };
     }
@@ -162,7 +162,7 @@ describe("runner Strava access and safe states", () => {
   });
   it("detaches only the requested runner and preserves the other snapshot", async () => {
     tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
-    tables.strava_runner_attachments.push({ user_id: "user", generation: "generation", runner_id: otherRunner, status: "active", created_at: "second" });
+    tables.strava_runner_attachments.push({ user_id: "user", generation: "generation", runner_id: otherRunner, status: "active", created_at: "second", attachment_id: "second" });
     tables.strava_wrapped_snapshots = [{ runner_id: runnerId }, { runner_id: otherRunner }];
     expect(await processing.detachRunnerFromStrava("user", runnerId)).toBe("detached");
     expect(tables.strava_wrapped_snapshots).toEqual([{ runner_id: otherRunner }]);
@@ -174,7 +174,7 @@ describe("runner Strava access and safe states", () => {
     beforeRead = (table) => {
       if (table === "strava_live_metrics") {
         if (change === "detached") tables.strava_runner_attachments = [];
-        else tables.strava_runner_attachments[0].created_at = "replacement";
+        else tables.strava_runner_attachments[0].attachment_id = "replacement";
       }
     };
     const result = await safe(await GET(request(), context()));
@@ -395,9 +395,10 @@ describe("runner Strava confirmation", () => {
     candidate(); tables.strava_connections[0].status = status;
     await safe(await PUT(request("PUT", { activityId: "10" }), context()), 409); expect(selectionCalls).toHaveLength(0);
   });
-  it.each([["obsolete", 409], ["forbidden", 404], ["invalid_candidate", 409], ["private-payload", 503]])("maps atomic selection result %s safely", async (outcome, status) => {
+  it.each([["obsolete", 409], ["forbidden", 404], ["invalid_candidate", 409], ["activity_already_selected", 409], ["private-payload", 503]])("maps atomic selection result %s safely", async (outcome, status) => {
     candidate(); selectionOutcome = outcome as string;
-    await safe(await PUT(request("PUT", { activityId: "10" }), context()), status as number);
+    const body = await safe(await PUT(request("PUT", { activityId: "10" }), context()), status as number);
+    if (outcome === "activity_already_selected") expect(body).toEqual({ error: "activity_already_selected" });
   });
 });
 

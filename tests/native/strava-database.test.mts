@@ -77,6 +77,47 @@ test(
       for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-wrapped-snapshots"]) {
         await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
       }
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_attachment_incarnation_fences.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      const [fenceSetup, ...fenceCases] = (await readFile("tests/sql/strava-multi-runner-fences.sql", "utf8")).split("-- CASE ");
+      await db.exec(fenceSetup);
+      const fenceErrors: string[] = [];
+      for (const scenario of fenceCases) {
+        const newline = scenario.indexOf("\n");
+        await db.exec("begin");
+        try { await db.exec(scenario.slice(newline)); }
+        catch (error) { fenceErrors.push(`${scenario.slice(0, newline)}: ${(error as Error).message}`); }
+        finally { await db.exec("rollback"); }
+      }
+      assert.deepEqual(fenceErrors, [], "Attachment regression cases");
+
+      // Hold a token exchange across a committed detach, then deliver its grant
+      // through the actual completion RPC. This is a pending async operation,
+      // not merely a terminal callback replay or an expired attempt fixture.
+      await db.exec("begin");
+      try {
+        const fixture = (await db.query("select pg_temp.runner_fence_fixture() as fixture")).rows[0].fixture;
+        await db.query("delete from public.strava_connections where user_id=$1", [fixture.u]);
+        await db.query("select public.strava_begin_runner_oauth($1,$2,'async-exchange',$3)", [fixture.u, fixture.a, `/wrapped/${fixture.a}`]);
+        await db.query("select public.strava_claim_runner_oauth($1,'async-exchange')", [fixture.u]);
+        let deliver!: (value: string) => void;
+        const providerResponse = new Promise<string>((resolve) => { deliver = resolve; });
+        const callback = (async () => {
+          const tokens = await providerResponse;
+          return db.query("select public.strava_finish_oauth($1,'async-exchange',$2::jsonb) as outcome", [fixture.u, tokens]);
+        })();
+        await db.query("select public.strava_detach_runner($1,$2)", [fixture.u, fixture.a]);
+        deliver(JSON.stringify({ athlete_id: "900", access_token: "encrypted", refresh_token: "encrypted", expires_at: "2030-01-01T00:00:00Z", scopes: ["activity:read_all"] }));
+        assert.equal((await callback).rows[0].outcome, "cancelled");
+        const cleanup = await db.query("select c.status, c.refresh_token, exists(select 1 from public.strava_jobs j where j.user_id=c.user_id and kind='revoke') as revoke from public.strava_connections c where user_id=$1", [fixture.u]);
+        assert.deepEqual(cleanup.rows, [{ status: "disconnecting", refresh_token: "encrypted", revoke: true }]);
+      } finally { await db.exec("rollback"); }
+
+      for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-wrapped-snapshots", "strava-multi-runner"]) {
+        await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
+      }
 
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
