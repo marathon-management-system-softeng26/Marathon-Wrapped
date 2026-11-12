@@ -1,10 +1,40 @@
 import "server-only";
 import { getSupabaseAdmin } from "../supabaseServer";
+import type { StravaActivity } from "./client";
 import { validateRaceMatchConfig, type RaceMatchConfig } from "./matching";
 
 export type RunnerRaceConfig = { runnerId: string; config: RaceMatchConfig };
 
 export type StravaRunnerAttachment = { runner_id: string; created_at: string; attachment_id: string };
+
+export type StoredStravaActivity = Omit<StravaActivity, "startLatLng"> & { gpsAvailable: boolean };
+
+export function toStoredStravaActivity(activity: StravaActivity): StoredStravaActivity {
+  return {
+    id: activity.id,
+    athleteId: activity.athleteId,
+    sportType: activity.sportType,
+    startDate: activity.startDate,
+    distanceMeters: activity.distanceMeters,
+    movingTimeSeconds: activity.movingTimeSeconds,
+    elapsedTimeSeconds: activity.elapsedTimeSeconds,
+    averageSpeedMps: activity.averageSpeedMps,
+    maxSpeedMps: activity.maxSpeedMps,
+    metricSplits: activity.metricSplits?.map((split) => ({
+      kilometer: split.kilometer,
+      elapsedSeconds: split.elapsedSeconds,
+      movingSeconds: split.movingSeconds,
+      distanceMeters: split.distanceMeters,
+      averageSpeedMps: split.averageSpeedMps,
+    })) ?? null,
+    averageHeartrate: activity.averageHeartrate,
+    maxHeartrate: activity.maxHeartrate,
+    elevationGainMeters: activity.elevationGainMeters,
+    calories: activity.calories,
+    averageCadence: activity.averageCadence,
+    gpsAvailable: activity.startLatLng !== null,
+  };
+}
 
 /** Consent survives OAuth history cleanup, but never a detach or generation change. */
 export async function loadStravaRunnerAttachments(userId: string, generation: string, signal?: AbortSignal): Promise<StravaRunnerAttachment[]> {

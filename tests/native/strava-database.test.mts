@@ -129,6 +129,15 @@ test(
         assert.deepEqual(cleanup.rows, [{ status: "disconnecting", refresh_token: "encrypted", revoke: true }]);
       } finally { await db.exec("rollback"); }
 
+      const [legacyLocation, verifyLocation] = (await readFile("tests/sql/strava-activity-location-privacy.sql", "utf8"))
+        .split("-- AFTER MIGRATION");
+      await db.exec(legacyLocation);
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_activity_location_privacy.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec(verifyLocation);
+
       for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-wrapped-snapshots", "strava-multi-runner"]) {
         await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
       }

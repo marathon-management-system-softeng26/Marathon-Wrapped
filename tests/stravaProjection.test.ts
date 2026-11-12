@@ -124,6 +124,19 @@ describe("buildStravaWrappedProjection", () => {
     expect(result.paceTrend).toEqual({ direction: "even", earlyPaceSecondsPerKm: 300, latePaceSecondsPerKm: 300 });
   });
 
+  it.each([1010.1, 1500])("excludes a %s-meter split from kilometer insights", (distanceMeters) => {
+    const metricSplits = [
+      { kilometer: 1, distanceMeters: 1000, movingSeconds: 310, elapsedSeconds: 320, averageSpeedMps: null },
+      { kilometer: 2, distanceMeters: 1010, movingSeconds: 303, elapsedSeconds: 310, averageSpeedMps: null },
+      { kilometer: 3, distanceMeters, movingSeconds: 250, elapsedSeconds: 270, averageSpeedMps: null },
+    ];
+    const result = buildStravaWrappedProjection({ ...activity, metricSplits }, context);
+
+    expect(result.splits).toHaveLength(3);
+    expect(result.fastestKilometer).toEqual({ kilometer: 2, paceSecondsPerKm: 300 });
+    expect(result.paceTrend).toEqual({ direction: "faster", earlyPaceSecondsPerKm: 310, latePaceSecondsPerKm: 300 });
+  });
+
   it("omits trend for incomplete kilometer sequences and omits pace for zero moving time", () => {
     const splits = [activity.metricSplits[0], activity.metricSplits[2], {
       kilometer: 4, distanceMeters: 1000, movingSeconds: 0, elapsedSeconds: 150, averageSpeedMps: null,

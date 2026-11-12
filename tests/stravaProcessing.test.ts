@@ -77,11 +77,14 @@ const job = {
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
 const otherRunner = "22222222-2222-2222-2222-222222222222";
-const raceActivity = {
+const raceMetrics = {
   id: "1", athleteId: "2", sportType: "Run", startDate: "2027-08-17T01:00:00Z",
-  distanceMeters: 5000, startLatLng: [-6.2, 106.8], averageHeartrate: 145.5,
+  distanceMeters: 5000, movingTimeSeconds: 1480, elapsedTimeSeconds: 1520,
+  averageSpeedMps: 3.378, maxSpeedMps: 4.4, metricSplits: null, averageHeartrate: 145.5,
   maxHeartrate: null, elevationGainMeters: 0, calories: null, averageCadence: 80.5,
 };
+const raceActivity = { ...raceMetrics, startLatLng: [-6.2, 106.8] };
+const storedRaceActivity = { ...raceMetrics, gpsAvailable: true };
 const raceConfig = {
   category_id: 7, start_time_from: "2027-08-17T00:00:00Z", start_time_to: "2027-08-17T02:00:00Z",
   start_latitude: -6.2, start_longitude: 106.8, start_radius_m: 100,
@@ -150,6 +153,26 @@ describe("Strava processing", () => {
     expect(commit.p_runner_candidates.map((batch: { runner_id: string }) => batch.runner_id)).toEqual([otherRunner]);
   });
 
+  it.each([
+    [storedRaceActivity, [-6.2, 106.8], "auto_match", "race_checks_passed"],
+    [raceActivity, [-6.3, 106.8], "no_match", "outside_start_area"],
+  ])("classifies scoped discovery using fresh location instead of stored detail", async (cached, coordinates, status, reason) => {
+    configuredRunner();
+    const normal = mocks.rows.getMockImplementation()!;
+    mocks.rows.mockImplementation((table, filters, single) => table === "strava_activities"
+      ? Promise.resolve({ data: { activity: cached } }) : normal(table, filters, single));
+    mocks.activity.mockResolvedValue({ ...raceActivity, startLatLng: coordinates });
+    claim({ ...job, kind: "activity", payload: { object_id: "1", owner_id: "2", runner_id: runnerId } });
+
+    await processStravaJobs();
+
+    expect(mocks.activity).toHaveBeenCalledWith("access", "1", "2");
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_runner_candidates[0].candidates).toEqual([
+      expect.objectContaining({ match_status: status, reason }),
+    ]);
+  });
+
   it("suppresses a genuinely in-flight shared webhook after detach and reattach", async () => {
     configuredRunner();
     const normal = mocks.rows.getMockImplementation()!;
@@ -185,7 +208,7 @@ describe("Strava processing", () => {
     const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
     expect(commit.p_runner_candidates[0].candidates).toEqual([expect.objectContaining({ activity_id: "1", match_status: "no_match" })]);
     expect(commit.p_runner_candidates[1].candidates).toEqual([expect.objectContaining({ activity_id: "1", match_status: "auto_match" })]);
-    expect(commit.p_activities).toEqual([{ id: "1", activity: raceActivity }]);
+    expect(commit.p_activities).toEqual([{ id: "1", activity: storedRaceActivity }]);
   });
 
   it("classifies a webhook for both explicitly attached owned runners", async () => {
@@ -399,10 +422,33 @@ describe("Strava processing", () => {
         p_job: "job",
         p_lease: "lease",
         p_activities: [
-          { id: "1", activity: raceActivity },
+          { id: "1", activity: storedRaceActivity },
         ],
       }),
     );
+  });
+
+  it("matches on exact GPS and sends only allowlisted activity fields to storage", async () => {
+    configuredRunner();
+    const split = { kilometer: 1, distanceMeters: 1000, movingSeconds: 300, elapsedSeconds: 304, averageSpeedMps: null };
+    const privateFields = {
+      coordinates: [1.2345, 6.789], route: {}, polyline: "private-route",
+      accessToken: "private-token", rawPayload: { start_latlng: [1.2345, 6.789] },
+    };
+    mocks.activity.mockResolvedValue({
+      ...raceActivity, ...privateFields,
+      metricSplits: [{ ...split, ...privateFields }],
+    });
+    claim();
+
+    await processStravaJobs();
+
+    const commit = mocks.rpc.mock.calls.find(([name]) => name === "strava_commit_runner_job")![1];
+    expect(commit.p_runner_candidates[0].candidates).toEqual([
+      expect.objectContaining({ match_status: "auto_match", reason: "race_checks_passed" }),
+    ]);
+    expect(commit.p_activities).toEqual([{ id: "1", activity: { ...storedRaceActivity, metricSplits: [split] } }]);
+    expect(JSON.stringify(commit)).not.toMatch(/"(?:startLatLng|start_latlng|coordinates|route|polyline|accessToken|rawPayload)"|-6\.2|106\.8/);
   });
 
   it("ignores obsolete connection generations", async () => {

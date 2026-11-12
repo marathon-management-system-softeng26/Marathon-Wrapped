@@ -31,7 +31,7 @@ const request = (method = "GET", body?: unknown, requestOrigin = origin) => new 
 });
 const detail = (id = "10", gps = true): Row => ({
   id, athleteId: "123", sportType: "Run", startDate: "2027-08-17T00:15:00Z", distanceMeters: 5000,
-  startLatLng: gps ? [-6.234567, 106.876543] : null,
+  gpsAvailable: gps,
   averageHeartrate: 145.5, maxHeartrate: null, elevationGainMeters: 0, calories: null, averageCadence: 80.5,
   polyline: "private-polyline", raw: "private-payload", access_token: "private-token",
 });

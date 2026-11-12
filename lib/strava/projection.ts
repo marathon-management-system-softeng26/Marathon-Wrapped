@@ -38,8 +38,9 @@ export type StravaWrappedSnapshotV1 = {
   averageCadence: number | null;
 };
 
-// Metric splits can be slightly short of a kilometer in Strava's measurements.
+// Allow one percent of measurement variation around a full kilometer.
 const MIN_FULL_KILOMETER_METERS = 990;
+const MAX_FULL_KILOMETER_METERS = 1010;
 
 function pace(seconds: number, meters: number): number | null {
   if (seconds <= 0 || meters <= 0) return null;
@@ -84,7 +85,7 @@ function buildPaceTrend(kilometers: WrappedSplit[]): PaceTrend | null {
 }
 
 export function buildStravaWrappedProjection(
-  activity: StravaActivity,
+  activity: Omit<StravaActivity, "startLatLng">,
   context: RunnerProjectionContext,
 ): StravaWrappedSnapshotV1 {
   // Activity detail cached before timing normalization needs to be fetched again.
@@ -100,7 +101,8 @@ export function buildStravaWrappedProjection(
     averageSpeedMps: split.averageSpeedMps,
     paceSecondsPerKm: displayPace(split.movingSeconds, split.distanceMeters),
   }));
-  const kilometers = splits.filter((split) => split.distanceMeters >= MIN_FULL_KILOMETER_METERS);
+  const kilometers = splits.filter((split) =>
+    split.distanceMeters >= MIN_FULL_KILOMETER_METERS && split.distanceMeters <= MAX_FULL_KILOMETER_METERS);
   let fastestKilometer: KilometerPace | null = null;
   let slowestKilometer: KilometerPace | null = null;
   let fastestPace = Infinity;

@@ -10,12 +10,18 @@ import {
   loadStravaConnection,
   revokeStravaAccess,
   StravaConnection,
-  StravaActivity,
   StravaError,
   stravaId,
   verifyStravaAuthorization,
 } from "./client";
-import { loadRunnerRaceConfigs, loadStravaRunnerAttachment, loadStravaRunnerAttachments, stravaRpc } from "./store";
+import {
+  loadRunnerRaceConfigs,
+  loadStravaRunnerAttachment,
+  loadStravaRunnerAttachments,
+  stravaRpc,
+  toStoredStravaActivity,
+  type StoredStravaActivity,
+} from "./store";
 import { matchActivityToRace } from "./matching";
 
 export type StravaWebhookEvent = {
@@ -281,15 +287,7 @@ export async function processActivityEvent(
 
   const attachments = await currentJobAttachments(job);
   if (!attachments?.length) return [];
-  if (job.kind === "activity" && typeof job.payload.runner_id === "string") {
-    // Discovery uses the current stored detail when another registration already
-    // imported it. Shared webhooks refresh and reclassify that detail for everyone.
-    const { data, error } = await getSupabaseAdmin().from("strava_activities").select("activity")
-      .eq("user_id", job.user_id).eq("generation", job.generation).eq("activity_id", String(event.object_id)).maybeSingle();
-    if (error) throw new Error("Strava storage is temporarily unavailable.");
-    if (data?.activity) return [{ id: String(event.object_id), activity: data.activity as StravaActivity }];
-  }
-
+  // Exact GPS is only available from the provider, including for scoped discovery.
   try {
     const activity = await withAccess(connection, (access) =>
       getStravaActivity(access, String(event.object_id), connection.athlete_id!),
@@ -530,11 +528,14 @@ export async function processStravaJobs(limit = 10): Promise<void> {
       }));
       // Null is a minimal invalidation: SQL removes any prior snapshot/selection
       // and does not create rows for unrelated workouts never retained here.
-      activities = activities.map(({ id, activity }) => ({ id, activity: retained.has(id) ? activity : null }));
+      const storedActivities = activities.map(({ id, activity }) => ({
+        id,
+        activity: activity && retained.has(id) ? toStoredStravaActivity(activity) : null,
+      }));
       await stravaRpc("strava_commit_runner_job", {
         p_job: job.id,
         p_lease: job.lease_id,
-        p_activities: activities,
+        p_activities: storedActivities,
         p_continuation: continuation,
         p_discoveries: discoveries,
         p_runner_candidates: runnerCandidates,
@@ -641,7 +642,7 @@ const emptyRunnerState = (status: RunnerStravaRoute["status"]): RunnerStravaRout
 
 type CandidateRow = { activity_id: string; match_status: string; reason: string };
 
-function safeCandidate(row: CandidateRow, activity: StravaActivity, athleteId: string): RunnerStravaCandidate | null {
+function safeCandidate(row: CandidateRow, activity: StoredStravaActivity, athleteId: string): RunnerStravaCandidate | null {
   if (activity.id !== row.activity_id || activity.athleteId !== athleteId || activity.sportType !== "Run" ||
     !/^[1-9]\d{0,18}$/.test(activity.id) || !Number.isFinite(activity.distanceMeters) || activity.distanceMeters < 0 ||
     !Number.isFinite(Date.parse(activity.startDate))) return null;
@@ -650,9 +651,7 @@ function safeCandidate(row: CandidateRow, activity: StravaActivity, athleteId: s
   const knownReasons = ["race_checks_passed", "missing_start_location", "missing_configured_location"];
   return {
     activityId: activity.id, startTimeLocal: local, distanceMeters: activity.distanceMeters,
-    sportType: "Run", gpsAvailable: Array.isArray(activity.startLatLng) && activity.startLatLng.length === 2 &&
-      activity.startLatLng.every((coordinate) => typeof coordinate === "number" && Number.isFinite(coordinate)) &&
-      Math.abs(activity.startLatLng[0]) <= 90 && Math.abs(activity.startLatLng[1]) <= 180,
+    sportType: "Run", gpsAvailable: activity.gpsAvailable === true,
     matchReason: knownReasons.includes(row.reason) ? row.reason : "confirmation_required",
   };
 }
@@ -696,8 +695,8 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
     scoped("strava_activities", "activity_id,activity").in("activity_id",
       candidateRows.slice(index * batchSize, (index + 1) * batchSize).map((row) => row.activity_id))));
   if (details.some((result) => result.error)) throw new Error("Strava storage is temporarily unavailable.");
-  const activities = new Map<string, StravaActivity>(details.flatMap((result) => result.data ?? []).flatMap((row) =>
-    row.activity ? [[row.activity_id, row.activity as StravaActivity] as const] : []));
+  const activities = new Map<string, StoredStravaActivity>(details.flatMap((result) => result.data ?? []).flatMap((row) =>
+    row.activity ? [[row.activity_id, row.activity as StoredStravaActivity] as const] : []));
   const candidates: RunnerStravaCandidate[] = candidateRows.flatMap((row) => {
     const activity = activities.get(row.activity_id);
     const summary = activity ? safeCandidate(row, activity, active.athlete_id!) : null;
@@ -743,7 +742,7 @@ export async function confirmRunnerStravaActivity(userId: string, runnerId: stri
       .eq("generation", connection.generation).eq("activity_id", activityId).maybeSingle(),
   ]);
   if (candidate.error || detail.error) throw new Error("Strava storage is temporarily unavailable.");
-  const activity = detail.data?.activity as StravaActivity | undefined;
+  const activity = detail.data?.activity as StoredStravaActivity | undefined;
   if (!candidate.data || !activity || !safeCandidate(candidate.data, activity, connection.athlete_id!)) {
     throw new StravaError("invalid_candidate", 409);
   }
