@@ -463,7 +463,7 @@ export async function getUserStravaAccessToken(
       Date.parse(claimed.expires_at) > Date.now() + 60000 &&
       claimed.access_token
     ) {
-      const active = await stravaRpc<boolean>(project ? "strava_finish_project_refresh" : "strava_finish_refresh", {
+      const active = await stravaRpc<boolean>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
         ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
         p_user: userId,
         p_operation: claimed.operation_id,
@@ -486,12 +486,13 @@ export async function getUserStravaAccessToken(
         error.code,
       );
 
-    await stravaRpc(project ? "strava_finish_project_refresh" : "strava_finish_refresh", {
+    await stravaRpc(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
       ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
       p_user: userId,
       p_operation: claimed.operation_id,
       p_generation: claimed.generation,
-      p_reauth: !safeRetry,
+      p_reauth: !safeRetry && !(project && error instanceof StravaError && error.code === "authorization_revoked"),
+      ...(project ? { p_revoked: error instanceof StravaError && error.code === "authorization_revoked" } : {}),
       p_uncertain: uncertain,
     });
 
@@ -499,7 +500,7 @@ export async function getUserStravaAccessToken(
   }
 
   // If storage fails, keep the operation fenced. Re-exchanging an old rotating token is unsafe.
-  const saved = await stravaRpc<boolean>(project ? "strava_finish_project_refresh" : "strava_finish_refresh", {
+  const saved = await stravaRpc<boolean>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
     ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
     p_user: userId,
     p_operation: claimed.operation_id,

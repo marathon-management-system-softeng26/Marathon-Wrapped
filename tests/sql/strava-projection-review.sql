@@ -225,3 +225,92 @@ begin
   perform public.strava_commit_projection_refresh_fenced((j->>'id')::uuid,(j->>'lease_id')::uuid,'[]',null,'[]','[]',ctx);
   assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='pending');
 end $$;
+-- CASE stale uncertain credential result blocks another refresh
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb; claim jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job(); claim:=public.strava_claim_project_credentials(u,'refresh',(j->>'id')::uuid,(j->>'lease_id')::uuid);
+  perform public.strava_enqueue_projection(u,g,a,'10');
+  perform public.strava_finish_project_refresh(u,(claim->>'operation_id')::uuid,g,null,true,true,(j->>'id')::uuid,(j->>'lease_id')::uuid);
+  assert exists(select 1 from public.strava_connections where user_id=u and status='active' and credentials_uncertain);
+  assert public.strava_claim_credentials(u,'refresh') is null, 'uncertain credentials cannot be refreshed';
+  delete from public.strava_jobs where id=(j->>'id')::uuid;
+  j:=public.strava_claim_projection_aware_job();
+  assert public.strava_claim_project_credentials(u,'refresh',(j->>'id')::uuid,(j->>'lease_id')::uuid) is null, 'uncertain credentials cannot be refreshed by a new project';
+end $$;
+-- CASE null operation cannot update credentials
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid;
+begin
+  assert not public.strava_finish_refresh(u,null,g,'{"access_token":"injected"}',false,false), 'null operation cannot finish';
+  assert (select access_token is null from public.strava_connections where user_id=u);
+end $$;
+-- CASE null projection lease cannot discard job
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j uuid;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  update public.strava_jobs set status='processing',lease_id=null,lease_until=now()+interval '1 minute' where user_id=u and kind='project' returning id into j;
+  assert not public.strava_discard_projection_job(j,null), 'null lease must not discard';
+  assert exists(select 1 from public.strava_jobs where id=j and status='processing');
+end $$;
+-- CASE current invalid refresh terminal transition clears connection atomically
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb; claim jsonb;
+begin
+  update public.strava_connections set access_token='access',refresh_token='refresh' where user_id=u;
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job(); claim:=public.strava_claim_project_credentials(u,'refresh',(j->>'id')::uuid,(j->>'lease_id')::uuid);
+  perform public.strava_finish_project_refresh_v2(u,(claim->>'operation_id')::uuid,g,null,false,false,(j->>'id')::uuid,(j->>'lease_id')::uuid,true);
+  assert exists(select 1 from public.strava_connections where user_id=u and status='disconnected' and access_token is null and refresh_token is null);
+  assert not exists(select 1 from public.strava_wrapped_snapshots where runner_id=a);
+end $$;
+-- CASE held pre-cutover generic body cannot change project or connection
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  j:=public.strava_claim_projection_aware_job();
+  begin
+    perform public.strava_commit_job_internal((j->>'id')::uuid,(j->>'lease_id')::uuid,p_error=>'reauth_required',p_reauth=>true);
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.strava_commit_job_internal((j->>'id')::uuid,(j->>'lease_id')::uuid,p_error=>'rate_limited',p_delay=>60);
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.strava_commit_job_internal((j->>'id')::uuid,(j->>'lease_id')::uuid);
+  exception when insufficient_privilege then null; end;
+  assert exists(select 1 from public.strava_connections where user_id=u and status='active' and rate_limited_until is null);
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='processing');
+end $$;
+-- CASE removed direct access cannot revoke the shared connection
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; b uuid:=(f->>'b')::uuid; j jsonb;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10'); j:=public.strava_claim_projection_aware_job();
+  delete from public.runner_access where user_id=u and runner_id=a;
+  perform public.strava_fail_projection_job((j->>'id')::uuid,(j->>'lease_id')::uuid,'authorization_revoked',null,false);
+  assert exists(select 1 from public.strava_connections where user_id=u and status='active');
+  assert exists(select 1 from public.strava_runner_attachments where user_id=u and runner_id=b and status='active');
+end $$;
+-- CASE lock fence uses nonwaiting registration locks
+do $$
+declare definition text:=pg_get_functiondef('public.strava_projection_context_matches(uuid,uuid,jsonb)'::regprocedure);
+begin
+  assert (length(definition)-length(replace(definition,'nowait','')))/length('nowait')>=5;
+end $$;
+-- CASE null generic project lease cannot be acknowledged
+do $$
+declare f jsonb:=pg_temp.runner_fence_fixture(); u uuid:=(f->>'u')::uuid; g uuid:=(f->>'g')::uuid; a uuid:=(f->>'a')::uuid; j uuid;
+begin
+  insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',pg_temp.fence_detail('10')->0->'activity');
+  perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates'); perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+  update public.strava_jobs set status='processing',lease_id=null,lease_until=now()+interval '1 minute' where user_id=u and kind='project' returning id into j;
+  assert not public.strava_commit_job(j,null), 'null lease must not be acknowledged';
+end $$;

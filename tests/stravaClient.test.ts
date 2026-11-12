@@ -138,8 +138,17 @@ describe("Strava client", () => {
     mocks.fetch.mockResolvedValue(new Response("", { status: 401 }));
     await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toThrow();
     expect(mocks.rpc).toHaveBeenCalledWith("strava_claim_project_credentials", expect.objectContaining({ p_job: "j", p_lease: "l" }));
-    expect(mocks.rpc).toHaveBeenCalledWith("strava_finish_project_refresh", expect.objectContaining({ p_job: "j", p_lease: "l", p_reauth: true }));
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_finish_project_refresh_v2", expect.objectContaining({ p_job: "j", p_lease: "l", p_reauth: true }));
     expect(mocks.rpc).not.toHaveBeenCalledWith("strava_finish_refresh", expect.anything());
+  });
+
+  it("defers an invalid project refresh-token terminal transition to the fenced worker", async () => {
+    const row = { user_id: "u", status: "active", generation: "g", operation_id: "op", expires_at: "2020-01-01T00:00:00Z", refresh_token: await encryptToken("refresh") };
+    mocks.connection.mockResolvedValue({ data: row });
+    mocks.rpc.mockImplementation(async (name) => name === "strava_claim_project_credentials" ? row : true);
+    mocks.fetch.mockResolvedValue(Response.json({ errors: [{ resource: "RefreshToken", code: "invalid" }] }, { status: 400 }));
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toMatchObject({ code: "authorization_revoked" });
+    expect(mocks.rpc).toHaveBeenCalledWith("strava_finish_project_refresh_v2", expect.objectContaining({ p_reauth: false, p_revoked: true, p_job: "j", p_lease: "l" }));
   });
 
   it("does not return a refreshed token when disconnect wins", async () => {
