@@ -9,9 +9,10 @@ import { GET, PUT } from "@/app/api/runners/[runnerId]/strava/route";
 import { POST as disconnect } from "@/app/api/strava/disconnect/route";
 import { AuthenticationError } from "@/lib/auth/session";
 import { getRunnerEnrichment } from "@/controllers/enrichmentController";
+import { encryptToken } from "@/lib/strava/client";
 import { getRunnerStravaRoute } from "@/lib/strava/processing";
 import * as processing from "@/lib/strava/processing";
-import { stravaViewModel } from "@/lib/strava/viewModel";
+import { routeToStrava, stravaViewModel } from "@/lib/strava/viewModel";
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
 const otherRunner = "22222222-2222-2222-2222-222222222222";
@@ -128,7 +129,10 @@ beforeEach(() => {
     return { data: true };
   });
 });
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 describe("runner Strava access and safe states", () => {
   it("uses durable attachments after callback history is removed", async () => {
@@ -331,6 +335,74 @@ describe("runner Strava access and safe states", () => {
     const body = await safe(await GET(request(), context()));
     expect(body.status).toBe("needs_confirmation"); expect(body.candidates[0].gpsAvailable).toBe(false);
   });
+  it("shows fresh scoped discovery details and GPS warnings with an older shared activity", async () => {
+    vi.stubEnv("STRAVA_ENCRYPTION_KEY", "01".repeat(32));
+    Object.assign(tables.strava_connections[0], {
+      access_token: await encryptToken("provider-access"), expires_at: new Date(Date.now() + 300_000).toISOString(),
+    });
+    tables.strava_activities.push({ user_id: "user", generation: "generation", activity_id: "10", activity: detail() });
+    tables.runners = [{ id: runnerId, category_id: 7 }];
+    tables.categories = [{ id: 7, distance_km: 5 }];
+    tables.strava_race_configs = [{
+      category_id: 7, start_time_from: "2027-08-17T00:00:00Z", start_time_to: "2027-08-17T02:00:00Z",
+      start_latitude: -6.2, start_longitude: 106.8, start_radius_m: 100, allowed_sport_types: ["Run"],
+    }];
+    const fetchActivity = vi.fn().mockResolvedValue(Response.json({
+      id: 10, athlete: { id: 123 }, sport_type: "Run", start_date: "2027-08-17T01:05:00Z",
+      distance: 5240, moving_time: 1600, elapsed_time: 1660, start_latlng: [],
+      map: { polyline: "private-polyline" },
+    }));
+    vi.stubGlobal("fetch", fetchActivity);
+    const defaultRpc = mocks.rpc.getMockImplementation()!;
+    mocks.rpc.mockImplementation(async (name: string, args: Row) => {
+      if (name === "strava_claim_job") return { data: {
+        id: "job", lease_id: "lease", user_id: "user", generation: "generation", kind: "activity", attempts: 1,
+        attachment_fences: { [runnerId]: "first" }, payload: { runner_id: runnerId, object_id: "10", owner_id: "123" },
+      } };
+      if (name === "strava_commit_runner_job") {
+        const [batch] = args.p_runner_candidates as { runner_id: string; candidates: Row[] }[];
+        // The real SQL preserves the shared row on a scoped job and commits this candidate.
+        tables.strava_activity_candidates.push(...batch.candidates.map((candidateRow) => ({
+          user_id: "user", generation: "generation", runner_id: batch.runner_id, ...candidateRow,
+        })));
+        return { data: true };
+      }
+      return defaultRpc(name, args);
+    });
+
+    await processing.processStravaJobs(1);
+
+    expect(fetchActivity).toHaveBeenCalledTimes(1);
+    expect(tables.strava_activities[0].activity).toMatchObject({
+      startDate: "2027-08-17T00:15:00Z", distanceMeters: 5000, gpsAvailable: true,
+    });
+    const expected = {
+      activityId: "10", startTimeLocal: "2027-08-17T08:05:00+07:00", distanceMeters: 5240,
+      sportType: "Run", gpsAvailable: false, matchReason: "missing_start_location",
+    };
+    const body = await safe(await GET(request(), context()));
+    expect(body).toEqual({ status: "needs_confirmation", activityId: null, candidates: [expected], metrics: {} });
+    expect(stravaViewModel(routeToStrava(body), runnerId).candidates).toEqual([{
+      activityId: "10", label: "17 Aug 2027, 08:05 WIB · 5.24 km",
+      note: "GPS is unavailable. Confirm this is your race activity.",
+    }]);
+    expect(tables.strava_activity_candidates[0].summary).toEqual({
+      startDate: "2027-08-17T01:05:00.000Z", distanceMeters: 5240, gpsAvailable: false,
+    });
+
+    const confirmed = await safe(await PUT(request("PUT", { activityId: "10" }), context()));
+    expect(confirmed.status).toBe("matched");
+    expect(confirmed.candidates).toEqual([expected]);
+  });
+  it("keeps the missing GPS warning for an older candidate with no summary", async () => {
+    candidate("10", "needs_confirmation", true, { reason: "missing_start_location", summary: {} });
+    const body = await safe(await GET(request(), context()));
+
+    expect(body.candidates).toEqual([{
+      activityId: "10", startTimeLocal: "2027-08-17T07:15:00+07:00", distanceMeters: 5000,
+      sportType: "Run", gpsAvailable: false, matchReason: "missing_start_location",
+    }]);
+  });
   it.each(["disconnected", "reconnected"])("hides an earlier generation if %s during the read", async (change) => {
     candidate(); selected();
     beforeRead = (table) => {
@@ -381,7 +453,9 @@ describe("runner Strava confirmation", () => {
     expect(mocks.user).not.toHaveBeenCalled(); expect(mocks.from).not.toHaveBeenCalled();
   });
   it.each(["unknown", "foreign", "runner", "stale", "no_match", "missing_detail", "wrong_athlete"])("rejects %s activity without selection", async (kind) => {
-    if (kind !== "unknown") candidate();
+    if (kind !== "unknown") candidate("10", "auto_match", true, {
+      summary: { startDate: "2027-08-17T00:15:00Z", distanceMeters: 5000, gpsAvailable: true },
+    });
     if (kind === "foreign") tables.strava_activity_candidates[0].user_id = "other";
     if (kind === "runner") tables.strava_activity_candidates[0].runner_id = otherRunner;
     if (kind === "stale") tables.strava_activity_candidates[0].generation = "old";

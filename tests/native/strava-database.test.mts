@@ -138,6 +138,15 @@ test(
       }
       await db.exec(verifyLocation);
 
+      const [legacySummary, verifySummary] = (await readFile("tests/sql/strava-candidate-summary.sql", "utf8"))
+        .split("-- AFTER MIGRATION");
+      await db.exec(legacySummary);
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_candidate_summary.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec(verifySummary);
+
       for (const file of ["strava-lifecycle", "strava-processing", "strava-confirmation", "strava-wrapped-snapshots", "strava-multi-runner"]) {
         await db.exec(await readFile(`tests/sql/${file}.sql`, "utf8"));
       }

@@ -522,8 +522,11 @@ export async function processStravaJobs(limit = 10): Promise<void> {
           const match = matchActivityToRace(activity, config);
           if (match.status !== "no_match") retained.add(activity.id);
           return [{ activity_id: activity.id, match_status: match.status, reason: match.reason,
-            summary: { id: activity.id, sportType: activity.sportType,
-              startDate: activity.startDate, distanceMeters: activity.distanceMeters } }];
+            summary: match.status === "no_match" ? {} : {
+              startDate: activity.startDate,
+              distanceMeters: activity.distanceMeters,
+              gpsAvailable: activity.startLatLng !== null,
+            } }];
         }),
       }));
       // Null is a minimal invalidation: SQL removes any prior snapshot/selection
@@ -640,18 +643,35 @@ const emptyRunnerState = (status: RunnerStravaRoute["status"]): RunnerStravaRout
   status, activityId: null, candidates: [], metrics: {},
 });
 
-type CandidateRow = { activity_id: string; match_status: string; reason: string };
+type CandidateRow = { activity_id: string; match_status: string; reason: string; summary: unknown };
+
+function candidateDisplay(value: unknown) {
+  if (value === null || typeof value !== "object") return null;
+  const { startDate, distanceMeters, gpsAvailable } = value as Record<string, unknown>;
+  if (typeof startDate !== "string" || !/(Z|[+-]\d{2}:\d{2})$/.test(startDate) ||
+    typeof distanceMeters !== "number" || !Number.isFinite(distanceMeters) || distanceMeters < 0) return null;
+
+  // Provider dates represent UTC instants. Candidates are shown in Jakarta time.
+  const local = new Date(Date.parse(startDate) + 7 * 60 * 60 * 1000);
+  if (!Number.isFinite(local.getTime())) return null;
+  return {
+    startTimeLocal: local.toISOString().slice(0, 19) + "+07:00",
+    distanceMeters,
+    gpsAvailable: typeof gpsAvailable === "boolean" ? gpsAvailable : null,
+  };
+}
 
 function safeCandidate(row: CandidateRow, activity: StoredStravaActivity, athleteId: string): RunnerStravaCandidate | null {
   if (activity.id !== row.activity_id || activity.athleteId !== athleteId || activity.sportType !== "Run" ||
-    !/^[1-9]\d{0,18}$/.test(activity.id) || !Number.isFinite(activity.distanceMeters) || activity.distanceMeters < 0 ||
-    !Number.isFinite(Date.parse(activity.startDate))) return null;
-  // The race is in Jakarta (UTC+07:00). The provider detail stores a UTC instant.
-  const local = new Date(Date.parse(activity.startDate) + 7 * 60 * 60 * 1000).toISOString().slice(0, 19) + "+07:00";
+    !/^[1-9]\d{0,18}$/.test(activity.id)) return null;
+  const display = candidateDisplay(row.summary) ?? candidateDisplay(activity);
+  if (!display) return null;
+
   const knownReasons = ["race_checks_passed", "missing_start_location", "missing_configured_location"];
+  const gpsAvailable = display.gpsAvailable ?? (activity.gpsAvailable === true);
   return {
-    activityId: activity.id, startTimeLocal: local, distanceMeters: activity.distanceMeters,
-    sportType: "Run", gpsAvailable: activity.gpsAvailable === true,
+    activityId: activity.id, startTimeLocal: display.startTimeLocal, distanceMeters: display.distanceMeters,
+    sportType: "Run", gpsAvailable: row.reason !== "missing_start_location" && gpsAvailable,
     matchReason: knownReasons.includes(row.reason) ? row.reason : "confirmation_required",
   };
 }
@@ -673,7 +693,7 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   const loadCandidates = async () => {
     const rows: CandidateRow[] = [];
     for (let offset = 0; ; offset += batchSize) {
-      const page = await scoped("strava_activity_candidates", "activity_id,match_status,reason")
+      const page = await scoped("strava_activity_candidates", "activity_id,match_status,reason,summary")
         .eq("runner_id", runnerId).in("match_status", ["auto_match", "needs_confirmation"])
         .order("activity_id").range(offset, offset + batchSize - 1);
       if (page.error) throw new Error("Strava storage is temporarily unavailable.");
@@ -735,7 +755,7 @@ export async function confirmRunnerStravaActivity(userId: string, runnerId: stri
   if (!await loadStravaRunnerAttachment(userId, connection.generation, runnerId)) throw new StravaError("not_connected", 409);
   const db = getSupabaseAdmin();
   const [candidate, detail] = await Promise.all([
-    db.from("strava_activity_candidates").select("activity_id,match_status,reason")
+    db.from("strava_activity_candidates").select("activity_id,match_status,reason,summary")
       .eq("user_id", userId).eq("generation", connection.generation).eq("runner_id", runnerId)
       .eq("activity_id", activityId).in("match_status", ["auto_match", "needs_confirmation"]).maybeSingle(),
     db.from("strava_activities").select("activity").eq("user_id", userId)

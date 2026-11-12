@@ -301,7 +301,7 @@ describe("Strava processing", () => {
       p_job: "job", p_lease: "lease",
       p_runner_candidates: [{ runner_id: runnerId, candidates: [{
         activity_id: "1", match_status: "auto_match", reason: "race_checks_passed",
-        summary: { id: "1", sportType: "Run", startDate: "2027-08-17T01:00:00Z", distanceMeters: 5000 },
+        summary: { startDate: "2027-08-17T01:00:00Z", distanceMeters: 5000, gpsAvailable: true },
       }] }],
     }));
   });
