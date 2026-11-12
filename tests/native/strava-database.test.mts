@@ -161,6 +161,22 @@ test(
         finally { await db.exec("rollback"); }
       }
 
+      const [backfillSetup, backfillVerify] = (await readFile("tests/sql/strava-projection-backfill.sql", "utf8")).split("-- AFTER MIGRATION");
+      await db.exec("begin");
+      try {
+        await db.exec(backfillSetup);
+        const backfillMigrations = (await readdir("supabase/migrations"))
+          .filter((file) => file.endsWith("_strava_projection_backfill.sql")).sort();
+        for (const file of backfillMigrations) {
+          await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+        }
+        await db.exec(backfillVerify);
+        for (const file of backfillMigrations) {
+          await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+        }
+        await db.exec(backfillVerify);
+      } finally { await db.exec("rollback"); }
+
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
       await db.exec(`
