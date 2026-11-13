@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
 import { runStravaAction, stravaViewModel, type StravaActionId } from "@/lib/strava/viewModel";
 
-export default function StravaCard({ input, runnerId, onRefresh }: { input: WrappedPayloadStrava; runnerId: string; onRefresh: () => void }) {
+export default function StravaCard({ input, runnerId, onRefresh, stravaFirst = false }: { input: WrappedPayloadStrava; runnerId: string; onRefresh: () => void; stravaFirst?: boolean }) {
   const [source, setSource] = useState(input);
   const [data, setData] = useState(input);
   const [pending, setPending] = useState(false);
@@ -18,6 +18,10 @@ export default function StravaCard({ input, runnerId, onRefresh }: { input: Wrap
 
   const act = useCallback(async (action: Exclude<StravaActionId, "connect"> | "confirm", activityId?: string, automatic = false) => {
     if (busy.current) return;
+    if (stravaFirst && action === "check") {
+      onRefresh();
+      return;
+    }
     busy.current = true;
     setPending(true);
     setFailed(false);
@@ -27,8 +31,8 @@ export default function StravaCard({ input, runnerId, onRefresh }: { input: Wrap
     try {
       const next = await runStravaAction(fetch, runnerId, action, activityId, AbortSignal.any([request.signal, AbortSignal.timeout(12000)]));
       if (request.signal.aborted) return;
-      setData(next);
-      if (!automatic) setFeedback(next.state === "connected" ? "Your race activity is selected." : next.state === "disconnected" ? "Strava disconnected. Your chip recap is ready." : "Strava status updated.");
+      if (!stravaFirst) setData(next);
+      if (!automatic) setFeedback(next.state === "connected" ? "Your race activity is selected." : next.state === "disconnected" ? "Strava disconnected." : "Strava status updated.");
       onRefresh();
     } catch (error) {
       if (request.signal.aborted) return;
@@ -42,10 +46,10 @@ export default function StravaCard({ input, runnerId, onRefresh }: { input: Wrap
         if (!automatic) status.current?.focus({ preventScroll: true });
       }
     }
-  }, [runnerId, onRefresh]);
+  }, [runnerId, onRefresh, stravaFirst]);
 
   useEffect(() => {
-    if (data.state !== "importing" && data.state !== "disconnecting") return;
+    if (stravaFirst || (data.state !== "importing" && data.state !== "disconnecting")) return;
     let cancelled = false;
     let checks = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -56,14 +60,14 @@ export default function StravaCard({ input, runnerId, onRefresh }: { input: Wrap
     };
     timer = setTimeout(poll, 5000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [data.state, act]);
+  }, [data.state, act, stravaFirst]);
 
   const model = stravaViewModel(data, runnerId, pending);
   return (
     <section className="enrichment strava-card" aria-label="Strava activity" aria-busy={pending}>
       <h3>{model.title}</h3>
-      <p>{model.description}</p>
-      <p className="strava-baseline">{model.baselineCopy}</p>
+      <p>{stravaFirst && data.state === "importing" ? "Check back for your Strava recap." : model.description}</p>
+      {!stravaFirst && <p className="strava-baseline">{model.baselineCopy}</p>}
       {model.metrics.length > 0 && <dl className="metric-list">{model.metrics.map((metric) => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}</dl>}
       {data.state === "connected" && model.metrics.length === 0 && <p>No measurements are available for this activity.</p>}
       {data.state === "connected" && data.metrics?.avg_cadence != null && <p className="strava-baseline">Cadence is shown as supplied by Strava, without converting it to steps per minute.</p>}

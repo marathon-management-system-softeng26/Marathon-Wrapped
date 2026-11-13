@@ -38,6 +38,36 @@ export type StravaWrappedSnapshotV1 = {
   averageCadence: number | null;
 };
 
+export function isStravaWrappedSnapshotV1(value: unknown): value is StravaWrappedSnapshotV1 {
+  const object = (v: unknown, keys: string[]): v is Record<string, unknown> =>
+    v !== null && typeof v === "object" && !Array.isArray(v) &&
+    Object.keys(v).length === keys.length && keys.every((key) => Object.hasOwn(v, key));
+  const number = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
+  const integer = (v: unknown) => number(v) && Number.isSafeInteger(v);
+  const nullable = (v: unknown, check: (value: unknown) => boolean) => v === null || check(v);
+  const string = (v: unknown) => typeof v === "string";
+  const keys = ["version", "runner", "event", "distanceMeters", "movingTimeSeconds", "elapsedTimeSeconds",
+    "averagePaceSecondsPerKm", "averageSpeedMps", "maxSpeedMps", "splits", "fastestKilometer", "slowestKilometer",
+    "paceTrend", "averageHeartrate", "maxHeartrate", "elevationGainMeters", "calories", "averageCadence"];
+  if (!object(value, keys) || value.version !== 1 ||
+    !object(value.runner, ["id", "name", "bibNumber"]) || !string(value.runner.id) || !string(value.runner.name) ||
+    !nullable(value.runner.bibNumber, string) || !object(value.event, ["name", "date", "category"]) ||
+    ![value.event.name, value.event.date, value.event.category].every(string) ||
+    !number(value.distanceMeters) || !integer(value.movingTimeSeconds) || !integer(value.elapsedTimeSeconds) ||
+    !nullable(value.averagePaceSecondsPerKm, integer) ||
+    ![value.averageSpeedMps, value.maxSpeedMps, value.averageHeartrate, value.maxHeartrate,
+      value.elevationGainMeters, value.calories, value.averageCadence].every((v) => nullable(v, number))) return false;
+  const kilometerPace = (v: unknown) => object(v, ["kilometer", "paceSecondsPerKm"]) &&
+    integer(v.kilometer) && (v.kilometer as number) > 0 && integer(v.paceSecondsPerKm);
+  const trend = (v: unknown) => object(v, ["direction", "earlyPaceSecondsPerKm", "latePaceSecondsPerKm"]) &&
+    ["faster", "slower", "even"].includes(v.direction as string) && integer(v.earlyPaceSecondsPerKm) && integer(v.latePaceSecondsPerKm);
+  return nullable(value.fastestKilometer, kilometerPace) && nullable(value.slowestKilometer, kilometerPace) &&
+    nullable(value.paceTrend, trend) && Array.isArray(value.splits) && value.splits.every((v: unknown) =>
+      object(v, ["kilometer", "distanceMeters", "movingSeconds", "elapsedSeconds", "averageSpeedMps", "paceSecondsPerKm"]) &&
+      integer(v.kilometer) && (v.kilometer as number) > 0 && number(v.distanceMeters) &&
+      integer(v.movingSeconds) && integer(v.elapsedSeconds) && nullable(v.averageSpeedMps, number) && nullable(v.paceSecondsPerKm, integer));
+}
+
 // Allow one percent of measurement variation around a full kilometer.
 const MIN_FULL_KILOMETER_METERS = 990;
 const MAX_FULL_KILOMETER_METERS = 1010;

@@ -4,9 +4,9 @@ import SharePreview from "./SharePreview";
 import StravaCard from "./StravaCard";
 import Arrow from "./Arrow";
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { callbackFeedback } from "@/lib/strava/viewModel";
-import type { WrappedPayload, Photo } from "@/lib/wrappedPayload";
+import type { Photo, StravaFirstWrappedPayload, WrappedPayloadStrava } from "@/lib/wrappedPayload";
 import { formatMmSs } from "@/lib/format";
 import { shareModel } from "@/lib/shareModel";
 import { exportWrapped } from "@/lib/exportWrapped";
@@ -20,6 +20,29 @@ const pages = [
   "Photos",
   "Save",
 ];
+const workflowTitles: Record<Exclude<StravaFirstWrappedPayload["state"], "ready">, string> = {
+  setup_required: "Connect Strava to create your Wrapped",
+  authorizing: "Waiting for Strava authorization",
+  importing: "Finding your race activity",
+  needs_confirmation: "Choose your race activity",
+  no_match: "No matching race activity found",
+  building: "Building your Wrapped",
+  failed: "Your Wrapped could not be built",
+  reauth_required: "Reconnect your Strava account",
+};
+
+const stravaStates: Record<StravaFirstWrappedPayload["state"], WrappedPayloadStrava["state"]> = {
+  setup_required: "disconnected",
+  authorizing: "authorizing",
+  importing: "importing",
+  needs_confirmation: "needs_confirmation",
+  no_match: "no_match",
+  building: "importing",
+  ready: "connected",
+  failed: "unavailable",
+  reauth_required: "reauthorize_required",
+};
+
 function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
   const [failed, setFailed] = useState(false);
   return failed ? (
@@ -37,7 +60,7 @@ function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
         width={861}
         height={1148}
         src={photo.photo_url}
-        alt="Runners at a race — stock demo photo"
+        alt="Runners at a race"
         onError={() => setFailed(true)}
       />
       <span>View photo</span>
@@ -45,7 +68,7 @@ function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
   );
 }
 export default function RecapStory({ runnerId }: { runnerId: string }) {
-  const [payload, setPayload] = useState<WrappedPayload | null>(null),
+  const [payload, setPayload] = useState<StravaFirstWrappedPayload | null>(null),
     [error, setError] = useState(""),
     [version, setVersion] = useState(0),
     [slide, setSlide] = useState(0),
@@ -57,6 +80,21 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     dialog = useRef<HTMLDialogElement>(null),
     loaded = useRef<string | null>(null),
     touch = useRef<{ x: number; y: number } | null>(null);
+  const strava = useMemo((): WrappedPayloadStrava | null => {
+    if (!payload) return null;
+    const snapshot = payload.state === "ready" ? payload.snapshot : null;
+    return {
+      state: stravaStates[payload.state],
+      metrics: snapshot ? {
+        avg_heartrate: snapshot.averageHeartrate,
+        max_heartrate: snapshot.maxHeartrate,
+        elevation_gain_m: snapshot.elevationGainMeters,
+        calories: snapshot.calories,
+        avg_cadence: snapshot.averageCadence,
+      } : null,
+      candidates: payload.state === "needs_confirmation" ? payload.candidates : undefined,
+    };
+  }, [payload]);
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
   useEffect(() => {
     const feedback = callbackFeedback(window.location.href);
@@ -81,6 +119,12 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           return;
         }
         const body = await response.json();
+        if (response.status === 404) {
+          loaded.current = null;
+          setPayload(null);
+          setError(body.error || "Your recap could not load.");
+          return;
+        }
         if (!response.ok)
           throw new Error(body.error || "Your recap could not load.");
         loaded.current = runnerId;
@@ -89,12 +133,17 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       })
       .catch((cause) => {
         if (!controller.signal.aborted) {
-          if (loaded.current === runnerId) setNotice("Recap could not refresh. Your chip result is still here.");
+          if (loaded.current === runnerId) setNotice("Recap could not refresh. Try again in a moment.");
           else setError(cause.message);
         }
       });
     return () => controller.abort();
   }, [runnerId, version]);
+  useEffect(() => {
+    if (!payload || !["authorizing", "importing", "building"].includes(payload.state)) return;
+    const timer = window.setTimeout(refresh, 5000);
+    return () => window.clearTimeout(timer);
+  }, [payload, refresh]);
   useEffect(() => {
     function key(event: KeyboardEvent) {
       if (
@@ -125,7 +174,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     if (selected) dialog.current?.showModal();
   }, [selected]);
   async function save() {
-    if (!payload) return;
+    if (payload?.state !== "ready") return;
     setSaving(true);
     setNotice("");
     try {
@@ -155,8 +204,22 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         )}
       </main>
     );
+  if (payload.state !== "ready") {
+    const { runner, event } = payload.registration;
+    return (
+      <main className="story-state">
+        <Link href="/">&#8592; Your races</Link>
+        <h1>{workflowTitles[payload.state]}</h1>
+        <p>{runner.name} &#183; {event.name} &#183; {event.category}</p>
+        {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
+        {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} stravaFirst />}
+        {notice && <p role="status">{notice}</p>}
+      </main>
+    );
+  }
   const model = shareModel(payload),
-    stats = payload.status === "unavailable" ? null : payload.stats,
+    snapshot = payload.snapshot,
+    longestSplit = Math.max(1, ...snapshot.splits.map((split) => split.movingSeconds)),
     firstName = model.name.trim().split(/\s+/)[0] || "Runner";
   return (
     <main
@@ -178,7 +241,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     >
       <header className="story-header">
         <Link href="/">← Your races</Link>
-        <span>{model.event} · Demo</span>
+        <span>{model.event}</span>
       </header>
       <nav className="story-tabs" aria-label="Recap pages">
         {pages.map((page, index) => (
@@ -222,14 +285,12 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           <div className="story-scene scene-finisher">
             <p className="scene-label">{model.event}</p>
             <h1 ref={heading} tabIndex={-1}>
-              <span>
-                {payload.status === "finisher" ? "You ran" : "Your race,"}
-              </span>
+              <span>Your race</span>
               <br />
-              {payload.status === "finisher" ? "the whole thing." : model.result}
+              on Strava.
             </h1>
             <p className="story-intro">
-              Your race, in numbers, photos and one very good finish.
+              Your recorded activity, in numbers and photos.
             </p>
             <Image
               className="decoration decoration-finisher-badge"
@@ -244,41 +305,22 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           <div className="story-scene scene-distance">
             <p className="scene-label">Distance</p>
             <h2 ref={heading} tabIndex={-1}>
-              {payload.status === "finisher" ? "All the way." : model.result}
+              Your recorded distance.
             </h2>
             <div className="distance-number">
-              {stats?.distance_km.toFixed(1) ?? "—"}
-              <span>km {payload.status !== "finisher" ? "category" : ""}</span>
+              {(snapshot.distanceMeters / 1000).toFixed(1)}
+              <span>km</span>
             </div>
             <div className="stat-pair">
               <div>
                 <strong>{model.time}</strong>
-                <span>Finish time</span>
+                <span>Moving time</span>
               </div>
               <div>
                 <strong>{model.pace}</strong>
-                <span>Average pace</span>
+                {snapshot.averagePaceSecondsPerKm !== null && <span>Average pace</span>}
               </div>
             </div>
-            {payload.status === "finisher" ? (
-              <p className="lime">
-                {model.rank} · Overall in {stats?.category}:{" "}
-                {stats?.overall_rank ?? "unavailable"}
-              </p>
-            ) : (
-              <p>
-                {payload.status === "unavailable"
-                  ? "No chip result has been published. Ask the organizer to check your record."
-                  : payload.status === "dns"
-                    ? "No start was recorded. Finish statistics are unavailable."
-                    : "Your recorded splits are preserved. No finish time or placing is assigned."}
-              </p>
-            )}
-            {stats?.start_status === "late" && (
-              <p className="subtle">
-                Late start recorded · Timing uses your actual chip start.
-              </p>
-            )}
             <Image
               className="decoration decoration-distance-medal"
               src={decorationUrl(recapDecorations.distance[0])}
@@ -299,54 +341,36 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           <div className="story-scene scene-splits">
             <p className="scene-label">Splits</p>
             <h2 ref={heading} tabIndex={-1}>
-              {stats?.split_type === "negative" ? (
-                <>
-                  You saved your
-                  <br />
-                  best for last.
-                </>
-              ) : (
-                "Every kilometer, recorded."
-              )}
+              Kilometer splits
             </h2>
-            {stats?.splits.length ? (
+            {snapshot.splits.length ? (
               <>
                 <div
                   className="split-chart"
                   role="img"
-                  aria-label="Kilometer split times; taller bars indicate longer times"
+                  aria-label="Kilometer moving times. Taller bars indicate longer times."
                 >
-                  {stats.splits.map((split) => (
-                    <div key={split.km_marker}>
+                  {snapshot.splits.map((split) => (
+                    <div key={split.kilometer}>
                       <span
                         style={{
-                          height: `${Math.max(20, (split.split_seconds / Math.max(...stats.splits.map((s) => s.split_seconds))) * 145)}px`,
+                          height: `${Math.max(20, (split.movingSeconds / longestSplit) * 145)}px`,
                         }}
-                        className={
-                          split.km_marker === stats.fastest_km?.km_marker
-                            ? "fast"
-                            : ""
-                        }
+                        className={split.kilometer === snapshot.fastestKilometer?.kilometer ? "fast" : ""}
                       />
-                      <b>{split.km_marker}</b>
-                      <small>{formatMmSs(split.split_seconds)}</small>
+                      <b>{split.kilometer}</b>
+                      <small>{formatMmSs(split.movingSeconds)}</small>
                     </div>
                   ))}
                 </div>
-                <p className="lime">
-                  Fastest: km {stats.fastest_km?.km_marker} at{" "}
-                  {stats.fastest_km
-                    ? formatMmSs(stats.fastest_km.split_seconds)
-                    : "—"}
-                </p>
-                <div className="insights">
-                  {stats.insights.map((insight) => (
-                    <p key={insight}>{insight}</p>
-                  ))}
-                </div>
+                {snapshot.fastestKilometer && (
+                  <p className="lime">
+                    Fastest kilometer {snapshot.fastestKilometer.kilometer} &#183; {formatMmSs(snapshot.fastestKilometer.paceSecondsPerKm)} /km
+                  </p>
+                )}
               </>
             ) : (
-              <p>No kilometer splits were recorded for this result.</p>
+              <p>No kilometer splits available.</p>
             )}
             <Image
               className="decoration decoration-splits-watch"
@@ -361,11 +385,9 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           <div className="story-scene scene-context">
             <p className="scene-label">Race context</p>
             <h2 ref={heading} tabIndex={-1}>
-              Your chip result
-              <br />
-              <span>comes first.</span>
+              Your Strava activity
             </h2>
-            <StravaCard runnerId={runnerId} input={payload.strava} onRefresh={refresh} />
+            {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} stravaFirst />}
             <Image
               className="decoration decoration-context-watch"
               src={decorationUrl(recapDecorations.context[0])}
@@ -389,7 +411,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
               <br />
               <span>in the moment.</span>
             </h2>
-            {payload.status !== "unavailable" && payload.photos.length ? (
+            {payload.photos.length ? (
               <>
                 <div className="photo-grid">
                   {payload.photos.map((photo) => (
@@ -403,8 +425,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                 <p className="subtle">
                   {payload.photos.length}{" "}
                   {payload.photos.length === 1 ? "photo" : "photos"} mapped to
-                  BIB {model.bib}. Demo stock image; not an actual match to this
-                  runner.
+                  BIB {model.bib}.
                 </p>
               </>
             ) : (
@@ -426,7 +447,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
           <div className="story-scene scene-share">
             <p className="scene-label">Share</p>
             <span className="share-year" aria-hidden="true">
-              2027
+              {model.year}
             </span>
             <SharePreview payload={payload} />
             <button className="save-button" onClick={save} disabled={saving}>
@@ -436,8 +457,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
               Back to my races
             </Link>
             <p className="subtle">
-              1080 × 1350 · Includes synthetic race data. Health metrics stay
-              out of your image.
+              1080 &#215; 1350 PNG
             </p>
             <Image
               className="decoration decoration-share-finish"
@@ -491,9 +511,9 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
               width={861}
               height={1148}
               src={selected.photo_url}
-              alt="Stock demo image of runners at a race"
+              alt="Runners at a race"
             />
-            <p>{selected.photographer}. Simulated BIB mapping.</p>
+            {selected.photographer && <p>{selected.photographer}</p>}
           </>
         )}
       </dialog>

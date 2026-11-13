@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 
-describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → authenticated HTTP → computed recap", () => {
+describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → authenticated HTTP → Strava Wrapped", () => {
   let ids: Record<string, string>;
   let cookies: Record<string, string>;
   let admin: SupabaseClient;
@@ -56,30 +56,29 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
     expect(draft.splits).toHaveLength(5);expect(draft.date_of_birth).toMatch(/^\d{4}-\d{2}-\d{2}$/);expect(draft).not.toHaveProperty("id_number");expect(draft).not.toHaveProperty("email");
   });
   it("blocks anonymous access", async () => expect((await get("HERO-5K-001")).status).toBe(401));
-  it("serves Aina's computed result to Aina with private cache headers", async () => {
+  it("serves Aina's registration and setup state with private cache headers", async () => {
     const response = await get("HERO-5K-001", "a");
     expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store");
     const payload = await response.json();
-    expect(payload.status).toBe("finisher"); expect(payload.stats.elapsed_seconds).toBe(1523);
-    expect(payload.stats.fastest_km).toEqual({ km_marker: 5, split_seconds: 290 });
-    expect(payload.stats.first_half_seconds).toBe(617); expect(payload.strava.state).toBe("demo");
+    expect(payload).toStrictEqual({
+      state: "setup_required",
+      registration: {
+        runner: { id: ids["HERO-5K-001"], name: "Aina Putri", bibNumber: "HERO-5K-001" },
+        event: { name: "Soekarno Run 2027", date: "2027-08-17", category: "5K" },
+      },
+    });
     expect(JSON.stringify(payload)).not.toMatch(/access_token|service_role|date_of_birth|id_number|email/);
   });
   it("does not reuse another runner's authorization or response", async () => {
     expect((await get("HERO-10K-001", "a")).status).toBe(404);
     const response = await get("HERO-10K-001", "b"); expect(response.status).toBe(200);
-    expect((await response.json()).stats.bib_number).toBe("HERO-10K-001");
+    expect((await response.json()).registration.runner.bibNumber).toBe("HERO-10K-001");
   });
-  it.each([["EDGE-DNF", "dnf"], ["EDGE-DNS", "dns"], ["EDGE-NO-RESULT", "unavailable"]])("preserves %s lifecycle", async (bib, status) => {
-    const response = await get(bib, "organizer"); expect(response.status).toBe(200);
-    const payload = await response.json(); expect(payload.status).toBe(status);
-    if (status !== "unavailable") { expect(payload.stats.elapsed_seconds).toBeNull(); expect(payload.stats.avg_pace_sec_km).toBeNull(); }
-  });
-  it.each(["EDGE-NO-STRAVA", "EDGE-NO-PHOTOS"])("keeps %s baseline usable", async bib => {
-    const response = await get(bib, "organizer"); expect(response.status).toBe(200);
-    const payload = await response.json(); expect(payload.status).toBe("finisher");
-    if (bib === "EDGE-NO-STRAVA") expect(payload.strava.metrics).toBeNull();
-    if (bib === "EDGE-NO-PHOTOS") expect(payload.photos).toEqual([]);
+  it.each(["EDGE-DNF", "EDGE-DNS", "EDGE-NO-RESULT", "EDGE-NO-STRAVA", "EDGE-NO-PHOTOS"])("denies organizer-only Wrapped access to %s", async (bib) => {
+    const response = await get(bib, "organizer");
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(await response.json()).toStrictEqual({ error: "Runner not found." });
   });
   it("blocks direct anonymous Data API reads of the view", async () => {
     const response = await fetch(`${process.env.SUPABASE_URL}/rest/v1/runner_wrapped?select=runner_id`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY! } });

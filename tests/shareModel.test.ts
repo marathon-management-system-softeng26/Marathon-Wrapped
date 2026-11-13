@@ -1,61 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { shareModel } from "@/lib/shareModel";
-import type { WrappedPayload } from "@/lib/wrappedPayload";
-const payload = (status: "finisher" | "dnf" | "dns") =>
-  ({
-    status,
-    stats: {
-      name: "Aina",
-      bib_number: "A-1",
-      event: "Race",
-      distance_km: 5,
-      elapsed_seconds: 1523,
-      avg_pace_sec_km: 304.6,
-      category_rank: 1,
-    },
-    photos: [],
-    warnings: [],
-    strava: { state: "disconnected", metrics: null },
-  }) as unknown as WrappedPayload;
+import { privateFields, ready, registration, snapshot } from "./fixtures/stravaWrapped";
+
 describe("share composition", () => {
-  it("formats the selected finisher's actual time, pace and distance", () => {
-    expect(shareModel(payload("finisher"))).toMatchObject({
-      name: "Aina",
-      distance: "5.0 km",
-      time: "25:23",
-      pace: "5:05 /km",
-      result: "Finished",
-      rank: "Category rank 1",
+  it("allowlists registration and formatted Strava distance, moving time, pace and splits", () => {
+    const payload = { ...ready, ...privateFields };
+    expect(shareModel(payload)).toStrictEqual({
+      name: "Aina Putri",
+      bib: "A1001",
+      event: "Soekarno Run",
+      year: "2027",
+      distance: "5.1 km",
+      time: "24:08",
+      pace: "4:44 /km",
+      splits: ["Km 1 · 4:50 /km", "Km 2 · 4:40 /km"],
+      splitNote: null,
     });
   });
-  it.each(["dnf", "dns"] as const)(
-    "never exports fabricated finish data for %s",
-    (status) => {
-      const model = shareModel(payload(status));
-      expect(model.distanceLabel).toBe("Category distance");
-      expect(model.time).toBe("—");
-      expect(model.pace).toBe("—");
-      expect(model.rank).toBe("");
-      expect(model.result).toBe(
-        status === "dnf" ? "Did not finish" : "Did not start",
-      );
+
+  it("uses absence copy for missing pace and kilometer splits", () => {
+    const payload = { ...ready, snapshot: { ...snapshot, averagePaceSecondsPerKm: null, splits: [] } };
+    expect(shareModel(payload)).toMatchObject({
+      pace: "Average pace unavailable",
+      splits: [],
+      splitNote: "No kilometer splits available",
+    });
+  });
+
+  it("reports unavailable pace for a recorded split without pace", () => {
+    const payload = { ...ready, snapshot: { ...snapshot, splits: [{ ...snapshot.splits[0], paceSecondsPerKm: null }] } };
+    expect(shareModel(payload)).toMatchObject({ splits: ["Km 1 · Pace unavailable"] });
+  });
+
+  it.each(["setup_required", "authorizing", "importing", "needs_confirmation", "no_match", "building", "failed", "reauth_required"] as const)(
+    "rejects %s even when given stale ready data",
+    (state) => {
+      const payload = { ...ready, state, candidates: [] };
+      expect(() => shareModel(payload)).toThrow("Your Wrapped is not ready to share.");
     },
   );
-  it("preserves missing-result truth", () => {
-    expect(
-      shareModel({
-        status: "unavailable",
-        runner: { runner_id: "x", name: "Adi", bib_number: null },
-        reason: "missing_result",
-        strava: { state: "disconnected", metrics: null },
-        photos: [],
-        warnings: [],
-      }),
-    ).toMatchObject({
-      name: "Adi",
-      distance: "—",
-      time: "—",
-      result: "Result unavailable",
-    });
+
+  it("rejects a ready response without a valid version 1 snapshot", () => {
+    const payload = { state: "ready", registration, snapshot: { ...snapshot, version: 2 }, photos: [] };
+    expect(() => shareModel(payload as unknown as typeof ready)).toThrow("Your Wrapped is not ready to share.");
   });
 });

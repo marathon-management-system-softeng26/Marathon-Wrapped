@@ -2,6 +2,8 @@ import "server-only";
 import crypto from "node:crypto";
 import { getSupabaseAdmin } from "../supabaseServer";
 import { isRunnerId } from "../runnerValidation";
+import type { StravaCandidate } from "../wrappedPayload";
+import { safeCandidate, type CandidateRow } from "./candidate";
 import {
   decryptToken,
   getStravaActivity,
@@ -24,7 +26,7 @@ import {
   type StoredStravaActivity,
 } from "./store";
 import { matchActivityToRace, validateRaceMatchConfig } from "./matching";
-import { buildStravaWrappedProjection } from "./projection";
+import { buildStravaWrappedProjection, isStravaWrappedSnapshotV1 } from "./projection";
 
 export type StravaWebhookEvent = {
   object_type: "activity" | "athlete";
@@ -52,14 +54,7 @@ export type RunnerStravaRoute = {
   metrics: Partial<Record<StravaMetric, number>>;
 };
 
-export type RunnerStravaCandidate = {
-  activityId: string;
-  startTimeLocal: string;
-  distanceMeters: number;
-  sportType: string;
-  gpsAvailable: boolean;
-  matchReason: string;
-};
+export type RunnerStravaCandidate = StravaCandidate;
 
 type StravaMetric = "avg_heartrate" | "max_heartrate" | "elevation_gain_m" | "calories" | "avg_cadence";
 const metricFields: StravaMetric[] = ["avg_heartrate", "max_heartrate", "elevation_gain_m", "calories", "avg_cadence"];
@@ -71,36 +66,6 @@ function availableMetrics(value: Record<string, unknown>): Partial<Record<Strava
     if (typeof metric === "number" && Number.isFinite(metric) && metric >= 0) result[field] = metric;
   }
   return result;
-}
-
-function validProjection(value: unknown): boolean {
-  const object = (v: unknown, keys: string[]): v is Record<string, unknown> =>
-    v !== null && typeof v === "object" && !Array.isArray(v) &&
-    Object.keys(v).length === keys.length && keys.every((key) => Object.hasOwn(v, key));
-  const number = (v: unknown) => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= Number.MAX_SAFE_INTEGER;
-  const integer = (v: unknown) => number(v) && Number.isSafeInteger(v);
-  const nullable = (v: unknown, check: (value: unknown) => boolean) => v === null || check(v);
-  const string = (v: unknown) => typeof v === "string";
-  const keys = ["version", "runner", "event", "distanceMeters", "movingTimeSeconds", "elapsedTimeSeconds",
-    "averagePaceSecondsPerKm", "averageSpeedMps", "maxSpeedMps", "splits", "fastestKilometer", "slowestKilometer",
-    "paceTrend", "averageHeartrate", "maxHeartrate", "elevationGainMeters", "calories", "averageCadence"];
-  if (!object(value, keys) || value.version !== 1 ||
-    !object(value.runner, ["id", "name", "bibNumber"]) || !string(value.runner.id) || !string(value.runner.name) ||
-    !nullable(value.runner.bibNumber, string) || !object(value.event, ["name", "date", "category"]) ||
-    ![value.event.name, value.event.date, value.event.category].every(string) ||
-    !number(value.distanceMeters) || !integer(value.movingTimeSeconds) || !integer(value.elapsedTimeSeconds) ||
-    ![value.averagePaceSecondsPerKm].every((v) => nullable(v, integer)) ||
-    ![value.averageSpeedMps, value.maxSpeedMps, value.averageHeartrate, value.maxHeartrate,
-      value.elevationGainMeters, value.calories, value.averageCadence].every((v) => nullable(v, number))) return false;
-  const kilometerPace = (v: unknown) => object(v, ["kilometer", "paceSecondsPerKm"]) &&
-    integer(v.kilometer) && (v.kilometer as number) > 0 && integer(v.paceSecondsPerKm);
-  const trend = (v: unknown) => object(v, ["direction", "earlyPaceSecondsPerKm", "latePaceSecondsPerKm"]) &&
-    ["faster", "slower", "even"].includes(v.direction as string) && integer(v.earlyPaceSecondsPerKm) && integer(v.latePaceSecondsPerKm);
-  return nullable(value.fastestKilometer, kilometerPace) && nullable(value.slowestKilometer, kilometerPace) &&
-    nullable(value.paceTrend, trend) && Array.isArray(value.splits) && value.splits.every((v: unknown) =>
-      object(v, ["kilometer", "distanceMeters", "movingSeconds", "elapsedSeconds", "averageSpeedMps", "paceSecondsPerKm"]) &&
-      integer(v.kilometer) && (v.kilometer as number) > 0 && number(v.distanceMeters) &&
-      integer(v.movingSeconds) && integer(v.elapsedSeconds) && nullable(v.averageSpeedMps, number) && nullable(v.paceSecondsPerKm, integer));
 }
 
 type ProjectionContext = {
@@ -579,7 +544,7 @@ export async function processStravaJobs(limit = 10): Promise<void> {
             payload = buildStravaWrappedProjection(activity, { runnerId: runner, runnerName: registration.data.name,
               bibNumber: registration.data.bib_number, eventName: event.data.name, eventDate: event.data.event_date,
               categoryName: category.data.name });
-            if (!validProjection(payload)) throw new TypeError("invalid_projection");
+            if (!isStravaWrappedSnapshotV1(payload)) throw new TypeError("invalid_projection");
           } catch {
             await stravaRpc("strava_commit_projection_fenced", { p_context: projectionContext, p_job: job.id, p_lease: job.lease_id, p_payload: null, p_error: "invalid_projection" });
             continue;
@@ -753,39 +718,6 @@ function connectionState(connection: StravaConnection | null): RunnerStravaRoute
 const emptyRunnerState = (status: RunnerStravaRoute["status"]): RunnerStravaRoute => ({
   status, activityId: null, candidates: [], metrics: {},
 });
-
-type CandidateRow = { activity_id: string; match_status: string; reason: string; summary: unknown };
-
-function candidateDisplay(value: unknown) {
-  if (value === null || typeof value !== "object") return null;
-  const { startDate, distanceMeters, gpsAvailable } = value as Record<string, unknown>;
-  if (typeof startDate !== "string" || !/(Z|[+-]\d{2}:\d{2})$/.test(startDate) ||
-    typeof distanceMeters !== "number" || !Number.isFinite(distanceMeters) || distanceMeters < 0) return null;
-
-  // Provider dates represent UTC instants. Candidates are shown in Jakarta time.
-  const local = new Date(Date.parse(startDate) + 7 * 60 * 60 * 1000);
-  if (!Number.isFinite(local.getTime())) return null;
-  return {
-    startTimeLocal: local.toISOString().slice(0, 19) + "+07:00",
-    distanceMeters,
-    gpsAvailable: typeof gpsAvailable === "boolean" ? gpsAvailable : null,
-  };
-}
-
-function safeCandidate(row: CandidateRow, activity: StoredStravaActivity, athleteId: string): RunnerStravaCandidate | null {
-  if (activity.id !== row.activity_id || activity.athleteId !== athleteId || activity.sportType !== "Run" ||
-    !/^[1-9]\d{0,18}$/.test(activity.id)) return null;
-  const display = candidateDisplay(row.summary) ?? candidateDisplay(activity);
-  if (!display) return null;
-
-  const knownReasons = ["race_checks_passed", "missing_start_location", "missing_configured_location"];
-  const gpsAvailable = display.gpsAvailable ?? (activity.gpsAvailable === true);
-  return {
-    activityId: activity.id, startTimeLocal: display.startTimeLocal, distanceMeters: display.distanceMeters,
-    sportType: "Run", gpsAvailable: row.reason !== "missing_start_location" && gpsAvailable,
-    matchReason: knownReasons.includes(row.reason) ? row.reason : "confirmation_required",
-  };
-}
 
 export async function getRunnerStravaRoute(userId: string, runnerId: string, signal?: AbortSignal): Promise<RunnerStravaRoute> {
   await requireStravaRunnerAccess(userId, runnerId, signal);

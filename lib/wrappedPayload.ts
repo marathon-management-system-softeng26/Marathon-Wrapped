@@ -1,4 +1,5 @@
 import type { WrappedStats } from "./types";
+import type { StravaWrappedSnapshotV1 } from "./strava/projection";
 
 export type StravaMetrics = {
   avg_heartrate: number | null; max_heartrate: number | null;
@@ -24,3 +25,13 @@ export type Enrichment = { strava: WrappedPayloadStrava; photos: Photo[]; warnin
 export type WrappedPayload =
   | { status: "finisher" | "dnf" | "dns"; stats: WrappedStats } & Enrichment
   | ({ status: "unavailable"; runner: { runner_id: string; name: string; bib_number: string | null }; reason: "missing_result" } & Enrichment);
+
+export type WrappedRegistration = Pick<StravaWrappedSnapshotV1, "runner" | "event">;
+
+type WrappedStatus = "setup_required" | "authorizing" | "importing" | "no_match" | "building" | "failed" | "reauth_required";
+
+export type StravaFirstWrappedPayload = { registration: WrappedRegistration } & (
+  | { state: WrappedStatus }
+  | { state: "needs_confirmation"; candidates: StravaCandidate[] }
+  | { state: "ready"; snapshot: StravaWrappedSnapshotV1; photos: Photo[] }
+);

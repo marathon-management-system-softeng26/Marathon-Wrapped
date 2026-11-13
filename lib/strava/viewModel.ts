@@ -77,7 +77,7 @@ export function callbackFeedback(href: string): { notice: string; path: string }
   const messages = new Map<string, string>([
     ["connected", "Strava authorized. Checking your race activity."],
     ["already_connected", "Strava is already connected. Checking your race activity."],
-    ["cancelled", "Strava connection cancelled. Your chip recap is ready."],
+    ["cancelled", "Strava connection cancelled."],
     ["in_progress", "Strava authorization is still processing. Check status in a moment."],
     ["disconnecting", "Strava is still disconnecting. Check status in a moment."],
     ["insufficient_scope", "Allow activity access in Strava to connect your race activity."],
