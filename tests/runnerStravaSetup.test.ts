@@ -112,6 +112,16 @@ describe("runner Strava setup screen", () => {
     expect(settled).toBeGreaterThan(polled);
   });
 
+  it("sends an expired session to sign-in instead of a dead end", async () => {
+    const replace = vi.fn();
+    Object.defineProperty(window, "location", { configurable: true, value: { ...window.location, replace } });
+    fetcher.mockImplementationOnce(async () => Response.json({ error: "Sign in again." }, { status: 401 }));
+    await render();
+
+    expect(replace).toHaveBeenCalledWith("/login");
+    expect(buttons()).not.toContain("Use Strava for this race");
+  });
+
   it("reports a denied registration without offering Strava controls", async () => {
     fetcher.mockImplementationOnce(async () => Response.json({ error: "not found" }, { status: 404 }));
     await render();

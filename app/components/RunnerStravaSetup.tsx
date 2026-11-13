@@ -33,9 +33,14 @@ export default function RunnerStravaSetup({ runnerId, feedbackCode = null }: { r
     })
       .then(async (response) => {
         if (controller.signal.aborted) return;
+        // An expired session is recoverable only at sign-in, so do not strand the runner here.
+        if (response.status === 401) {
+          window.location.replace("/login");
+          return;
+        }
         if (!response.ok) {
-          throw new Error(response.status === 401 ? "Sign in again to set up Strava."
-            : response.status === 404 ? "This registration is not available on your account."
+          throw new Error(response.status === 404
+            ? "This registration is not available on your account."
             : "Strava setup is unavailable. Try again.");
         }
         const body = await response.json() as RouteBody;
