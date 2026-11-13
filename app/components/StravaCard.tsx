@@ -9,9 +9,11 @@ type Props = {
   onRefresh: () => void;
   onLocalDisconnect?: () => void;
   stravaFirst?: boolean;
+  /** Whether this card, rather than its parent, holds and refreshes the Strava state. */
+  ownsState?: boolean;
 };
 
-export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconnect, stravaFirst = false }: Props) {
+export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconnect, stravaFirst = false, ownsState = !stravaFirst }: Props) {
   const [source, setSource] = useState(input);
   const [data, setData] = useState(input);
   const [pending, setPending] = useState(false);
@@ -26,7 +28,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
 
   const act = useCallback(async (action: Exclude<StravaActionId, "connect"> | "confirm", activityId?: string, automatic = false) => {
     if (busy.current) return;
-    if (stravaFirst && action === "check") {
+    if (!ownsState && action === "check") {
       onRefresh();
       return;
     }
@@ -44,7 +46,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
           (next.state === "disconnected" || next.state === "disconnecting" || next.reauthorizeToDisconnect)) {
         onLocalDisconnect?.();
       }
-      if (!stravaFirst) setData(next);
+      if (ownsState) setData(next);
       if (!automatic) setFeedback(next.state === "connected" ? "Your race activity is selected." : next.state === "disconnected" ? "Strava disconnected." : "Strava status updated.");
       onRefresh();
     } catch (error) {
@@ -59,10 +61,10 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
         if (!automatic) status.current?.focus({ preventScroll: true });
       }
     }
-  }, [runnerId, onRefresh, onLocalDisconnect, stravaFirst]);
+  }, [runnerId, onRefresh, onLocalDisconnect, ownsState]);
 
   useEffect(() => {
-    if (stravaFirst || (data.state !== "importing" && data.state !== "disconnecting")) return;
+    if (!ownsState || !["importing", "building", "disconnecting"].includes(data.state)) return;
     let cancelled = false;
     let checks = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -73,7 +75,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
     };
     timer = setTimeout(poll, 5000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [data.state, act, stravaFirst]);
+  }, [data.state, act, ownsState]);
 
   const model = stravaViewModel(data, runnerId, pending);
   return (

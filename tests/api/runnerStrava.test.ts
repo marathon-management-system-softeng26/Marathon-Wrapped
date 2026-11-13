@@ -191,6 +191,24 @@ describe("runner Strava access and safe states", () => {
     await expect(processing.detachRunnerFromStrava(user, runnerId)).rejects.toMatchObject({ code: "runner_not_found" });
     expect(mocks.rpc).not.toHaveBeenCalled();
   });
+  it("offers per-race attachment while the account connection stays active", async () => {
+    tables.strava_runner_attachments = [];
+    expect((await safe(await GET(request(), context()))).status).toBe("attachable");
+    tables.strava_connections[0].granted_scopes = ["activity:read"];
+    expect((await safe(await GET(request(), context()))).status).toBe("reauth_required");
+    tables.strava_connections = [];
+    expect((await safe(await GET(request(), context()))).status).toBe("disconnected");
+  });
+  it("reports building only while the selected activity is still projecting", async () => {
+    candidate(); selected();
+    const selection = tables.strava_runner_activities[0];
+    selection.strava_wrapped_snapshots = [{ status: "building" }];
+    expect((await safe(await GET(request(), context()))).status).toBe("building");
+    selection.strava_wrapped_snapshots = [{ status: "failed" }];
+    expect((await safe(await GET(request(), context()))).status).toBe("unavailable");
+    selection.strava_wrapped_snapshots = [{ status: "ready" }];
+    expect((await safe(await GET(request(), context()))).status).toBe("matched");
+  });
   it("detaches only the requested runner and preserves the other snapshot", async () => {
     tables.runner_access.push({ user_id: "user", runner_id: otherRunner });
     tables.strava_runner_attachments.push({ user_id: "user", generation: "generation", runner_id: otherRunner, status: "active", created_at: "second", attachment_id: "second" });
@@ -198,7 +216,8 @@ describe("runner Strava access and safe states", () => {
     expect(await processing.detachRunnerFromStrava("user", runnerId)).toBe("detached");
     expect(tables.strava_wrapped_snapshots).toEqual([{ runner_id: otherRunner }]);
     expect(tables.strava_connections[0].status).toBe("active");
-    expect((await safe(await GET(request(), context()))).status).toBe("disconnected");
+    // The account stays authorized, so this race can opt back in without a new consent.
+    expect((await safe(await GET(request(), context()))).status).toBe("attachable");
   });
   it.each(["detached", "reattached"])("suppresses loaded metrics when %s during the read", async (change) => {
     candidate(); selected();
@@ -271,7 +290,7 @@ describe("runner Strava access and safe states", () => {
     if (kind === "other_runner") tables.strava_runner_attachments[0].runner_id = otherRunner;
     if (kind === "old_generation") tables.strava_runner_attachments[0].generation = "old";
     if (kind === "pending") tables.strava_runner_attachments = [];
-    expect(await safe(await GET(request(), context()))).toEqual({ status: "disconnected", activityId: null, candidates: [], metrics: {} });
+    expect(await safe(await GET(request(), context()))).toEqual({ status: "attachable", activityId: null, candidates: [], metrics: {} });
     await safe(await PUT(request("PUT", { activityId: "10" }), context()), 409);
     expect(selectionCalls).toEqual([]);
   });

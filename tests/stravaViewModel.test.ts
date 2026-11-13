@@ -27,11 +27,13 @@ describe("Strava controls and readable state", () => {
     ["disconnected", "Connect Strava", ["connect"]],
     ["demo", "Sample activity metrics", ["connect"]],
     ["authorizing", "Authorize Strava", ["cancel"]],
-    ["importing", "Importing your activity", ["check", "disconnect"]],
-    ["needs_confirmation", "Choose your race activity", ["check", "disconnect"]],
-    ["no_match", "No race activity found", ["connect", "check", "disconnect"]],
-    ["connected", "Your Strava activity", ["check", "disconnect"]],
-    ["unavailable", "Activity details are unavailable", ["connect", "check", "disconnect"]],
+    ["attachable", "Use Strava for this race", ["attach", "disconnect"]],
+    ["importing", "Importing your activity", ["check", "detach", "disconnect"]],
+    ["needs_confirmation", "Choose your race activity", ["check", "detach", "disconnect"]],
+    ["no_match", "No race activity found", ["connect", "check", "detach", "disconnect"]],
+    ["building", "Building your Wrapped", ["check", "detach", "disconnect"]],
+    ["connected", "Your Strava activity", ["check", "detach", "disconnect"]],
+    ["unavailable", "Activity details are unavailable", ["connect", "check", "detach", "disconnect"]],
     ["disconnecting", "Disconnecting Strava", ["check", "disconnect"]],
     ["reauthorize_required", "Authorize Strava again", ["connect", "disconnect"]],
   ] as const)("offers explicit actions for %s", (value, title, actions) => {
@@ -49,6 +51,48 @@ describe("Strava controls and readable state", () => {
   it.each(["no_match", "unavailable"] as const)("offers a durable import retry for %s", (value) => {
     const retry = stravaViewModel(state(value), runner).actions[0];
     expect(retry).toMatchObject({ id: "connect", label: "Retry import", method: "POST", path: "/api/strava/connect" });
+  });
+  it("separates per-race attachment from account-wide connection", () => {
+    const [attach, disconnect] = stravaViewModel(state("attachable"), runner).actions;
+    expect(attach).toMatchObject({ id: "attach", label: "Use Strava for this race", method: "POST", path: `/api/runners/${runner}/strava/attach` });
+    expect(disconnect).toMatchObject({ id: "disconnect", label: "Disconnect Strava", method: "POST", path: "/api/strava/disconnect" });
+  });
+  it("offers per-race detach separately from account disconnect once attached", () => {
+    const model = stravaViewModel(state("connected"), runner);
+    const detach = model.actions.find((action) => action.id === "detach");
+    expect(detach).toMatchObject({ label: "Remove Strava from this race", method: "POST", path: `/api/runners/${runner}/strava/detach` });
+    expect(model.actions.find((action) => action.id === "disconnect")?.path).toBe("/api/strava/disconnect");
+  });
+  it("asks for private-activity consent before any authorization", () => {
+    for (const value of ["disconnected", "attachable"] as const) {
+      expect(stravaViewModel(state(value), runner).description).toContain("private");
+    }
+    expect(stravaViewModel(state("attachable"), runner).description).toContain("this race");
+  });
+  it("reports build progress without offering a premature showcase", () => {
+    const model = stravaViewModel(state("building"), runner);
+    expect(model.description).toContain("Building");
+    expect(model.metrics).toEqual([]);
+    expect(model.candidates).toEqual([]);
+  });
+  it.each(["attachable", "building"] as const)("withholds runner controls for organizer-only access to %s", (value) => {
+    expect(stravaViewModel({ ...state(value), controlsAvailable: false }, runner).actions).toEqual([]);
+  });
+  it("maps unattached and projecting route statuses to their own states", () => {
+    expect(routeToStrava({ status: "attachable", activityId: null, candidates: [candidate], metrics: {} }))
+      .toMatchObject({ state: "attachable", activityId: null, candidates: [], metrics: null });
+    expect(routeToStrava({ status: "building", activityId: "10", candidates: [candidate], metrics: { avg_heartrate: 150 } }))
+      .toMatchObject({ state: "building", activityId: null, metrics: null });
+  });
+  it("attaches and detaches one race over same-origin POSTs", async () => {
+    const fetcher = vi.fn().mockResolvedValue(Response.json({ status: "importing", activityId: null, candidates: [], metrics: {} }));
+    expect((await runStravaAction(fetcher, runner, "attach")).state).toBe("importing");
+    expect(fetcher).toHaveBeenLastCalledWith(`/api/runners/${runner}/strava/attach`,
+      expect.objectContaining({ method: "POST", credentials: "same-origin", cache: "no-store" }));
+    fetcher.mockResolvedValue(Response.json({ status: "attachable", activityId: null, candidates: [], metrics: {} }));
+    expect((await runStravaAction(fetcher, runner, "detach")).state).toBe("attachable");
+    expect(fetcher).toHaveBeenLastCalledWith(`/api/runners/${runner}/strava/detach`,
+      expect.objectContaining({ method: "POST", credentials: "same-origin" }));
   });
   it("names confirmation date and distance without route details", () => {
     const model = stravaViewModel(state("needs_confirmation"), runner);

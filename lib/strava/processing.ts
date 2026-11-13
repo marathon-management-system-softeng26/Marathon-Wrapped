@@ -41,6 +41,8 @@ export type StravaWebhookEvent = {
 export type RunnerStravaRoute = {
   status:
     | "disconnected"
+    | "attachable"
+    | "building"
     | "disconnecting"
     | "reauthorize_to_disconnect"
     | "reauth_required"
@@ -725,8 +727,12 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   const state = connectionState(connection);
   if (state) return emptyRunnerState(state);
   const active = connection!;
+  // An active athlete connection with no attachment for this registration is offerable,
+  // not disconnected: the runner opts this race in without authorizing again.
+  const unattached: RunnerStravaRoute["status"] =
+    active.granted_scopes.includes("activity:read_all") ? "attachable" : "reauth_required";
   const attachment = await loadStravaRunnerAttachment(userId, active.generation, runnerId, signal);
-  if (!attachment) return emptyRunnerState("disconnected");
+  if (!attachment) return emptyRunnerState(unattached);
   const db = getSupabaseAdmin();
   const scoped = <const Fields extends string>(table: string, fields: Fields) => {
     const query = db.from(table).select(fields).eq("user_id", userId).eq("generation", active.generation);
@@ -746,7 +752,7 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   };
   const [candidateRows, selection, jobs] = await Promise.all([
     loadCandidates(),
-    scoped("strava_runner_activities", "activity_id").eq("runner_id", runnerId).maybeSingle(),
+    scoped("strava_runner_activities", "activity_id,strava_wrapped_snapshots(status)").eq("runner_id", runnerId).maybeSingle(),
     scoped("strava_jobs", "kind,status,payload").in("kind", ["backfill", "activity", "webhook"]).neq("status", "complete"),
   ]);
   if (selection.error || jobs.error) {
@@ -779,12 +785,17 @@ export async function getRunnerStravaRoute(userId: string, runnerId: string, sig
   if (currentState) return emptyRunnerState(currentState);
   if (current!.generation !== active.generation) return emptyRunnerState("importing");
   const currentAttachment = await loadStravaRunnerAttachment(userId, active.generation, runnerId, signal);
-  if (!currentAttachment) return emptyRunnerState("disconnected");
+  if (!currentAttachment) return emptyRunnerState(unattached);
   if (currentAttachment.attachment_id !== attachment.attachment_id) return emptyRunnerState("importing");
   const runnerJobs = jobs.data?.filter((job) => job.kind === "webhook" ||
     !job.payload?.runner_id || job.payload.runner_id === runnerId);
+  // A stored snapshot row reports its own progress; legacy selections without one stay matched.
+  const projection = (selection.data as { strava_wrapped_snapshots?: { status?: string }[] } | null)
+    ?.strava_wrapped_snapshots?.[0]?.status;
+  const selectedStatus: RunnerStravaRoute["status"] =
+    projection === "building" ? "building" : projection === "failed" ? "unavailable" : "matched";
   return {
-    status: selected ? "matched" : runnerJobs?.some((job) => job.status === "failed") ? "unavailable"
+    status: selected ? selectedStatus : runnerJobs?.some((job) => job.status === "failed") ? "unavailable"
       : runnerJobs?.length ? "importing" : candidates.length ? "needs_confirmation" : "no_match",
     activityId: selected?.activityId ?? null, candidates, metrics,
   };

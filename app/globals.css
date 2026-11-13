@@ -250,6 +250,31 @@ small {
 .runner-claim [role="alert"] {
   font-weight: 700;
 }
+.runner-strava-intro,
+.runner-strava-notice {
+  max-width: 44rem;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.runner-strava-notice:not(:empty) {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+}
+.runner-strava-error p {
+  margin: 20px 0 12px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+}
+.runner-strava-setup .strava-card {
+  margin: 28px 0;
+}
+.runner-strava-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
 td small {
   display: block;
   margin-top: 7px;

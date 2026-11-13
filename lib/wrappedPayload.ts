@@ -10,7 +10,7 @@ export type Photo = {
   photographer: string | null; captured_km: number | null; captured_at: string | null;
 };
 export type WrappedPayloadStrava = {
-  state: "disconnected" | "authorizing" | "importing" | "needs_confirmation" | "no_match" | "connected" | "unavailable" | "disconnecting" | "reauthorize_required" | "demo";
+  state: "disconnected" | "attachable" | "authorizing" | "importing" | "needs_confirmation" | "no_match" | "building" | "connected" | "unavailable" | "disconnecting" | "reauthorize_required" | "demo";
   metrics: StravaMetrics | null;
   activityId?: string | null;
   candidates?: StravaCandidate[];
