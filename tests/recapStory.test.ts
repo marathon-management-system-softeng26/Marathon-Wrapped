@@ -38,6 +38,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  window.history.replaceState(null, "", "/");
   vi.unstubAllGlobals();
 });
 
@@ -83,6 +84,33 @@ describe("Strava-first recap controls", () => {
     expect(container.textContent).not.toMatch(/retry|try again/i);
     expect(container.querySelector("form")).toBeNull();
     expect(container.textContent).not.toContain("Save image");
+  });
+
+  it.each(["import_failed", "authorization_failed"] as const)(
+    "keeps recovery instructions out of a failed Wrapped after the %s callback",
+    async (callback) => {
+      window.history.replaceState(null, "", `/wrapped/${runnerId}?strava=${callback}&keep=yes`);
+      let finishLoad: ((response: Response) => void) | undefined;
+      fetcher.mockImplementationOnce(() => new Promise((resolve) => { finishLoad = resolve; }));
+
+      await renderRecap();
+      const loadingCopy = container.textContent;
+      await act(async () => finishLoad!(Response.json({ state: "failed", registration })));
+
+      expect(container.textContent).toContain("A Wrapped recap is unavailable for this registration.");
+      expect(container.textContent).not.toMatch(/retry|try connecting again|reconnect/i);
+      expect(loadingCopy).not.toMatch(/retry|try connecting again|reconnect/i);
+      expect(window.location.search).toBe("?keep=yes");
+    },
+  );
+
+  it("keeps OAuth feedback on a recap that is still importing", async () => {
+    window.history.replaceState(null, "", `/wrapped/${runnerId}?strava=connected`);
+    fetcher.mockResolvedValueOnce(Response.json({ state: "importing", registration }));
+
+    await renderRecap();
+
+    expect(container.textContent).toContain("Strava authorized. Checking your race activity.");
   });
 
   it("clears the export scene when a pending disconnect succeeds after leaving the Strava card", async () => {

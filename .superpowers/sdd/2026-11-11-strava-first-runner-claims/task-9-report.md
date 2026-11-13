@@ -44,3 +44,12 @@ The focused API and service tests use the installed Supabase client with a contr
 - `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` exited 0. The production build includes the dynamic Wrapped endpoint. Existing Vite CJS and native module-type warnings remain.
 
 The SQL fixture runs in PGlite with committed-state changes simulated sequentially. The service test separately models removal or reclassification after the old candidate GET could capture its rows and before the fenced read. No hosted migration, hosted integration run, live provider call, or real browser PNG render was performed. [PostgreSQL function snapshot semantics](https://www.postgresql.org/docs/current/xfunc-volatility.html) · [Supabase database function permissions](https://supabase.com/docs/guides/database/functions)
+
+## Review fixes round 2
+
+The recap waits for its initial Wrapped state before displaying OAuth callback feedback. A failed Wrapped shows only its registration and interim status, so neither the OAuth notice nor a prior refresh notice can suggest a recovery action. Other loaded states retain their callback feedback. The callback parameter is still removed from the URL while unrelated query parameters are retained.
+
+- **RED** `npx vitest run tests/recapStory.test.ts` exited 1 with **2 failed, 6 passed**. The failed recap showed `Retry import` after `import_failed` and `Try connecting again` after `authorization_failed`.
+- **GREEN** The same command exited 0 with **8 passed**. Both cases check the loading and failed views and URL cleanup. The importing regression confirms the existing authorization message remains visible.
+- `npx vitest run tests/recapStory.test.ts tests/api/wrapped.test.ts tests/stravaWrappedService.test.ts tests/shareModel.test.ts tests/exportWrapped.test.ts` exited 0 with **62 passed in five files**. `npm test` exited 0 with **485 passed, 17 skipped**, in 27 passing and two environment-gated suites.
+- `npm run lint`, `npx tsc --noEmit`, `npm run build`, and `git diff --check` exited 0. The callback cases use jsdom. This round did not change the database or run hosted tests.

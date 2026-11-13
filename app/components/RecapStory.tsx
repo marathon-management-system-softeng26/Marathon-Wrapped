@@ -212,7 +212,6 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       <main className="story-state">
         <Link href="/">← Your races</Link>
         <h1>{error ? "Your recap needs a moment." : "Finding your race…"}</h1>
-        {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
         {error && (
           <>
             <p role="alert">{error}</p>
@@ -228,13 +227,15 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         <Link href="/">&#8592; Your races</Link>
         <h1>{workflowTitles[payload.state]}</h1>
         <p>{runner.name} &#183; {event.name} &#183; {event.category}</p>
-        {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
         {payload.state === "failed" ? (
           <p role="status">A Wrapped recap is unavailable for this registration.</p>
-        ) : strava && (
-          <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />
+        ) : (
+          <>
+            {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
+            {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />}
+            {notice && <p role="status">{notice}</p>}
+          </>
         )}
-        {notice && <p role="status">{notice}</p>}
       </main>
     );
   }
