@@ -128,4 +128,124 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
       }
     }
   }, 20000);
+
+  it("gives a one-time claim exactly one owner and keeps organizer scope separate", async () => {
+    const bib = "QA-CLAIM-" + crypto.randomUUID().slice(0, 8);
+    const headers = { Cookie: cookies.organizer, Origin: origin, "Content-Type": "application/json" };
+    let runner: string | null = null;
+    try {
+      const created = await fetch(`${origin}/api/organizer/events/${eventId}/runners`, {
+        method: "POST", headers,
+        body: JSON.stringify({ name: "Claim assertion", bib_number: bib, date_of_birth: "1996-02-02",
+          gender: "F", parental_consent: false, category: "5K", result: null, splits: [] }),
+      });
+      expect(created.status).toBe(201);
+      runner = (await created.json()).runner_id;
+
+      // An unclaimed registration is invisible to the runner account that will claim it.
+      const before = await fetch(`${origin}/api/session`, { headers: { Cookie: cookies.b } });
+      expect(before.status).toBe(200);
+      expect((await before.json()).runners.map((row: { id: string }) => row.id)).not.toContain(runner);
+
+      const issued = await fetch(`${origin}/api/organizer/events/${eventId}/runners/${runner}/claim`, { method: "POST", headers });
+      expect(issued.status).toBe(201);
+      const claim = await issued.json();
+      expect(claim.token).toEqual(expect.any(String));
+
+      const redeem = (account: string) => fetch(`${origin}/api/claims`, {
+        method: "POST",
+        headers: { Cookie: cookies[account], Origin: origin, "Content-Type": "application/json" },
+        body: JSON.stringify({ token: claim.token }),
+      });
+      expect((await redeem("b")).status).toBe(200);
+
+      // The same code must not hand a second account any access.
+      const second = await redeem("a");
+      expect(second.status).toBe(400);
+      const owners = await admin.from("runner_access").select("user_id").eq("runner_id", runner);
+      expect(owners.error).toBeNull();
+      expect(owners.data).toHaveLength(1);
+
+      const after = await fetch(`${origin}/api/session`, { headers: { Cookie: cookies.b } });
+      expect((await after.json()).runners.map((row: { id: string }) => row.id)).toContain(runner);
+
+      // Organizer scope stays events-only and never gains a runner Strava action.
+      const organizer = await fetch(`${origin}/api/session`, { headers: { Cookie: cookies.organizer } });
+      expect((await organizer.json()).runners).toEqual([]);
+      expect((await fetch(`${origin}/api/runners/${runner}/strava`, { headers: { Cookie: cookies.organizer } })).status).toBe(404);
+    } finally {
+      if (runner) {
+        await admin.from("runner_access").delete().eq("runner_id", runner);
+        const removed = await admin.from("runners").delete().eq("id", runner).eq("bib_number", bib);
+        if (removed.error) throw new Error("Disposable claim fixture cleanup failed.");
+      }
+    }
+  }, 30000);
+
+  it("refuses an expired, malformed, or revoked claim without disclosing a registration", async () => {
+    const bib = "QA-REVOKE-" + crypto.randomUUID().slice(0, 8);
+    const headers = { Cookie: cookies.organizer, Origin: origin, "Content-Type": "application/json" };
+    let runner: string | null = null;
+    try {
+      const created = await fetch(`${origin}/api/organizer/events/${eventId}/runners`, {
+        method: "POST", headers,
+        body: JSON.stringify({ name: "Revoke assertion", bib_number: bib, date_of_birth: "1996-03-03",
+          gender: "F", parental_consent: false, category: "5K", result: null, splits: [] }),
+      });
+      expect(created.status).toBe(201);
+      runner = (await created.json()).runner_id;
+      const claim = await (await fetch(`${origin}/api/organizer/events/${eventId}/runners/${runner}/claim`, { method: "POST", headers })).json();
+
+      const revoked = await fetch(`${origin}/api/organizer/events/${eventId}/runners/${runner}/claim`, {
+        method: "DELETE", headers, body: JSON.stringify({ claimId: claim.id }),
+      });
+      expect(revoked.status).toBe(200);
+
+      for (const token of [claim.token, "not-a-token", "z".repeat(43)]) {
+        const response = await fetch(`${origin}/api/claims`, {
+          method: "POST",
+          headers: { Cookie: cookies.b, Origin: origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        expect(response.status).toBe(400);
+        const text = await response.text();
+        expect(text).not.toContain(runner);
+        expect(text).not.toContain(bib);
+      }
+      const owners = await admin.from("runner_access").select("user_id").eq("runner_id", runner);
+      expect(owners.data).toEqual([]);
+    } finally {
+      if (runner) {
+        await admin.from("runner_access").delete().eq("runner_id", runner);
+        const removed = await admin.from("runners").delete().eq("id", runner).eq("bib_number", bib);
+        if (removed.error) throw new Error("Disposable revoke fixture cleanup failed.");
+      }
+    }
+  }, 30000);
+
+  it("scopes organizer race-matching configuration to the organizer's own event", async () => {
+    const headers = { Cookie: cookies.organizer, Origin: origin, "Content-Type": "application/json" };
+    const read = await fetch(`${origin}/api/organizer/events/${eventId}/strava-config`, { headers: { Cookie: cookies.organizer } });
+    expect(read.status).toBe(200);
+    const { categories } = await read.json();
+    expect(Array.isArray(categories)).toBe(true);
+    expect(categories.length).toBeGreaterThan(0);
+
+    const saved = await fetch(`${origin}/api/organizer/events/${eventId}/strava-config`, {
+      method: "PUT", headers,
+      body: JSON.stringify({ categoryId: categories[0].id, startTimeFrom: "2027-08-16T23:00:00+07:00",
+        startTimeTo: "2027-08-17T05:00:00+07:00", distanceToleranceM: 400 }),
+    });
+    expect(saved.status).toBe(200);
+    expect((await saved.json()).config).toMatchObject({ distanceToleranceM: 400, allowedSportTypes: ["Run"] });
+
+    // A runner account must not read or write organizer race configuration.
+    expect((await fetch(`${origin}/api/organizer/events/${eventId}/strava-config`, { headers: { Cookie: cookies.a } })).status).toBe(403);
+    const inverted = await fetch(`${origin}/api/organizer/events/${eventId}/strava-config`, {
+      method: "PUT", headers,
+      body: JSON.stringify({ categoryId: categories[0].id, startTimeFrom: "2027-08-17T05:00:00+07:00",
+        startTimeTo: "2027-08-16T23:00:00+07:00", distanceToleranceM: 400 }),
+    });
+    expect(inverted.status).toBe(422);
+  }, 30000);
 });

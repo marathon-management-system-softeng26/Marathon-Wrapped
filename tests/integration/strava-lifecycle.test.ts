@@ -239,5 +239,103 @@ describe.skipIf(process.env.RUN_STRAVA_DATABASE_TESTS !== "1")(
       expect(demo.data).toEqual({ avg_heartrate: 123, data_source: "demo" });
       expect(await call("strava_select_runner_activity", { p_user, p_generation, p_runner, p_activity: "one", p_metrics: {} })).toBe("obsolete");
     });
+
+    it("attaches several registrations, detaches one, and suppresses an obsolete generation", async () => {
+      const created = await admin.auth.admin.createUser({
+        email: `strava-${prefix}-multi@example.invalid`,
+      });
+      expect(created.error).toBeNull();
+      const p_user = created.data.user!.id;
+      matchingUsers.push(p_user);
+
+      const event = await admin.from("events").insert({
+        name: `Strava multi-runner test ${prefix}`, event_date: "2027-08-17",
+      }).select("id").single();
+      expect(event.error).toBeNull();
+      events.push(event.data!.id);
+
+      // Two categories, so each registration carries its own race window.
+      const runners: string[] = [];
+      for (const [index, name] of ["5K", "10K"].entries()) {
+        const category = await admin.from("categories").insert({
+          event_id: event.data!.id, name, distance_km: index === 0 ? 5 : 10, min_age: 17,
+        }).select("id").single();
+        expect(category.error).toBeNull();
+        const runner = await admin.from("runners").insert({
+          category_id: category.data!.id, name: `Disposable multi runner ${index}`, date_of_birth: "1990-01-01",
+          gender: "M", email: `multi-${index}@example.invalid`, phone: "0", id_type: "Passport",
+          id_number: `${prefix}-${index}`, jersey_size: "M",
+        }).select("id").single();
+        expect(runner.error).toBeNull();
+        runners.push(runner.data!.id);
+        expect((await admin.from("runner_access").insert({ user_id: p_user, runner_id: runner.data!.id })).error).toBeNull();
+        expect((await admin.from("strava_race_configs").insert({
+          category_id: category.data!.id, start_time_from: "2027-08-17T00:00:00Z", start_time_to: "2027-08-17T02:00:00Z",
+        })).error).toBeNull();
+      }
+
+      const p_hash = `${prefix}-multi`;
+      expect(await call("strava_begin_runner_oauth", {
+        p_user, p_runner: runners[0], p_hash, p_return_path: `/wrapped/${runners[0]}`,
+      })).toBe("ready");
+      expect((await call("strava_claim_runner_oauth", { p_user, p_hash })).status).toBe("claimed");
+      expect(await call("strava_finish_oauth", { p_user, p_hash, p_tokens: {
+        athlete_id: p_user, access_token: "synthetic-encrypted-access", refresh_token: "synthetic-encrypted-refresh",
+        expires_at: new Date(Date.now() + 3600000).toISOString(), scopes: ["activity:read_all"],
+      } })).toBe("connected");
+      const connection = await admin.from("strava_connections").select("generation").eq("user_id", p_user).single();
+      expect(connection.error).toBeNull();
+      const p_generation = connection.data!.generation;
+
+      // One athlete connection supports both registrations without re-authorizing.
+      expect(await call("strava_attach_runner", { p_user, p_runner: runners[1] })).toBe("attached");
+      const attached = await admin.from("strava_runner_attachments").select("runner_id").eq("user_id", p_user);
+      expect(attached.error).toBeNull();
+      expect(attached.data!.map((row) => row.runner_id).sort()).toEqual([...runners].sort());
+
+      expect((await admin.from("strava_activities").insert(["alpha", "beta"].map((activity_id) => ({
+        user_id: p_user, generation: p_generation, activity_id, activity: {},
+      })))).error).toBeNull();
+      for (const [index, p_runner] of runners.entries()) {
+        await call("strava_store_runner_candidates", {
+          p_user, p_generation, p_runner,
+          p_candidates: [{ activity_id: index === 0 ? "alpha" : "beta", match_status: "auto_match", reason: "race_checks_passed", summary: {} }],
+        });
+      }
+
+      // Within one generation an activity belongs to at most one registration showcase.
+      expect(await call("strava_confirm_runner_activity_and_project", {
+        p_user, p_generation, p_runner: runners[0], p_activity: "alpha",
+      })).toBe("selected");
+      expect(await call("strava_confirm_runner_activity_and_project", {
+        p_user, p_generation, p_runner: runners[1], p_activity: "alpha",
+      })).not.toBe("selected");
+      expect(await call("strava_confirm_runner_activity_and_project", {
+        p_user, p_generation, p_runner: runners[1], p_activity: "beta",
+      })).toBe("selected");
+
+      // Detaching one race must not disturb the other registration's work.
+      expect(await call("strava_detach_runner", { p_user, p_runner: runners[0] })).toBe("detached");
+      for (const table of ["strava_runner_activities", "strava_activity_candidates", "strava_runner_attachments"]) {
+        const gone = await admin.from(table).select("runner_id").eq("runner_id", runners[0]);
+        expect(gone.error).toBeNull();
+        expect(gone.data).toEqual([]);
+        const kept = await admin.from(table).select("runner_id").eq("runner_id", runners[1]);
+        expect(kept.error).toBeNull();
+        expect(kept.data!.length).toBeGreaterThan(0);
+      }
+
+      // A disconnected account's old generation can no longer publish or enqueue.
+      await call("strava_disconnect", { p_user });
+      expect(await call("strava_enqueue_projection", {
+        p_user, p_generation, p_runner: runners[1], p_activity: "beta",
+      })).toBe(false);
+      expect(await call("strava_confirm_runner_activity_and_project", {
+        p_user, p_generation, p_runner: runners[1], p_activity: "beta",
+      })).toBe("obsolete");
+      const live = await admin.from("strava_wrapped_snapshots").select("runner_id").in("runner_id", runners);
+      expect(live.error).toBeNull();
+      expect(live.data).toEqual([]);
+    }, 60000);
   },
 );

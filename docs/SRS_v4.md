@@ -149,11 +149,11 @@ This table preserves the original V3 to V4 mapping. The November 11 decision sup
 | FR-14–FR-15 | UR-F6; SR-F18–SR-F19 |
 | FR-16–FR-18 | UR-F8–UR-F9; SR-F20–SR-F21, SR-F24 |
 | NFR-01–NFR-02 | UR-NF3; SR-NF1–SR-NF2 |
-| NFR-03 | Missing activity data and build failures shall leave the runner a usable setup or retry state. Missing photos shall leave a ready showcase usable. | Exercise no match, build failure, and a ready registration without photos. |
+| NFR-03 | UR-NF2; SR-NF3, SR-NF6–SR-NF7 |
 | NFR-04–NFR-05 | UR-NF1; SR-NF15–SR-NF17 |
-| NFR-06 | Runner payloads, exports, and logs shall exclude credentials, raw activity payloads, routes, coordinates, and private athlete profile data. Candidate identifiers shall be private to the owner selecting an activity. | Inspect runner and organizer responses, logs, and exported images for private fields. |
+| NFR-06–NFR-07 | SR-NF13–SR-NF14 |
 | NFR-08 | UR-NF5; SR-NF18 |
-| NFR-09 | The demonstration shall use clearly labeled synthetic fixtures and exercise the ready, no-match, and no-photo states. | Audit fixture labels and open each state. |
+| NFR-09 | SR-F22; SR-NF19 |
 | Recommended presentation | UR-D1–UR-D3; SR-D1–SR-D2 |
 | Data and business rules | UR-NF4; SR-F4, SR-F10; SR-NF8–SR-NF11; V3 section 3 |
 | Main user flows | V3 FS-01–FS-08, consolidated with section 3 |
