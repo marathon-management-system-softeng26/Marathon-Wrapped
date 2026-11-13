@@ -2,9 +2,9 @@ import "server-only";
 import { AccessDeniedError } from "@/lib/auth/access";
 import { safeCandidate, type CandidateActivity, type CandidateRow } from "@/lib/strava/candidate";
 import { isStravaWrappedSnapshotV1 } from "@/lib/strava/projection";
-import { loadStravaRunnerAttachment } from "@/lib/strava/store";
+import { loadStravaRunnerAttachment, stravaRpc } from "@/lib/strava/store";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import type { Photo, StravaCandidate, StravaFirstWrappedPayload, WrappedRegistration } from "@/lib/wrappedPayload";
+import type { Photo, StravaFirstWrappedPayload, WrappedRegistration } from "@/lib/wrappedPayload";
 
 type Database = ReturnType<typeof getSupabaseAdmin>;
 type SimpleState = Exclude<StravaFirstWrappedPayload["state"], "needs_confirmation" | "ready">;
@@ -59,26 +59,23 @@ async function loadSelection(db: Database, userId: string, generation: string, r
     .maybeSingle<{ activity_id: string; strava_wrapped_snapshots: SnapshotRow[] }>());
 }
 
-async function loadCandidates(db: Database, userId: string, generation: string, runnerId: string, athleteId: string) {
-  const candidates: StravaCandidate[] = [];
-  const pageSize = 100;
-  for (let offset = 0; ; offset += pageSize) {
-    const rows = read(await db.from("strava_activity_candidates")
-      .select(`activity_id,match_status,reason,summary,strava_activities(
-        id:activity->>id,athleteId:activity->>athleteId,sportType:activity->>sportType,
-        startDate:activity->>startDate,distanceMeters:activity->distanceMeters,gpsAvailable:activity->gpsAvailable
-      )`)
-      .eq("user_id", userId).eq("generation", generation).eq("runner_id", runnerId)
-      .in("match_status", ["auto_match", "needs_confirmation"])
-      .order("activity_id").range(offset, offset + pageSize - 1)
-      .overrideTypes<(CandidateRow & { strava_activities: CandidateActivity | null })[], { merge: false }>()) ?? [];
-    for (const row of rows) {
-      const activity = row.strava_activities;
-      const candidate = activity && safeCandidate(row, activity, athleteId);
-      if (candidate) candidates.push(candidate);
-    }
-    if (rows.length < pageSize) return candidates;
-  }
+async function loadConfirmation(
+  userId: string, generation: string, runnerId: string, attachmentId: string,
+): Promise<StravaFirstWrappedPayload> {
+  const current = await stravaRpc<{
+    state: SimpleState;
+    registration: WrappedRegistration;
+    athlete_id: string | null;
+    candidates: (CandidateRow & { strava_activities: CandidateActivity })[];
+  } | null>("strava_wrapped_confirmation", {
+    p_user: userId, p_runner: runnerId, p_generation: generation, p_attachment: attachmentId,
+  });
+  if (!current) throw new AccessDeniedError();
+  const { state, registration, athlete_id } = current;
+  if (state !== "no_match" || !athlete_id) return { state, registration };
+
+  const candidates = current.candidates.flatMap((row) => safeCandidate(row, row.strava_activities, athlete_id) ?? []);
+  return candidates.length ? { state: "needs_confirmation", registration, candidates } : { state, registration };
 }
 
 async function loadPhotos(db: Database, bib: string | null): Promise<Photo[]> {
@@ -127,27 +124,13 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   const attachment = await loadStravaRunnerAttachment(userId, generation, runnerId);
   if (!attachment) return state("setup_required");
   const selection = await loadSelection(db, userId, generation, runnerId, true);
-  const snapshot = selection?.strava_wrapped_snapshots[0];
-  let payload: StravaFirstWrappedPayload;
-  if (selection) {
-    if (!snapshot || snapshot.status === "building") return state("building");
-    if (snapshot.status !== "ready" || !isStravaWrappedSnapshotV1(snapshot.payload) || snapshot.payload.runner.id !== runnerId) {
-      return state("failed");
-    }
-    const photos = await loadPhotos(db, registration.runner.bibNumber);
-    payload = { state: "ready", registration, snapshot: snapshot.payload, photos };
-  } else {
-    // Descending status puts both runnable states before failed.
-    const jobs = read(await db.from("strava_jobs").select("status")
-      .eq("user_id", userId).eq("generation", generation)
-      .eq(`attachment_fences->>${runnerId}`, attachment.attachment_id)
-      .in("kind", ["backfill", "activity", "webhook"]).in("status", ["pending", "processing", "failed"])
-      .order("status", { ascending: false }).limit(1).maybeSingle());
-    if (jobs) return state(jobs.status === "failed" ? "failed" : "importing");
-    const candidates = await loadCandidates(db, userId, generation, runnerId, athleteId!);
-    if (!candidates.length) return state("no_match");
-    payload = { state: "needs_confirmation", registration, candidates };
+  if (!selection) return loadConfirmation(userId, generation, runnerId, attachment.attachment_id);
+  const snapshot = selection.strava_wrapped_snapshots[0];
+  if (!snapshot || snapshot.status === "building") return state("building");
+  if (snapshot.status !== "ready" || !isStravaWrappedSnapshotV1(snapshot.payload) || snapshot.payload.runner.id !== runnerId) {
+    return state("failed");
   }
+  const photos = await loadPhotos(db, registration.runner.bibNumber);
 
   // A slow optional read must never return data from a detached runner, replaced
   // selection or projection, or a connection that changed during the request.
@@ -162,10 +145,10 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   if (currentConnection?.generation !== generation || currentConnection.athlete_id !== athleteId) return state("importing");
   if (!currentAttachment) return state("setup_required");
   const currentSnapshot = currentSelection?.strava_wrapped_snapshots[0];
-  if (currentAttachment.attachment_id !== attachment.attachment_id || currentSelection?.activity_id !== selection?.activity_id ||
-      currentSnapshot?.build_id !== snapshot?.build_id || currentSnapshot?.status !== snapshot?.status) return state("importing");
-  if (payload.state === "ready" && currentRegistration.runner.bibNumber !== registration.runner.bibNumber) {
-    return { ...payload, registration: currentRegistration, photos: [] };
-  }
-  return { ...payload, registration: currentRegistration };
+  if (currentAttachment.attachment_id !== attachment.attachment_id || currentSelection?.activity_id !== selection.activity_id ||
+      currentSnapshot?.build_id !== snapshot.build_id || currentSnapshot.status !== snapshot.status) return state("importing");
+  return {
+    state: "ready", registration: currentRegistration, snapshot: snapshot.payload,
+    photos: currentRegistration.runner.bibNumber === registration.runner.bibNumber ? photos : [],
+  };
 }

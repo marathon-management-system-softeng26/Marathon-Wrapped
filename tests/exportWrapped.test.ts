@@ -72,4 +72,18 @@ describe("Wrapped PNG export", () => {
     await expect(exportWrapped(ready)).rejects.toThrow("Could not create image. Retry");
     expect(append).not.toHaveBeenCalled();
   });
+
+  it("does not download when a ready export is invalidated while the image encodes", async () => {
+    const { canvas, append } = mockCanvas();
+    vi.stubGlobal("window", { setTimeout: vi.fn() });
+    const controller = new AbortController();
+    const encode = vi.spyOn(canvas, "toBlob").mockImplementation((callback) => {
+      controller.abort();
+      callback(new Blob(["png"], { type: "image/png" }));
+    });
+
+    await expect(exportWrapped(ready, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(encode).toHaveBeenCalledOnce();
+    expect(append).not.toHaveBeenCalled();
+  });
 });

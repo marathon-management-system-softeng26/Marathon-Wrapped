@@ -21,6 +21,7 @@ export function wrappedDatabase(state: TestState = "ready", options: {
   unknownCandidateReason?: boolean;
   missingSnapshot?: boolean;
   currentFailedImport?: boolean;
+  candidateChangeBeforeFence?: "removed" | "reclassified";
   stalledPhotos?: boolean;
   revokeAccessDuringRead?: boolean;
   changeBibDuringRead?: boolean;
@@ -82,18 +83,43 @@ export function wrappedDatabase(state: TestState = "ready", options: {
   let connectionReads = 0;
   let selectionReads = 0;
   let registrationReads = 0;
+  const changeCandidate = () => {
+    if (options.candidateChangeBeforeFence === "removed") tables.strava_activity_candidates = [];
+    if (options.candidateChangeBeforeFence === "reclassified") {
+      tables.strava_activity_candidates = tables.strava_activity_candidates.map((row) => ({ ...row, match_status: "no_match" }));
+    }
+  };
   const client = createClient("https://test.supabase.invalid", "test-server-key", {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input);
       requests.push(url);
       const table = url.pathname.split("/").at(-1)!;
+      if (table === "strava_wrapped_confirmation") {
+        changeCandidate();
+        const { p_user, p_runner, p_generation, p_attachment } = JSON.parse(String(init?.body));
+        const access = tables.runner_access.find((row) => row.user_id === p_user && row.runner_id === p_runner);
+        if (!access) return Response.json(null);
+        const attached = tables.strava_runner_attachments.find((row) =>
+          row.user_id === p_user && row.runner_id === p_runner && row.generation === p_generation && row.attachment_id === p_attachment);
+        const jobs = tables.strava_jobs.filter((row) => row.user_id === p_user && row.generation === p_generation &&
+          (row.attachment_fences as Record<string, string>)[p_runner] === p_attachment);
+        const jobState = jobs.some((job) => ["pending", "processing"].includes(String(job.status))) ? "importing"
+          : jobs.some((job) => job.status === "failed") ? "failed" : null;
+        const confirmationState = !attached ? "setup_required" : jobState ?? "no_match";
+        const currentCandidates = confirmationState === "no_match" ? tables.strava_activity_candidates.filter((row) =>
+          row.user_id === p_user && row.runner_id === p_runner && row.generation === p_generation &&
+          ["auto_match", "needs_confirmation"].includes(String(row.match_status))) : [];
+        return Response.json({ state: confirmationState, registration, athlete_id: athleteId, candidates: currentCandidates });
+      }
       if (table === "fotoyu_photos" && options.stalledPhotos) return new Promise(() => {});
       if (table === "fotoyu_photos" && options.photoError) {
         return Response.json({ message: "private photo infrastructure detail" }, { status: 403 });
       }
       if (!(table in tables)) return Response.json({ message: `unexpected table: ${table}` }, { status: 400 });
       let rows = tables[table];
+      // The old multi-request path can capture these rows just before they change.
+      if (table === "strava_activity_candidates") changeCandidate();
       if (table === "runner_access" && ++registrationReads > 1) {
         if (options.revokeAccessDuringRead) rows = [];
         if (options.changeBibDuringRead) rows = [{ user_id: ownerId, runner_id: runnerId, runners: { ...registrationRow, bib_number: "A2002" } }];

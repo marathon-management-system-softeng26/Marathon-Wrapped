@@ -56,10 +56,12 @@ async function renderShareModel(
   ctx.fillText(model.event, 540, 1220, 936);
   ctx.textAlign = "start";
 }
-export async function exportWrapped(payload: StravaFirstWrappedPayload) {
+export async function exportWrapped(payload: StravaFirstWrappedPayload, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   const model = shareModel(payload);
   const canvas = document.createElement("canvas");
   await renderShareModel(canvas, model);
+  signal?.throwIfAborted();
   const blob = await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
       (value) =>
@@ -69,6 +71,7 @@ export async function exportWrapped(payload: StravaFirstWrappedPayload) {
       "image/png",
     ),
   );
+  signal?.throwIfAborted();
   const url = URL.createObjectURL(blob),
     anchor = document.createElement("a");
   anchor.href = url;

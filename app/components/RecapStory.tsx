@@ -79,6 +79,8 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
   const heading = useRef<HTMLHeadingElement>(null),
     dialog = useRef<HTMLDialogElement>(null),
     loaded = useRef<string | null>(null),
+    wrappedRequest = useRef<AbortController | null>(null),
+    exportRequest = useRef<AbortController | null>(null),
     touch = useRef<{ x: number; y: number } | null>(null);
   const strava = useMemo((): WrappedPayloadStrava | null => {
     if (!payload) return null;
@@ -96,6 +98,13 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     };
   }, [payload]);
   const refresh = useCallback(() => setVersion((value) => value + 1), []);
+  const invalidateWrapped = useCallback(() => {
+    wrappedRequest.current?.abort();
+    exportRequest.current?.abort();
+    setPayload((current) => current && { state: "setup_required", registration: current.registration });
+    setSelected(null);
+    setNotice("Strava is disconnected from your Wrapped.");
+  }, []);
   useEffect(() => {
     const feedback = callbackFeedback(window.location.href);
     let cancelled = false;
@@ -109,16 +118,19 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
   }, [stravaFeedback]);
   useEffect(() => {
     const controller = new AbortController();
+    wrappedRequest.current = controller;
     fetch(`/api/runners/${encodeURIComponent(runnerId)}/wrapped`, {
       cache: "no-store",
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
     })
       .then(async (response) => {
+        if (controller.signal.aborted) return;
         if (response.status === 401) {
           window.location.replace("/login");
           return;
         }
         const body = await response.json();
+        if (controller.signal.aborted) return;
         if (response.status === 404) {
           loaded.current = null;
           setPayload(null);
@@ -139,6 +151,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       });
     return () => controller.abort();
   }, [runnerId, version]);
+  useEffect(() => () => exportRequest.current?.abort(), []);
   useEffect(() => {
     if (!payload || !["authorizing", "importing", "building"].includes(payload.state)) return;
     const timer = window.setTimeout(refresh, 5000);
@@ -175,18 +188,22 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
   }, [selected]);
   async function save() {
     if (payload?.state !== "ready") return;
+    const controller = new AbortController();
+    exportRequest.current = controller;
     setSaving(true);
     setNotice("");
     try {
-      await exportWrapped(payload);
+      await exportWrapped(payload, controller.signal);
       setNotice("PNG ready. Check your browser downloads.");
     } catch (cause) {
+      if (controller.signal.aborted) return;
       setNotice(
         cause instanceof Error
           ? cause.message
           : "Image could not be saved. Please retry.",
       );
     } finally {
+      exportRequest.current = null;
       setSaving(false);
     }
   }
@@ -212,7 +229,11 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         <h1>{workflowTitles[payload.state]}</h1>
         <p>{runner.name} &#183; {event.name} &#183; {event.category}</p>
         {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
-        {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} stravaFirst />}
+        {payload.state === "failed" ? (
+          <p role="status">A Wrapped recap is unavailable for this registration.</p>
+        ) : strava && (
+          <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />
+        )}
         {notice && <p role="status">{notice}</p>}
       </main>
     );
@@ -387,7 +408,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
             <h2 ref={heading} tabIndex={-1}>
               Your Strava activity
             </h2>
-            {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} stravaFirst />}
+            {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />}
             <Image
               className="decoration decoration-context-watch"
               src={decorationUrl(recapDecorations.context[0])}

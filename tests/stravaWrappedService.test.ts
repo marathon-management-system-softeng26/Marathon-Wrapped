@@ -94,6 +94,16 @@ describe("stored Strava Wrapped service", () => {
     expect(await getWrapped(ownerId, runnerId)).toStrictEqual({ state: "no_match", registration });
   });
 
+  it.each(["removed", "reclassified"] as const)("withholds a candidate %s before the final confirmation read", async (change) => {
+    const db = wrappedDatabase("needs_confirmation", { candidateChangeBeforeFence: change });
+    mocks.db.mockReturnValue(db.client);
+
+    expect(await getWrapped(ownerId, runnerId)).toStrictEqual({ state: "no_match", registration });
+    expect(db.requests.map((url) => url.pathname).filter((path) => path.includes("candidate") || path.includes("confirmation")))
+      .toEqual(["/rest/v1/rpc/strava_wrapped_confirmation"]);
+    expect(db.requests.at(-1)?.pathname).toBe("/rest/v1/rpc/strava_wrapped_confirmation");
+  });
+
   it("replaces an unknown candidate reason with safe confirmation copy", async () => {
     mocks.db.mockReturnValue(wrappedDatabase("needs_confirmation", { unknownCandidateReason: true }).client);
     expect(await getWrapped(ownerId, runnerId)).toStrictEqual({

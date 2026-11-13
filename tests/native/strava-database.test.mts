@@ -259,6 +259,14 @@ test(
       }
       assert.deepEqual(projectionReviewErrors, [], "Projection review regression cases");
 
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_strava_wrapped_confirmation_read.sql"))) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec("begin");
+      try { await db.exec(await readFile("tests/sql/strava-wrapped-confirmation.sql", "utf8")); }
+      finally { await db.exec("rollback"); }
+
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
       await db.exec(`

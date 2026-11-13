@@ -3,7 +3,15 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
 import { runStravaAction, stravaViewModel, type StravaActionId } from "@/lib/strava/viewModel";
 
-export default function StravaCard({ input, runnerId, onRefresh, stravaFirst = false }: { input: WrappedPayloadStrava; runnerId: string; onRefresh: () => void; stravaFirst?: boolean }) {
+type Props = {
+  input: WrappedPayloadStrava;
+  runnerId: string;
+  onRefresh: () => void;
+  onLocalDisconnect?: () => void;
+  stravaFirst?: boolean;
+};
+
+export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconnect, stravaFirst = false }: Props) {
   const [source, setSource] = useState(input);
   const [data, setData] = useState(input);
   const [pending, setPending] = useState(false);
@@ -27,10 +35,15 @@ export default function StravaCard({ input, runnerId, onRefresh, stravaFirst = f
     setFailed(false);
     if (!automatic) setFeedback(action === "confirm" ? "Confirming your race activity…" : action === "disconnect" ? "Disconnecting Strava…" : "Checking Strava…");
     const request = new AbortController();
-    controller.current = request;
+    // A disconnect can finish after the runner moves to another recap scene.
+    if (action !== "disconnect" || !onLocalDisconnect) controller.current = request;
     try {
       const next = await runStravaAction(fetch, runnerId, action, activityId, AbortSignal.any([request.signal, AbortSignal.timeout(12000)]));
       if (request.signal.aborted) return;
+      if (action === "disconnect" &&
+          (next.state === "disconnected" || next.state === "disconnecting" || next.reauthorizeToDisconnect)) {
+        onLocalDisconnect?.();
+      }
       if (!stravaFirst) setData(next);
       if (!automatic) setFeedback(next.state === "connected" ? "Your race activity is selected." : next.state === "disconnected" ? "Strava disconnected." : "Strava status updated.");
       onRefresh();
@@ -46,7 +59,7 @@ export default function StravaCard({ input, runnerId, onRefresh, stravaFirst = f
         if (!automatic) status.current?.focus({ preventScroll: true });
       }
     }
-  }, [runnerId, onRefresh, stravaFirst]);
+  }, [runnerId, onRefresh, onLocalDisconnect, stravaFirst]);
 
   useEffect(() => {
     if (stravaFirst || (data.state !== "importing" && data.state !== "disconnecting")) return;
