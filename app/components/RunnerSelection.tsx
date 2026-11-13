@@ -1,13 +1,15 @@
 "use client";
 import Link from "next/link";
 import AppHeader from "./AppHeader";
+import RunnerClaimForm from "./RunnerClaimForm";
+import RunnerWorkflowCard from "./RunnerWorkflowCard";
 import { useCatalog } from "./useCatalog";
 export default function RunnerSelection() {
   const { data, error, retry } = useCatalog();
   return (
     <div className="workspace">
       <AppHeader />
-      <main className="content">
+      <main className="content runner-dashboard">
         <h1>
           Your race.
           <br />
@@ -20,39 +22,29 @@ export default function RunnerSelection() {
         <p className="demo-note">
           Prototype · Synthetic Soekarno Run 2027 results
         </p>
-        {error ? (
-          <div role="alert">
-            <p>{error}</p>
-            <button onClick={retry}>Try again</button>
+        {error && (
+          <div>
+            <p role="alert">{error}</p>
+            <button type="button" onClick={retry}>Try again</button>
           </div>
-        ) : !data ? (
+        )}
+        {!data && !error && (
           <p role="status" className="loading">
             Finding your races…
           </p>
-        ) : (
+        )}
+        {data && (
           <>
-            <div className="runner-list">
-              {data.runners.map((runner) => (
-                <Link
-                  className="runner-row"
-                  key={runner.id}
-                  href={`/wrapped/${runner.id}`}
-                >
-                  <span>
-                    <b>{runner.name}</b>
-                    <small>BIB {runner.bib_number ?? "unassigned"}</small>
-                  </span>
-                  <span aria-hidden="true">View recap →</span>
-                </Link>
-              ))}
-            </div>
-            {!data.runners.length && (
-              <p>
-                No runner is linked to your account yet. Ask the organizer to
-                link your race registration.
-              </p>
+            {data.runners.length > 0 && (
+              <section className="runner-registrations" aria-labelledby="runner-registrations-heading">
+                <h2 id="runner-registrations-heading">Your registrations</h2>
+                <ul className="runner-list" role="list">
+                  {data.runners.map((runner) => <RunnerWorkflowCard key={runner.id} runner={runner} />)}
+                </ul>
+              </section>
             )}
-            {!!data.events.length && (
+            <RunnerClaimForm onClaimed={retry} />
+            {data.events.length > 0 && (
               <Link className="button secondary" href="/organizer">
                 Manage event results
               </Link>

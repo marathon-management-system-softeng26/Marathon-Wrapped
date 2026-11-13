@@ -1,13 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
-export type Catalog = {
-  runners: { id: string; name: string; bib_number: string | null }[];
-  events: { id: number; name: string }[];
-};
+import { useCallback, useEffect, useState } from "react";
+import type { RunnerCatalog } from "@/lib/runnerCatalog";
+
 export function useCatalog() {
-  const [data, setData] = useState<Catalog | null>(null),
+  const [data, setData] = useState<RunnerCatalog | null>(null),
     [error, setError] = useState(""),
     [version, setVersion] = useState(0);
+  const retry = useCallback(() => setVersion((value) => value + 1), []);
   useEffect(() => {
     const controller = new AbortController();
     fetch("/api/session", {
@@ -15,11 +14,13 @@ export function useCatalog() {
       signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]),
     })
       .then(async (response) => {
+        if (controller.signal.aborted) return;
         if (response.status === 401) {
           window.location.replace("/login");
           return;
         }
         const body = await response.json();
+        if (controller.signal.aborted) return;
         if (!response.ok) throw new Error(body.error);
         setData(body);
         setError("");
@@ -30,5 +31,5 @@ export function useCatalog() {
       });
     return () => controller.abort();
   }, [version]);
-  return { data, error, retry: () => setVersion((v) => v + 1) };
+  return { data, error, retry };
 }

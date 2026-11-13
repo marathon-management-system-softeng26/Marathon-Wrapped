@@ -180,26 +180,76 @@ small {
   font-size: 0.85rem;
   font-weight: 700;
 }
-.runner-list {
+.runner-registrations,
+.runner-claim {
   margin: 38px 0 28px;
-  border-top: 1px solid #cbaaa0;
+}
+.runner-dashboard h2 {
+  margin-bottom: 12px;
+  font-size: 1.5rem;
+}
+.runner-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--field-border);
+  list-style: none;
 }
 .runner-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
-  padding: 25px 0;
-  border-bottom: 1px solid #cbaaa0;
-  text-decoration: none;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--field-border);
 }
-.runner-row:hover {
-  color: var(--red);
+.runner-row h3 {
+  margin: 0 0 4px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
-.runner-row b {
-  font-size: 1.3rem;
+.runner-row p,
+.runner-row .button,
+.runner-claim p,
+.runner-claim label,
+.runner-claim button {
+  font-family: Arial, Helvetica, sans-serif;
 }
-.runner-row small,
+.runner-row p,
+.runner-claim p {
+  margin: 0;
+}
+.runner-row-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+.runner-row-details span + span {
+  padding-left: 16px;
+  border-left: 1px solid var(--field-border);
+}
+.runner-workflow-status {
+  padding: 10px 14px;
+  background: var(--surface-secondary);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+}
+.runner-claim-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  max-width: 38rem;
+  margin-top: 16px;
+}
+.runner-claim [role="status"]:not(:empty),
+.runner-claim [role="alert"] {
+  margin-top: 12px;
+}
+.runner-claim [role="alert"] {
+  font-weight: 700;
+}
 td small {
   display: block;
   margin-top: 7px;
@@ -739,12 +789,13 @@ td {
   .share-preview {
     max-width: 320px;
   }
-  .runner-row {
-    align-items: start;
+  .runner-row,
+  .runner-claim-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
-  .runner-row > span:last-child {
-    font-size: 0.8rem;
-    white-space: nowrap;
+  .runner-row > :last-child {
+    justify-self: start;
   }
   .toolbar {
     align-items: stretch;

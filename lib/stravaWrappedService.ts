@@ -1,14 +1,14 @@
 import "server-only";
 import { AccessDeniedError } from "@/lib/auth/access";
 import { safeCandidate, type CandidateActivity, type CandidateRow } from "@/lib/strava/candidate";
-import { isStravaWrappedSnapshotV1 } from "@/lib/strava/projection";
+import { isStravaWrappedSnapshotV1, type StravaWrappedSnapshotV1 } from "@/lib/strava/projection";
 import { loadStravaRunnerAttachment, stravaRpc } from "@/lib/strava/store";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import type { Photo, StravaFirstWrappedPayload, WrappedRegistration } from "@/lib/wrappedPayload";
 
 type Database = ReturnType<typeof getSupabaseAdmin>;
 type SimpleState = Exclude<StravaFirstWrappedPayload["state"], "needs_confirmation" | "ready">;
-type Connection = {
+type StoredStravaConnection = {
   generation: string;
   status: string;
   athlete_id: string | null;
@@ -38,17 +38,22 @@ async function loadRegistration(db: Database, userId: string, runnerId: string):
   };
 }
 
-async function loadConnection(db: Database, userId: string): Promise<Connection | null> {
+export async function loadStoredStravaConnection(db: Database, userId: string): Promise<StoredStravaConnection | null> {
   return read(await db.from("strava_connections")
     .select("generation,status,athlete_id,credentials_uncertain,granted_scopes")
-    .eq("user_id", userId).maybeSingle<Connection>());
+    .eq("user_id", userId).maybeSingle<StoredStravaConnection>());
 }
 
-function inactiveState(connection: Connection | null): SimpleState | null {
+export function inactiveStravaConnectionState(connection: StoredStravaConnection | null): "reauth_required" | "setup_required" | null {
   if (connection?.status === "reauth_required" || connection?.credentials_uncertain) return "reauth_required";
   if (connection?.status !== "active") return "setup_required";
   if (!connection.athlete_id || !connection.granted_scopes.includes("activity:read_all")) return "reauth_required";
   return null;
+}
+
+export function isReadyWrappedSnapshot(snapshot: Pick<SnapshotRow, "status" | "payload">, runnerId: string):
+  snapshot is { status: "ready"; payload: StravaWrappedSnapshotV1 } {
+  return snapshot.status === "ready" && isStravaWrappedSnapshotV1(snapshot.payload) && snapshot.payload.runner.id === runnerId;
 }
 
 async function loadSelection(db: Database, userId: string, generation: string, runnerId: string, includePayload: boolean) {
@@ -108,8 +113,8 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   const db = getSupabaseAdmin();
   const registration = await loadRegistration(db, userId, runnerId);
   const state = (value: SimpleState): StravaFirstWrappedPayload => ({ state: value, registration });
-  const connection = await loadConnection(db, userId);
-  const inactive = inactiveState(connection);
+  const connection = await loadStoredStravaConnection(db, userId);
+  const inactive = inactiveStravaConnectionState(connection);
   if (!connection || inactive) {
     if (connection) {
       const attempt = read(await db.from("strava_oauth_attempts").select("status")
@@ -127,7 +132,7 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   if (!selection) return loadConfirmation(userId, generation, runnerId, attachment.attachment_id);
   const snapshot = selection.strava_wrapped_snapshots[0];
   if (!snapshot || snapshot.status === "building") return state("building");
-  if (snapshot.status !== "ready" || !isStravaWrappedSnapshotV1(snapshot.payload) || snapshot.payload.runner.id !== runnerId) {
+  if (!isReadyWrappedSnapshot(snapshot, runnerId)) {
     return state("failed");
   }
   const photos = await loadPhotos(db, registration.runner.bibNumber);
@@ -136,11 +141,11 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   // selection or projection, or a connection that changed during the request.
   const [currentRegistration, currentConnection, currentAttachment, currentSelection] = await Promise.all([
     loadRegistration(db, userId, runnerId),
-    loadConnection(db, userId),
+    loadStoredStravaConnection(db, userId),
     loadStravaRunnerAttachment(userId, generation, runnerId),
     loadSelection(db, userId, generation, runnerId, false),
   ]);
-  const currentInactive = inactiveState(currentConnection);
+  const currentInactive = inactiveStravaConnectionState(currentConnection);
   if (currentInactive) return state(currentInactive);
   if (currentConnection?.generation !== generation || currentConnection.athlete_id !== athleteId) return state("importing");
   if (!currentAttachment) return state("setup_required");

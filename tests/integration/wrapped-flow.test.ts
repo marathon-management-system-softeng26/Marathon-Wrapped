@@ -41,13 +41,13 @@ describe.skipIf(process.env.RUN_DATABASE_TESTS !== "1")("dedicated Supabase → 
     expect((await fetch(`${origin}/api/session`,{headers:{Cookie:cookie}})).status).toBe(200);
     expect((await fetch(`${origin}/api/runners/${ids["HERO-5K-001"]}/wrapped`,{headers:{Cookie:cookie}})).status).toBe(200);
   });
-  it("limits the catalog to verified mappings and organizer scope", async () => {
+  it("lists direct registrations and organizer events under their respective scopes", async () => {
     expect((await fetch(`${origin}/api/session`)).status).toBe(401);
     const runner=await fetch(`${origin}/api/session`,{headers:{Cookie:cookies.a}});
     expect(runner.status).toBe(200);
     const own=await runner.json();expect(own.runners.map((r:{id:string})=>r.id)).toEqual([ids["HERO-5K-001"]]);expect(own.events).toEqual([]);
     const organizer=await fetch(`${origin}/api/session`,{headers:{Cookie:cookies.organizer}});
-    const scope=await organizer.json();expect(scope.runners).toHaveLength(8);expect(scope.events.map((e:{id:number})=>e.id)).toContain(eventId);
+    const scope=await organizer.json();expect(scope.runners).toEqual([]);expect(scope.events.map((e:{id:number})=>e.id)).toContain(eventId);
   });
   it("restricts private organizer drafts to organizers",async()=>{
     const path=`${origin}/api/organizer/events/${eventId}/runners/${ids["HERO-5K-001"]}`;

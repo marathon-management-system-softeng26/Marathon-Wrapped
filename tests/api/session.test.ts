@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   user: vi.fn(),
-  catalog: vi.fn(),
+  database: vi.fn(),
   login: vi.fn(),
   logout: vi.fn(),
 }));
@@ -9,7 +9,7 @@ vi.mock("@/lib/auth/session", async (original) => ({
   ...(await original<object>()),
   requireUser: mocks.user,
 }));
-vi.mock("@/lib/runnerCatalog", () => ({ getRunnerCatalog: mocks.catalog }));
+vi.mock("@/lib/supabaseServer", () => ({ getSupabaseAdmin: mocks.database }));
 vi.mock("@/lib/supabaseSession", () => ({
   createSupabaseSession: async () => ({
     auth: { signInWithPassword: mocks.login, signOut: mocks.logout },
@@ -19,7 +19,71 @@ import { GET } from "@/app/api/session/route";
 import { POST as login } from "@/app/api/auth/login/route";
 import { POST as logout } from "@/app/api/auth/logout/route";
 import { AuthenticationError } from "@/lib/auth/session";
-import { AuthRetryableFetchError } from "@supabase/supabase-js";
+import { AuthRetryableFetchError, createClient } from "@supabase/supabase-js";
+import { snapshot } from "../fixtures/stravaWrapped";
+
+function catalogDatabase() {
+  const userId = "verified";
+  const generation = "generation-current";
+  const ownedIds = ["attach", "import", "confirm", "no-match", "build", "ready", "failed", "invalid"];
+  const event = { id: 1, name: "Soekarno Run" };
+  const runners = [...ownedIds, "event-only"].map((id) => ({
+    id, category_id: 1, name: `Runner ${id}`, bib_number: `BIB-${id}`,
+    categories: { name: "5K", events: event },
+  }));
+  const scope = { user_id: userId, generation };
+  const attach = (runner_id: string) => ({ ...scope, runner_id, attachment_id: `fence-${runner_id}`, status: "active" });
+  const ready = { ...snapshot, runner: { ...snapshot.runner, id: "ready" } };
+  const candidate = {
+    activity_id: "123456789", match_status: "needs_confirmation", reason: "missing_start_location",
+    summary: { startDate: "2027-08-16T23:00:00Z", distanceMeters: 5100, gpsAvailable: true },
+    strava_activities: { id: "123456789", athleteId: "987654321", sportType: "Run" },
+  };
+  const tables: Record<string, Record<string, unknown>[]> = {
+    runner_access: ownedIds.map((runner_id, index) => ({ user_id: userId, runner_id, runners: runners[index] })),
+    organizer_access: [{ user_id: userId, event_id: 1, events: event }, { user_id: "organizer", event_id: 1, events: event }],
+    events: [event],
+    categories: [{ id: 1, event_id: 1 }],
+    runners,
+    strava_connections: [{ ...scope, status: "active", athlete_id: "987654321", credentials_uncertain: false,
+      granted_scopes: ["activity:read_all"], access_token: "private-token" }],
+    strava_oauth_attempts: [],
+    strava_runner_attachments: [...ownedIds.slice(1).map(attach), { ...attach("attach"), generation: "old" }],
+    strava_runner_activities: ["build", "ready", "failed", "invalid"].map((runner_id) => ({
+      ...scope, runner_id, activity_id: "123456789", strava_wrapped_snapshots: {
+        build: [], ready: [{ status: "ready", payload: ready }], failed: [{ status: "failed", payload: null }],
+        invalid: [{ status: "ready", payload: { ...ready, activityId: "123456789" } }],
+      }[runner_id],
+    })),
+    strava_jobs: [
+      { ...scope, kind: "backfill", status: "failed", attachment_fences: { import: "fence-import", failed: "fence-failed" } },
+      { ...scope, kind: "webhook", status: "pending", attachment_fences: { import: "fence-import", "no-match": "stale", "event-only": "organizer" } },
+    ],
+    strava_activity_candidates: [
+      { ...scope, runner_id: "confirm", ...candidate },
+      { ...scope, runner_id: "no-match", ...candidate, strava_activities: { ...candidate.strava_activities, athleteId: "1" } },
+    ],
+  };
+  const requests: URL[] = [];
+  const client = createClient("https://catalog.invalid", "test-server-key", {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: async (input) => {
+      const url = new URL(input instanceof Request ? input.url : input);
+      requests.push(url);
+      const table = url.pathname.split("/").at(-1)!;
+      if (!(table in tables)) return Response.json({ message: `Unexpected table ${table}` }, { status: 400 });
+      let rows = tables[table];
+      for (const [field, filter] of url.searchParams) {
+        if (filter.startsWith("eq.") && !field.includes(".")) rows = rows.filter((row) => String(row[field]) === filter.slice(3));
+        if (filter.startsWith("in.(")) rows = rows.filter((row) => filter.slice(4, -1).split(",").includes(String(row[field])));
+        if (filter.startsWith("gt.")) rows = rows.filter((row) => String(row[field]) > filter.slice(3));
+      }
+      return Response.json(rows);
+    } },
+  });
+  mocks.database.mockReturnValue(client);
+  return { tables, requests };
+}
 const request = (body: unknown, origin = "http://localhost") =>
   new Request("http://localhost/api/auth/login", {
     method: "POST",
@@ -40,7 +104,6 @@ describe("session HTTP boundaries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.user.mockResolvedValue({ id: "verified" });
-    mocks.catalog.mockResolvedValue({ runners: [], events: [] });
     mocks.login.mockResolvedValue({ error: null });
     mocks.logout.mockResolvedValue({ error: null });
   });
@@ -97,12 +160,66 @@ describe("session HTTP boundaries", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
   it("uses verified user identity for the catalog", async () => {
+    const { requests } = catalogDatabase();
     expect((await GET()).status).toBe(200);
-    expect(mocks.catalog).toHaveBeenCalledWith("verified");
+    expect(requests.find((url) => url.pathname.endsWith("/runner_access"))?.searchParams.get("user_id")).toBe("eq.verified");
   });
   it("requires authentication before any catalog read", async () => {
     mocks.user.mockRejectedValue(new AuthenticationError());
     expect((await GET()).status).toBe(401);
-    expect(mocks.catalog).not.toHaveBeenCalled();
+    expect(mocks.database).not.toHaveBeenCalled();
+  });
+  it("derives private runner actions using batched, owner-scoped storage reads", async () => {
+    const { requests } = catalogDatabase();
+    const response = await GET();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    const body = await response.text();
+    const { runners, events } = JSON.parse(body);
+    expect(events).toEqual([{ id: 1, name: "Soekarno Run" }]);
+    expect(runners).toContainEqual({ id: "attach", name: "Runner attach", bib_number: "BIB-attach", event: "Soekarno Run",
+      category: "5K", workflowState: "setup_required", primaryAction: "attach" });
+    expect(Object.fromEntries(runners.map((row: Record<string, string>) => [row.id, [row.workflowState, row.primaryAction]]))).toEqual({
+      attach: ["setup_required", "attach"], import: ["importing", "importing"], confirm: ["needs_confirmation", "confirm"],
+      "no-match": ["no_match", "review_import"], build: ["building", "building"], ready: ["ready", "view"],
+      failed: ["failed", "failed"], invalid: ["failed", "failed"],
+    });
+    expect(body).not.toMatch(/987654321|123456789|private-token|activity_id|athlete_id|payload|candidate|fence/);
+    const tables = requests.map((url) => url.pathname.split("/").at(-1));
+    expect(new Set(tables).size).toBe(tables.length);
+    for (const url of requests.filter((url) => url.pathname.includes("/strava_"))) {
+      expect(url.searchParams.get("user_id")).toBe("eq.verified");
+      expect(url.searchParams.get("select")).not.toMatch(/access_token|refresh_token|\*/);
+      expect(url.href).not.toContain("event-only");
+    }
+  });
+
+  it("returns organizer events without reading organizer-only runners or Strava state", async () => {
+    const { requests } = catalogDatabase();
+    mocks.user.mockResolvedValue({ id: "organizer" });
+    const response = await GET();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ runners: [], events: [{ id: 1, name: "Soekarno Run" }] });
+    expect(requests.map((url) => url.pathname.split("/").at(-1)).sort()).toEqual(["organizer_access", "runner_access"]);
+  });
+
+  it("distinguishes unconnected, authorizing, and expired or insufficient permission", async () => {
+    const { tables } = catalogDatabase();
+    const connection = tables.strava_connections[0];
+    tables.strava_connections = [];
+    const status = async () => {
+      const response = await GET();
+      expect(response.status).toBe(200);
+      const { runners } = await response.json();
+      return runners.find((row: { id: string }) => row.id === "attach");
+    };
+    expect(await status()).toMatchObject({ workflowState: "setup_required", primaryAction: "connect" });
+    tables.strava_connections = [{ ...connection, granted_scopes: ["read"] }];
+    tables.strava_oauth_attempts = [
+      { user_id: "verified", generation: "generation-current", runner_id: "attach", status: "pending", expires_at: "2999-01-01T00:00:00Z" },
+    ];
+    expect(await status()).toMatchObject({ workflowState: "authorizing", primaryAction: "check_authorization" });
+    tables.strava_oauth_attempts[0].expires_at = "2000-01-01T00:00:00Z";
+    expect(await status()).toMatchObject({ workflowState: "reauth_required", primaryAction: "reauthorize" });
   });
 });
