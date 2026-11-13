@@ -54,6 +54,8 @@ async function renderShareModel(
   ctx.fillStyle = "#fff6ec";
   ctx.font = '700 28px "Bricolage", sans-serif';
   ctx.fillText(model.event, 540, 1220, 936);
+  ctx.font = '700 22px "Bricolage", sans-serif';
+  ctx.fillText("Powered by Strava", 540, 1275, 936);
   ctx.textAlign = "start";
 }
 export async function exportWrapped(payload: StravaFirstWrappedPayload, signal?: AbortSignal) {

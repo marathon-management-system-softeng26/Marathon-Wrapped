@@ -29,7 +29,7 @@ describe("Wrapped PNG export", () => {
     const drawn = ctx.fillText.mock.calls.map(([value]) => String(value));
     expect(drawn).toEqual(expect.arrayContaining([
       "24:08 moving time", "4:44 /km average pace", "Km 1 · 4:50 /km", "Km 2 · 4:40 /km",
-      "Aina Putri · BIB A1001", "Soekarno Run",
+      "Aina Putri · BIB A1001", "Soekarno Run", "Powered by Strava",
     ]));
     expect(drawn.join("\n")).not.toMatch(/rank|percentile|overtake|coordinate|latitude|longitude|activity.?id|athlete.?id|heart.?rate|cadence|elevation|calories|24:08 finish|25:23|45:36/i);
     for (const privateValue of [privateFields.activityId, privateFields.athleteId, ...privateFields.coordinates,

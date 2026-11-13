@@ -623,6 +623,22 @@ td small {
 .export-notice:not(:empty) {
   padding: 12px;
 }
+.split-trend {
+  margin: 4px 0 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+}
+.strava-attribution {
+  position: relative;
+  z-index: 11;
+  margin: 0 0 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
 .story-state {
   padding-top: 60px;
 }

@@ -2,6 +2,7 @@
 import Link from "next/link";
 import SharePreview from "./SharePreview";
 import StravaCard from "./StravaCard";
+import StravaSplitChart from "./StravaSplitChart";
 import Arrow from "./Arrow";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -234,14 +235,31 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
             {stravaFeedback && <p role="status">{stravaFeedback.notice}</p>}
             {strava && <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />}
             {notice && <p role="status">{notice}</p>}
+            <Link className="button" href={`/runners/${encodeURIComponent(runnerId)}/strava`} prefetch={false}>
+              Set up Strava for this race
+            </Link>
           </>
         )}
       </main>
     );
   }
-  const model = shareModel(payload),
-    snapshot = payload.snapshot,
-    longestSplit = Math.max(1, ...snapshot.splits.map((split) => split.movingSeconds)),
+  // Reads are validated server-side; a snapshot that still fails here is reported, never approximated.
+  let model: ReturnType<typeof shareModel>;
+  try {
+    model = shareModel(payload);
+  } catch {
+    return (
+      <main className="story-state">
+        <Link href="/">&#8592; Your races</Link>
+        <h1>Your Wrapped could not be built</h1>
+        <p role="status">A Wrapped recap is unavailable for this registration.</p>
+        <Link className="button" href={`/runners/${encodeURIComponent(runnerId)}/strava`} prefetch={false}>
+          Set up Strava for this race
+        </Link>
+      </main>
+    );
+  }
+  const snapshot = payload.snapshot,
     firstName = model.name.trim().split(/\s+/)[0] || "Runner";
   return (
     <main
@@ -339,6 +357,10 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
                 <span>Moving time</span>
               </div>
               <div>
+                <strong>{formatMmSs(snapshot.elapsedTimeSeconds)}</strong>
+                <span>Elapsed time</span>
+              </div>
+              <div>
                 <strong>{model.pace}</strong>
                 {snapshot.averagePaceSecondsPerKm !== null && <span>Average pace</span>}
               </div>
@@ -365,35 +387,11 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
             <h2 ref={heading} tabIndex={-1}>
               Kilometer splits
             </h2>
-            {snapshot.splits.length ? (
-              <>
-                <div
-                  className="split-chart"
-                  role="img"
-                  aria-label="Kilometer moving times. Taller bars indicate longer times."
-                >
-                  {snapshot.splits.map((split) => (
-                    <div key={split.kilometer}>
-                      <span
-                        style={{
-                          height: `${Math.max(20, (split.movingSeconds / longestSplit) * 145)}px`,
-                        }}
-                        className={split.kilometer === snapshot.fastestKilometer?.kilometer ? "fast" : ""}
-                      />
-                      <b>{split.kilometer}</b>
-                      <small>{formatMmSs(split.movingSeconds)}</small>
-                    </div>
-                  ))}
-                </div>
-                {snapshot.fastestKilometer && (
-                  <p className="lime">
-                    Fastest kilometer {snapshot.fastestKilometer.kilometer} &#183; {formatMmSs(snapshot.fastestKilometer.paceSecondsPerKm)} /km
-                  </p>
-                )}
-              </>
-            ) : (
-              <p>No kilometer splits available.</p>
-            )}
+            <StravaSplitChart
+              splits={snapshot.splits}
+              fastestKilometer={snapshot.fastestKilometer}
+              paceTrend={snapshot.paceTrend}
+            />
             <Image
               className="decoration decoration-splits-watch"
               src={decorationUrl(recapDecorations.splits[0])}
@@ -515,6 +513,8 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       <p className="export-notice" role="status">
         {notice}
       </p>
+      {/* Every figure in this showcase comes from the runner's Strava activity. */}
+      <p className="strava-attribution">Powered by Strava</p>
       <dialog
         ref={dialog}
         className="photo-dialog"
