@@ -7,6 +7,8 @@ import type { HeroRunnerDraft } from "@/lib/heroValidation";
 import { formatMmSs } from "@/lib/format";
 import { changeDraftCategory } from "@/lib/organizerDraft";
 import OrganizerEnrichmentEditor from "./OrganizerEnrichmentEditor";
+import OrganizerRunnerAccess from "./OrganizerRunnerAccess";
+import OrganizerStravaRaceConfig from "./OrganizerStravaRaceConfig";
 type Row = {
   runner_id: string;
   name: string;
@@ -15,6 +17,7 @@ type Row = {
   status: string;
   elapsed_seconds: number | null;
   category_rank: number | null;
+  linked?: boolean;
 };
 const empty: HeroRunnerDraft = {
   name: "",
@@ -484,6 +487,16 @@ export default function OrganizerPanel() {
                 )}
               </div>
             )}
+            {!!rows.length && (
+              <OrganizerRunnerAccess
+                eventId={selected}
+                rows={rows.map((row) => ({
+                  runner_id: row.runner_id, name: row.name, bib_number: row.bib_number,
+                  category: row.category, linked: row.linked === true,
+                }))}
+              />
+            )}
+            <OrganizerStravaRaceConfig eventId={selected} />
           </>
         )}
       </main>

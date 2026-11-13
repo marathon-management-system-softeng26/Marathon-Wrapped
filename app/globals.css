@@ -629,6 +629,71 @@ td small {
   font-size: 0.9375rem;
   font-variant-numeric: tabular-nums;
 }
+.organizer-access,
+.organizer-race-config {
+  margin: 38px 0 0;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.organizer-access h3,
+.organizer-race-config h3 {
+  margin-bottom: 8px;
+  font-size: 1.375rem;
+}
+.organizer-access-list {
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--field-border);
+  list-style: none;
+}
+.organizer-access-list > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--field-border);
+}
+.organizer-access-details {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.875rem;
+}
+.organizer-access-code {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  max-width: 24rem;
+}
+.organizer-access-code code {
+  padding: 8px 10px;
+  background: var(--surface-secondary);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.organizer-access-code p {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+.organizer-race-config form {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--field-border);
+}
+.organizer-race-config h4 {
+  margin: 0 0 12px;
+}
+.organizer-config-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.organizer-config-fields label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.875rem;
+}
 .strava-attribution {
   position: relative;
   z-index: 11;

@@ -152,6 +152,17 @@ export async function getEventResults(userId: string, eventId: number) {
       runners.data.map((r) => r.id),
     );
   if (results.error) throw new Error("Event results are unavailable.");
+  // Whether a registration is claimed is operational status. The owning account's id and
+  // email are never part of an organizer payload, so only a boolean leaves this function.
+  const access = await db
+    .from("runner_access")
+    .select("runner_id")
+    .in(
+      "runner_id",
+      runners.data.map((r) => r.id),
+    );
+  if (access.error) throw new Error("Event results are unavailable.");
+  const linked = new Set((access.data ?? []).map((row) => row.runner_id));
   return runners.data.map((runner) => {
     const category = categories.data.find((c) => c.id === runner.category_id)!;
     const result = results.data.find((r) => r.runner_id === runner.id);
@@ -172,6 +183,7 @@ export async function getEventResults(userId: string, eventId: number) {
       avg_pace_sec_km: result?.avg_pace_sec_km ?? null,
       category_rank: result?.category_rank ?? null,
       overall_rank: result?.overall_rank ?? null,
+      linked: linked.has(runner.id),
     };
   });
 }
