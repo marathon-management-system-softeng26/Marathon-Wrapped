@@ -293,13 +293,18 @@ describe.skipIf(process.env.RUN_STRAVA_DATABASE_TESTS !== "1")(
       expect(attached.error).toBeNull();
       expect(attached.data!.map((row) => row.runner_id).sort()).toEqual([...runners].sort());
 
+      // The confirm RPC joins stored detail and requires a matching owned Run activity.
       expect((await admin.from("strava_activities").insert(["alpha", "beta"].map((activity_id) => ({
-        user_id: p_user, generation: p_generation, activity_id, activity: {},
+        user_id: p_user, generation: p_generation, activity_id,
+        activity: { id: activity_id, athleteId: p_user, sportType: "Run" },
       })))).error).toBeNull();
-      for (const [index, p_runner] of runners.entries()) {
+      // Both registrations see both activities, so the duplicate-activity conflict is reachable.
+      for (const p_runner of runners) {
         await call("strava_store_runner_candidates", {
           p_user, p_generation, p_runner,
-          p_candidates: [{ activity_id: index === 0 ? "alpha" : "beta", match_status: "auto_match", reason: "race_checks_passed", summary: {} }],
+          p_candidates: ["alpha", "beta"].map((activity_id) => ({
+            activity_id, match_status: "auto_match", reason: "race_checks_passed", summary: {},
+          })),
         });
       }
 
@@ -309,7 +314,7 @@ describe.skipIf(process.env.RUN_STRAVA_DATABASE_TESTS !== "1")(
       })).toBe("selected");
       expect(await call("strava_confirm_runner_activity_and_project", {
         p_user, p_generation, p_runner: runners[1], p_activity: "alpha",
-      })).not.toBe("selected");
+      })).toBe("activity_already_selected");
       expect(await call("strava_confirm_runner_activity_and_project", {
         p_user, p_generation, p_runner: runners[1], p_activity: "beta",
       })).toBe("selected");
@@ -327,9 +332,10 @@ describe.skipIf(process.env.RUN_STRAVA_DATABASE_TESTS !== "1")(
 
       // A disconnected account's old generation can no longer publish or enqueue.
       await call("strava_disconnect", { p_user });
+      // Returns the new build id, so a null result means nothing was enqueued.
       expect(await call("strava_enqueue_projection", {
         p_user, p_generation, p_runner: runners[1], p_activity: "beta",
-      })).toBe(false);
+      })).toBeNull();
       expect(await call("strava_confirm_runner_activity_and_project", {
         p_user, p_generation, p_runner: runners[1], p_activity: "beta",
       })).toBe("obsolete");

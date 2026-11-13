@@ -8,7 +8,7 @@ Planned coverage and executed evidence are kept apart, per
 in the run recorded here.
 
 - **Branch / worktree:** `dev` @ `05e1fc4` + Task 14 test additions
-- **Run date:** 2026-11-13
+- **Run date:** 2026-11-13 (migrations applied and database gates executed the same day)
 - **Runtime:** Windows 11, Node 22.18+, Next.js 16.3
 
 ## 1. Automated gates — executed
@@ -62,16 +62,68 @@ only; no provider call is made).
 | After account disconnect, `strava_enqueue_projection` returns false and confirmation returns `obsolete` | obsolete-generation suppression |
 | No snapshot row survives for either registration | no obsolete publish |
 
+## 3b. Deployment and database gates — EXECUTED 2026-11-13
+
+All 29 migrations were applied to dedicated project `anbnuegocddoowagqmxw`
+(`marathon-wrapped`, ap-southeast-1) via the Supabase Management API SQL endpoint, each
+recorded in `supabase_migrations.schema_migrations` under its own filename version so the
+recorded history matches the repository exactly.
+
+Preflight before writing: remote history stopped at `20261020020029`; **0** duplicate-owner
+runners, so the `20261111054520` abort condition did not apply; the only pre-existing
+`strava%` table was `strava_metrics` from migration 1, so no object collided.
+
+| Gate | Command / tool | Result |
+|---|---|---|
+| Migration application | Management API, 24 pending applied in filename order | **pass** — 29 recorded, versions match filenames |
+| Schema verification | catalog queries | **pass** — 11 `strava%` tables; tolerance check is `distance_tolerance_m > 0 AND <= 5000`; RLS enabled on every public table (0 unprotected) |
+| Dedicated database integration | `npm run test:db` (built server on 3007) | **pass** — 18/18 in `wrapped-flow`, including the three claim/config tests added in Task 14 |
+| Strava lifecycle concurrency | `RUN_STRAVA_DATABASE_TESTS=1` on `strava-lifecycle` | **pass** — 3/3, including multi-runner attach, per-race detach and obsolete-generation suppression |
+| Security advisors | `get_advisors security` | **no ERROR**. 20 × `rls_enabled_no_policy` (INFO) is the intended deny-all posture: RLS on with no policies and all browser grants revoked, so every read goes through the service-role client behind a server guard. 1 × WARN: leaked-password protection disabled (Auth setting, not schema) |
+| Performance advisors | `get_advisors performance` | **no ERROR/WARN**. 4 × unindexed composite FK (INFO) and 14 × unused index (INFO, expected with no traffic yet) |
+
+Live behaviour confirmed against the migrated project:
+
+- Runner catalog returns the Task 10 row shape with `workflowState`/`primaryAction` and no
+  athlete, activity, token or fence value; the organizer catalog returns events only.
+- Organizer results carry `linked` per registration with no account email or user id.
+- A claim code issued by the organizer redeems exactly once: the second account receives 400
+  with no registration disclosed, `runner_access` holds one owner, and the claim row is
+  consumed with only its hash stored.
+- One account holds two registrations after claiming, per the spec.
+- Organizer race config stores a 400 m tolerance — impossible before migration 29 — and
+  normalizes `+07:00` to UTC; missing timezone, inverted window, out-of-range tolerance and
+  partial start location each return 422; a foreign category returns 404.
+- `/organizer` redirects a signed-out visitor (307 → `/login`); a cross-origin config write is
+  refused with 403 before any identity work; another runner's registration returns 404.
+
+Two defects were found and fixed by running these gates, both in work added during this plan:
+
+1. Migration 29's own verification guard used `like '%= 500%'`, which the bound in
+   `distance_tolerance_m <= 5000` satisfies as a substring. The migration therefore aborted
+   itself on a false positive and rolled back cleanly. Replaced with a regex that matches a
+   true equality pin only.
+2. The Task 14 multi-runner lifecycle test was written without execution and carried three
+   fixture errors: stored activity detail lacked the `id`/`athleteId`/`sportType` fields the
+   confirm RPC joins on, only one runner held each candidate so the duplicate-activity
+   conflict was unreachable, and `strava_enqueue_projection` returns a build id rather than a
+   boolean.
+
 ## 4. Gates NOT executed — external prerequisites outstanding
 
 These require resources outside this worktree and are **not** claimed as passing.
 
 | Step | Gate | Missing prerequisite |
 |---|---|---|
-| 4 | `npm run test:db` | All migrations applied to dedicated project `anbnuegocddoowagqmxw`, including the new `20261113113000_strava_organizer_race_config.sql`; built server on port 3007; `.env.demo.local` seeded accounts |
-| 5 | Supabase database advisors | Hosted project access; migrations applied |
-| 6 | Manual browser acceptance (desktop + mobile) | A browser session against a running app with seeded data |
-| 7 | Real Strava acceptance | A configured Strava application: client id/secret, callback URL, athlete capacity, webhook subscription, private test athlete and activity |
+| 6 | Manual browser acceptance (desktop + mobile) | A browser session; the Claude browser extension was not connected during this run |
+| 7 | Real Strava acceptance | A configured Strava application: client id/secret, callback URL, athlete capacity, webhook subscription, private test athlete and activity. No `STRAVA_*` variable is set in this environment |
+
+Deferred from the advisors rather than fixed:
+
+- Leaked-password protection remains disabled on Auth (one dashboard toggle).
+- The 4 unindexed composite foreign keys are accepted for now: every current query path
+  filters on `user_id` plus `generation`, which existing indexes already cover. Revisit if
+  cascade deletes or those FK columns become hot.
 
 Carried release risks recorded during execution, still open:
 

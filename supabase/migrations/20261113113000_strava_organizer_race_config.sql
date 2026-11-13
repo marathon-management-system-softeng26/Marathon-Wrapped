@@ -47,6 +47,8 @@ begin
       'expected exactly one distance_tolerance_m check constraint, found %', remaining;
   end if;
 
+  -- Detect a real equality pin only. A substring test would match the bound in
+  -- `distance_tolerance_m <= 5000`, so require `=` not preceded by `<` or `>`.
   if exists (
     select 1
     from pg_constraint con
@@ -54,8 +56,8 @@ begin
     join pg_namespace nsp on nsp.oid = rel.relnamespace
     where nsp.nspname = 'public'
       and rel.relname = 'strava_race_configs'
-      and con.conname = 'strava_race_config_tolerance'
-      and pg_get_constraintdef(con.oid) like '%= 500%'
+      and con.contype = 'c'
+      and pg_get_constraintdef(con.oid) ~ 'distance_tolerance_m[[:space:]]*=[[:space:]]*[0-9]'
   ) then
     raise exception 'distance_tolerance_m is still pinned to a single value';
   end if;
