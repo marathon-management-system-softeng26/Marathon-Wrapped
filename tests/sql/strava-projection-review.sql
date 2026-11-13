@@ -50,6 +50,9 @@ begin
   perform public.strava_fail_projection_job((j->>'id')::uuid,(j->>'lease_id')::uuid,'reauth_required',null,true);
   assert exists(select 1 from public.strava_connections where user_id=u and status='active' and rate_limited_until is null);
   assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and build_id=replacement and status='building');
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='complete' and lease_id is null and lease_until is null), 'obsolete job must be acknowledged';
+  assert exists(select 1 from public.strava_jobs where payload->>'build_id'=replacement::text and status='pending'), 'replacement must remain runnable';
+  assert public.strava_claim_projection_aware_job()->'payload'->>'build_id'=replacement::text, 'replacement must be claimable immediately';
 end $$;
 -- CASE exact nested snapshot validation
 do $$
@@ -180,6 +183,8 @@ begin
   perform public.strava_fail_projection_job((j->>'id')::uuid,(j->>'lease_id')::uuid,'authorization_revoked',null,false);
   assert exists(select 1 from public.strava_connections where user_id=u and status='active' and operation_id is null);
   assert exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and build_id=replacement and status='building');
+  assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status='complete' and lease_id is null), 'stale credential job must be acknowledged';
+  assert public.strava_claim_projection_aware_job()->'payload'->>'build_id'=replacement::text, 'replacement must not wait for old credential job';
 end $$;
 -- CASE legacy runner acknowledgement releases leased projection
 do $$

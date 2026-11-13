@@ -178,11 +178,79 @@ test(
       } finally { await db.exec("rollback"); }
 
       for (const file of (await readdir("supabase/migrations"))
-        .filter((file) => file.endsWith("_strava_projection_backfill.sql") || file.endsWith("_strava_projection_review_fixes.sql") || file.endsWith("_strava_projection_review_round2.sql") || file.endsWith("_strava_projection_review_round3.sql")).sort()) {
+        .filter((file) => file.endsWith("_strava_projection_backfill.sql") || /_strava_projection_review_(fixes|round[234]|round4_barrier)\.sql$/.test(file)).sort()) {
+        if (file.endsWith("_strava_projection_review_round3.sql")) {
+          // Legacy terminal commits win after round-2 repair, before the job barrier.
+          await db.exec(`
+            create temporary table projection_cutover (outcome text primary key, f jsonb, build_id uuid);
+            do $$
+            declare outcome text; f jsonb; u uuid; g uuid; a uuid; j jsonb; athlete text; reauth boolean; build uuid;
+            begin
+              foreach outcome in array array['complete','ineligible','reauth','retained_reauth','rate_limited'] loop
+                f:=pg_temp.runner_fence_fixture();
+                u:=(f->>'u')::uuid; g:=(f->>'g')::uuid; a:=(f->>'a')::uuid;
+                athlete:=(901+(select count(*) from projection_cutover))::text;
+                update public.strava_connections set athlete_id=athlete where user_id=u;
+                insert into public.strava_activities(user_id,generation,activity_id,activity) values(u,g,'10',
+                  jsonb_set(pg_temp.fence_detail('10')->0->'activity','{athleteId}',to_jsonb(athlete)));
+                perform public.strava_store_runner_candidates(u,g,a,pg_temp.fence_batch(a,'10')->'candidates');
+                perform public.strava_confirm_runner_activity_and_project(u,g,a,'10');
+                j:=public.strava_claim_projection_aware_job();
+                assert j->>'user_id'=u::text, 'cutover fixture must claim its own job';
+                build:=(j->'payload'->>'build_id')::uuid;
+                reauth:=outcome in ('reauth','retained_reauth');
+                -- The normal reauth trigger cascades the build away. Disable it only
+                -- for one fixture to model a retained legacy row requiring settlement.
+                if outcome='retained_reauth' then
+                  alter table public.strava_connections disable trigger strava_cleanup_runner_generation;
+                end if;
+                if outcome='rate_limited' then
+                  update public.strava_jobs set attempts=8 where id=(j->>'id')::uuid;
+                end if;
+                assert public.strava_commit_job_internal((j->>'id')::uuid,(j->>'lease_id')::uuid,
+                  p_error=>case when reauth then 'reauth_required' when outcome='rate_limited' then outcome end,
+                  p_reauth=>reauth,p_delay=>case when outcome='rate_limited' then 60 end);
+                if outcome='retained_reauth' then
+                  alter table public.strava_connections enable trigger strava_cleanup_runner_generation;
+                end if;
+                if outcome='ineligible' then
+                  update public.strava_activity_candidates set match_status='no_match' where user_id=u;
+                end if;
+                assert exists(select 1 from public.strava_jobs where id=(j->>'id')::uuid and status in ('complete','failed'));
+                assert (outcome<>'reauth')=exists(select 1 from public.strava_wrapped_snapshots where runner_id=a and status='building');
+                insert into projection_cutover values(outcome,f,build);
+              end loop;
+            end $$;
+          `);
+        }
         await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
       }
       const projectionReviewErrors: string[] = [];
-      for (const scenario of (await readFile("tests/sql/strava-projection-review.sql", "utf8")).split("-- CASE ").slice(1)) {
+      for (const outcome of ["complete", "rate_limited", "reauth", "retained_reauth", "ineligible"]) {
+        try {
+          await db.exec(`do $$ declare fixture record; runner uuid; owner uuid; begin
+            select * into strict fixture from projection_cutover where outcome='${outcome}';
+            runner:=(fixture.f->>'a')::uuid; owner:=(fixture.f->>'u')::uuid;
+            if fixture.outcome in ('complete','rate_limited') then
+              assert exists(select 1 from public.strava_wrapped_snapshots w join public.strava_jobs j
+                on j.payload->>'build_id'=w.build_id::text and j.status='pending'
+                where w.runner_id=runner and w.status='building' and w.build_id<>fixture.build_id),
+                'post-barrier repair must recover eligible terminal legacy builds: '||fixture.outcome;
+            else
+              assert not exists(select 1 from public.strava_wrapped_snapshots where runner_id=runner and status='building'),
+                'post-barrier repair must settle stranded legacy builds: '||fixture.outcome;
+            end if;
+            if fixture.outcome in ('reauth','retained_reauth') then
+              assert exists(select 1 from public.strava_connections where user_id=owner and status='reauth_required');
+            elsif fixture.outcome='rate_limited' then
+              assert exists(select 1 from public.strava_connections where user_id=owner and rate_limited_until>now());
+            end if;
+          end $$;`);
+        } catch (error) { projectionReviewErrors.push((error as Error).message); }
+      }
+      await db.exec("delete from auth.users where id in (select (f->>'u')::uuid from projection_cutover)");
+      const reviewSql = (await Promise.all(["strava-projection-review", "strava-projection-round4"].map((name) => readFile(`tests/sql/${name}.sql`, "utf8")))).join("\n");
+      for (const scenario of reviewSql.split("-- CASE ").slice(1)) {
         const newline = scenario.indexOf("\n");
         await db.exec("begin");
         try { await db.exec(scenario.slice(newline)); }

@@ -95,6 +95,43 @@ afterEach(() => {
 });
 
 describe("Strava client", () => {
+  it("treats obsolete project credential work as obsolete without contacting Strava", async () => {
+    mocks.connection.mockResolvedValue({ data: { status: "active" } });
+    mocks.rpc.mockResolvedValue({ obsolete: true });
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toMatchObject({ code: "projection_obsolete" });
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps project ownership contention retryable without contacting Strava", async () => {
+    mocks.connection.mockResolvedValue({ data: { status: "active" } });
+    mocks.rpc.mockResolvedValue({ busy: true });
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toMatchObject({ code: "connection_busy", retryAfter: 3 });
+    expect(mocks.fetch).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["rotated", "revoked"])("keeps %s project refresh completion contention retryable", async (outcome) => {
+    const row = { status: "active", generation: "g", operation_id: "op", refresh_token: await encryptToken("refresh") };
+    mocks.connection.mockResolvedValue({ data: row });
+    mocks.rpc.mockImplementation(async (name) => name === "strava_claim_project_credentials" ? row : null);
+    mocks.fetch.mockResolvedValue(outcome === "rotated"
+      ? Response.json({ access_token: "new", refresh_token: "new-refresh", expires_at: Math.floor(Date.now() / 1000) + 3600 })
+      : Response.json({ errors: [{ resource: "RefreshToken", code: "invalid" }] }, { status: 400 }));
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toMatchObject({ code: "connection_busy", retryAfter: 3 });
+  });
+
+  it("settles the project claim once when another worker already rotated the token", async () => {
+    const row = { status: "active", generation: "g", operation_id: "op", refresh_token: await encryptToken("refresh") };
+    mocks.connection.mockResolvedValue({ data: row });
+    mocks.rpc.mockImplementation(async (name) => name === "strava_claim_project_credentials"
+      ? { ...row, access_token: await encryptToken("rotated"), expires_at: new Date(Date.now() + 3600000).toISOString() }
+      : null);
+    await expect(getUserStravaAccessToken("u", false, { job: "j", lease: "l" })).rejects.toMatchObject({ code: "connection_busy", retryAfter: 3 });
+    expect(mocks.rpc.mock.calls.filter(([name]) => name === "strava_finish_project_refresh_v2")).toHaveLength(1);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
   it("refreshes with plaintext, saves both encrypted tokens, and returns plaintext", async () => {
     const row = {
       user_id: "u",

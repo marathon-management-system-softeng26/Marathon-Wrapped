@@ -134,6 +134,33 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+it.each([
+  [{ busy: true }, "connection_busy", "strava_fail_projection_job"],
+  [{ obsolete: true }, "projection_obsolete", "strava_discard_projection_job"],
+] as const)("handles project credential outcome %j through the real client and worker", async (outcome, code, transition) => {
+  candidate(); selected();
+  tables.runners = [{ id: runnerId, category_id: 7, name: "Runner", bib_number: "12" }];
+  const provider = vi.fn();
+  vi.stubGlobal("fetch", provider);
+  const defaultRpc = mocks.rpc.getMockImplementation()!;
+  mocks.rpc.mockImplementation(async (name: string, args: Row) => {
+    if (name === "strava_claim_projection_aware_job") return { data: {
+      id: "job", lease_id: "lease", user_id: "user", generation: "generation", kind: "project", attempts: 1,
+      attachment_fences: { [runnerId]: "first" }, payload: { runner_id: runnerId, activity_id: "10", build_id: "build", version: 1 },
+    } };
+    if (name === "strava_projection_context") return { data: [] };
+    if (name === "strava_claim_project_credentials") return { data: outcome };
+    return defaultRpc(name, args);
+  });
+  await processing.processStravaJobs(1);
+  expect(provider).not.toHaveBeenCalled();
+  expect(mocks.rpc).toHaveBeenCalledWith(transition, expect.objectContaining({
+    p_job: "job", p_lease: "lease", ...(code === "connection_busy" ? { p_error: code, p_delay: 3, p_reauth: false } : {}),
+  }));
+  expect(mocks.rpc).not.toHaveBeenCalledWith("strava_provider_revoked", expect.anything());
+  expect(mocks.rpc).not.toHaveBeenCalledWith("strava_finish_project_refresh_v2", expect.anything());
+});
+
 describe("runner Strava access and safe states", () => {
   it("uses durable attachments after callback history is removed", async () => {
     candidate(); selected(); tables.strava_oauth_attempts = [];

@@ -441,7 +441,7 @@ export async function getUserStravaAccessToken(
     return decryptToken(connection.access_token);
   }
 
-  const claimed = await stravaRpc<(StravaConnection & { busy?: boolean }) | null>(
+  const claimed = await stravaRpc<(StravaConnection & { busy?: boolean; obsolete?: boolean }) | null>(
     project ? "strava_claim_project_credentials" : "strava_claim_credentials",
     { p_user: userId, p_kind: "refresh", ...(project ? { p_job: project.job, p_lease: project.lease } : {}) },
   );
@@ -450,29 +450,33 @@ export async function getUserStravaAccessToken(
     throw new StravaError("connection_busy", 409, 3);
   }
 
+  if (project && claimed?.obsolete) {
+    throw new StravaError("projection_obsolete", 409);
+  }
+
   if (!claimed) {
     throw new StravaError("reauth_required", 409);
   }
 
+  if (
+    !forceRefresh &&
+    claimed.expires_at &&
+    Date.parse(claimed.expires_at) > Date.now() + 60000 &&
+    claimed.access_token
+  ) {
+    const active = await stravaRpc<boolean | null>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
+      ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
+      p_user: userId,
+      p_operation: claimed.operation_id,
+      p_generation: claimed.generation,
+    });
+
+    if (project && active === null) throw new StravaError("connection_busy", 409, 3);
+    return active ? decryptToken(claimed.access_token) : null;
+  }
+
   let refreshed: StravaCredentials;
-
   try {
-    if (
-      !forceRefresh &&
-      claimed.expires_at &&
-      Date.parse(claimed.expires_at) > Date.now() + 60000 &&
-      claimed.access_token
-    ) {
-      const active = await stravaRpc<boolean>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
-        ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
-        p_user: userId,
-        p_operation: claimed.operation_id,
-        p_generation: claimed.generation,
-      });
-
-      return active ? decryptToken(claimed.access_token) : null;
-    }
-
     if (!claimed.refresh_token) {
       throw new StravaError("reauth_required", 409);
     }
@@ -486,7 +490,7 @@ export async function getUserStravaAccessToken(
         error.code,
       );
 
-    await stravaRpc(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
+    const finished = await stravaRpc<boolean | null>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
       ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
       p_user: userId,
       p_operation: claimed.operation_id,
@@ -496,11 +500,12 @@ export async function getUserStravaAccessToken(
       p_uncertain: uncertain,
     });
 
+    if (project && finished === null) throw new StravaError("connection_busy", 409, 3);
     throw error;
   }
 
   // If storage fails, keep the operation fenced. Re-exchanging an old rotating token is unsafe.
-  const saved = await stravaRpc<boolean>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
+  const saved = await stravaRpc<boolean | null>(project ? "strava_finish_project_refresh_v2" : "strava_finish_refresh", {
     ...(project ? { p_job: project.job, p_lease: project.lease } : {}),
     p_user: userId,
     p_operation: claimed.operation_id,
@@ -508,6 +513,7 @@ export async function getUserStravaAccessToken(
     p_tokens: await encryptedCredentials(refreshed),
   });
 
+  if (project && saved === null) throw new StravaError("connection_busy", 409, 3);
   if (!saved) {
     return null;
   }

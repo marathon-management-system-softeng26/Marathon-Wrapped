@@ -653,6 +653,11 @@ export async function processStravaJobs(limit = 10): Promise<void> {
       const known = error instanceof StravaError;
       const code = known ? error.code : "storage_unavailable";
 
+      if (job.kind === "project" && code === "projection_obsolete") {
+        await stravaRpc("strava_discard_projection_job", { p_job: job.id, p_lease: job.lease_id });
+        continue;
+      }
+
       if (code === "authorization_revoked" && job.kind !== "project") {
         await stravaRpc("strava_provider_revoked", {
           p_user: job.user_id,
