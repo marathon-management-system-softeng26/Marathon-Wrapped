@@ -51,7 +51,7 @@ Run `npm run build`, then `npm run start -- --port 3007` in one terminal and `np
 
 ## Strava race matching storage
 
-`20261101000100_strava_race_matching.sql` extends the preserved Strava lifecycle with four server-only tables. `strava_race_configs` has one row per category, with `start_time_from`/`start_time_to` as finite UTC instants (`timestamptz`), `allowed_sport_types = ['Run']`, and `distance_tolerance_m = 500`. The nullable `start_latitude`, `start_longitude`, and `start_radius_m` must be supplied together; radius may be zero. Category distance stays in `categories.distance_km`. No race window or coordinates are seeded by the migration; approved values must be configured before ingestion.
+`20261101000100_strava_race_matching.sql` extends the preserved Strava lifecycle with four server-only tables. `strava_race_configs` has one row per category, with `start_time_from`/`start_time_to` as finite UTC instants (`timestamptz`), `allowed_sport_types = ['Run']`, and `distance_tolerance_m` (originally pinned to 500; `20261113113000_strava_organizer_race_config.sql` relaxes that check to a bounded `> 0 and <= 5000` range so organizers can set it). The nullable `start_latitude`, `start_longitude`, and `start_radius_m` must be supplied together; radius may be zero. Category distance stays in `categories.distance_km`. No race window or coordinates are seeded by the migration; approved values must be configured before ingestion.
 
 `strava_activity_candidates` keys each row by `(user_id, generation, runner_id, activity_id)` and also enforces uniqueness of `(generation, runner_id, activity_id)`. Foreign keys require current connection generation, runner access, and an existing activity detail. `strava_runner_activities` and `strava_live_metrics` each allow one row per runner. Live metrics reference that exact selection and contain only the five nullable numeric metrics. Demo `strava_metrics` remains separate.
 
@@ -95,3 +95,37 @@ Only the server `service_role` can read/write claims or execute these RPCs. Brow
 | `revoke_runner_claim(p_organizer uuid, p_event bigint, p_claim uuid)` | Returns true only when an authorized organizer revokes an unconsumed, unrevoked claim for their event. Other cases return false. Revocation does not remove previously granted access. |
 
 `tests/sql/runner-claims.sql` checks these outcomes and database catalogs for RLS, grants, function configuration and FK/index coverage. The native harness also checks competing consumption requests and the duplicate-owner preflight. PGlite serializes competing calls on one connection: this verifies outcomes and database uniqueness, but a dedicated non-production PostgreSQL integration run must still verify actual multi-connection scheduling before release. Run `supabase db advisors --type all` against the disposable local stack when available; catalog assertions do not replace the full advisor. No hosted migration is applied by the native suite.
+
+## Applying the Strava-first chain to the dedicated project
+
+The dedicated project's recorded history stops at `20261020020029_organizer_optional_aggregate`.
+Twenty-four migrations follow it and must be applied **in filename order**, which is the order
+`supabase db push` uses. Confirm the target first — the project ref must be
+`anbnuegocddoowagqmxw` or an explicitly approved replacement — then:
+
+```bash
+supabase migration list            # confirm the remote stops where expected
+supabase db push --dry-run         # review the ordered plan
+supabase db push
+supabase db advisors --type all    # after application
+```
+
+Order-sensitive steps in that chain, each recorded during implementation:
+
+1. `20261111054520_strava_first_runner_claims.sql` aborts with `duplicate direct owners` if
+   legacy ownership conflicts exist. Resolve those records explicitly first; the migration
+   never picks or deletes an owner.
+2. Drain or replace old workers **before** `20261112141501_strava_activity_location_privacy.sql`
+   applies, so a running worker cannot write coordinates the new constraint rejects.
+3. `20261112145626_strava_projection_review_round3.sql` installs triggers on two tables in one
+   transaction and retains a one-time deadlock risk against concurrent legacy commits. Apply it
+   on a drained database with bounded `lock_timeout` and `statement_timeout` so a contended
+   attempt fails fast and can be retried rather than blocking.
+4. The revoke RPC signature change needs a coordinated schema/application rollout if old and new
+   application versions overlap.
+5. `20261113113000_strava_organizer_race_config.sql` is required before the organizer distance
+   tolerance control can store any value other than 500.
+
+Applying these to a hosted project, setting runtime secrets, and registering the Strava webhook
+are external side effects. They are deliberately not performed by the test suites or by any
+command in this repository.
