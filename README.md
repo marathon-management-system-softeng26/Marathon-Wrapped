@@ -54,6 +54,30 @@ Then apply the plan's two new migrations in order, `strava_first_runner_claims` 
 
 Enable email confirmation in Supabase Auth. Set the Site URL to the application URL, allowlist the intended confirmation redirect URLs for the environments in use, and configure SMTP for confirmation delivery. Verify that a new user can receive the email, confirm, and sign in.
 
+### SMTP
+
+One relay carries both kinds of mail: Supabase Auth sends confirmation mail with it, and `lib/mail` sends application mail with it. Brevo is the approved relay for the non-production project, and its free tier allows 300 messages a day — enough for confirmations and claim-code mail at demo scale. Nothing in `lib/mail` is provider-specific, so swapping relays means changing these values only.
+
+Create a Brevo account, verify the sender address under **Senders, Domains & Dedicated IPs**, then read the credentials from **SMTP & API → SMTP**. The SMTP login is a generated `…@smtp-brevo.com` address, not the account email, and the key is the long `xsmtpsib-…` value. Set these server-only variables in the ignored `.env.local`.
+
+| Variable | Value |
+|---|---|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` for STARTTLS, or `465` for implicit TLS. Port `465` is the only port treated as implicitly secure; every other port requires STARTTLS and the send fails rather than falling back to plaintext. |
+| `SMTP_USER` | Brevo SMTP login, `<id>@smtp-brevo.com` |
+| `SMTP_PASSWORD` | Brevo SMTP key (`xsmtpsib-…`). Not the account password and not the API v3 key. |
+| `MAIL_FROM_ADDRESS` | Verified sender address. One mailbox, no display name and no list. |
+| `MAIL_FROM_NAME` | Optional display name, for example `Marathon Wrapped` |
+| `MAIL_REPLY_TO` | Optional reply address for runner questions, for example the organizer inbox |
+
+Paste the same host, port, login, and key into **Supabase → Authentication → Emails → SMTP Settings**, with the sender address and name matching `MAIL_FROM_ADDRESS` and `MAIL_FROM_NAME`. Supabase rate-limits its own built-in mail to a handful of messages per hour, so confirmation delivery is unreliable until custom SMTP is set.
+
+`sendMail` rejects a message before opening a socket when the contract is incomplete, when the recipient is not a single mailbox, or when the recipient or subject carries CR/LF — the recipient comes from `runners.email`, so a crafted registration must not be able to add headers. SMTP failures are re-thrown as `MailError` with a stable code (`not_configured`, `not_authenticated`, `rate_limited`, `delivery_failed`, `connection_failed`) and never carry the relay's own reply text, which echoes the recipient and sometimes the credential.
+
+Prefer a sender on the deployment's own domain. Brevo will verify a single consumer address, and it does send, but mail relayed through Brevo from a `gmail.com` sender does not align with that domain's DMARC record and is filtered more often. Verifying the deployment domain in Brevo and sending from an address on it avoids that.
+
+Verify the relay before relying on it: confirm a new account's signup mail arrives and signs in, and check the Brevo transactional log for the accepted message.
+
 ### Organizer sign-in
 
 1. Create an account in the app and confirm its email.
