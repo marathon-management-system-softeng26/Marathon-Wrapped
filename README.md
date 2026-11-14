@@ -1,20 +1,8 @@
-# Marathon Wrapped 🏃‍♀️✨
+# Marathon Wrapped
 
-A Spotify-Wrapped-style web app that turns each runner's marathon into a personal, shareable recap. Every runner gets baseline stats from the **timing chip on their bib**; those who want more can **opt in to Strava** for health metrics, and race photos are pulled in through a simulated **FotoYu-style photo marketplace**. 
+Marathon Wrapped gives Soekarno Run 2027 runners a private race showcase based on a selected Strava activity. Runners sign up, confirm their email, and claim a registration with a one-time code from the event organizer. Each claimed runner card offers a Strava action. Once the worker stores a ready showcase, the runner can view it and save a 1080 × 1350 PNG. The trusted registration supplies the event, category, BIB, and any matching photos from the simulated FotoYu gallery.
 
-The demo is meant for Soekarno Run 2027. Soekarno Run is a series of annual running events held in Indonesia that combine sport, community culture, and the commemorative spirit of Indonesia's first president.
-
-> **Prototype for Sampoerna University x University of Arizona - Software Engineering course**, not production grade.Chip data is seeded, FotoYu is simulated (photos manually mapped to bibs, no facial recognition), and Strava is real-free-API.
-> **Deliverable: working prototype + live demo + documentation report**
-
-## What it does
-
-- **Your Wrapped** — finish time, average pace, and where you ranked in your category
-- **Split story** — fastest km, negative vs. positive split, where you slowed
-- **Shareable insights** — punchy stat lines like *"you passed 43 people in the last 5K"*
-- **Strava add-on (opt-in)** — heart rate, elevation, calories, cadence
-- **FotoYu gallery** — race photos matched to your bib
-- **Share as image** — export a screenshot-ready card for social
+This is a Sampoerna University × University of Arizona Software Engineering course prototype. The November 11, 2026 decision supersedes chip-first Wrapped generation. Seeded chip results remain available to organizers for legacy event operations. The [product contract](PRODUCT.md) and [SRS](docs/SRS_v4.md) describe the approved workflow.
 
 ## Tech stack
 
@@ -24,7 +12,7 @@ The demo is meant for Soekarno Run 2027. Soekarno Run is a series of annual runn
 | Backend | Next.js API routes |
 | Database | Supabase (Postgres) |
 | Photo storage | Supabase Storage |
-| Enrichment | Strava V3 API |
+| Activity source | Strava V3 API |
 | Hosting | Vercel|
 
 ## Structure
@@ -33,7 +21,7 @@ The demo is meant for Soekarno Run 2027. Soekarno Run is a series of annual runn
 marathon-wrapped/
 ├── ROADMAP.md   → sprint plan and user roles
 ├── /app         → UI for Wrapped cards and gallery
-├── /lib         → logic for stats, ranking, merging      
+├── /lib         → activity projection and application logic
 ├── /db          → database schema and seed scripts              
 ├── /public      → sample photos and public assets          
 ├── /docs        → SRS and documentation reports       
@@ -49,9 +37,90 @@ npm run dev
 
 Before starting, configure the ignored `.env.local` with `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and the server-only `SUPABASE_SERVICE_ROLE_KEY`. Demo seeding also uses `SUPABASE_DEMO_PROJECT_REF`. Never commit environment files or share secret values.
 
-The ignored `.env.demo.local` holds synthetic demo account credentials and live-test settings. It is used by the demo/test scripts, not loaded automatically by Next.js. Strava credentials are not configured; the demo shows a disconnected state.
+The ignored `.env.demo.local` holds synthetic demo account credentials and live-test settings for scripts. Next.js does not load it automatically.
 
-Open http://localhost:3000. You'll need a free Supabase project — seed scripts are in `/db`.
+### Database and email setup
+
+Apply migrations in filename order to a local or dedicated non-production Supabase database. The approved plan records that the dedicated project `anbnuegocddoowagqmxw` stops at `20261020020029_organizer_optional_aggregate`. Verify the target and its migration history before applying these six outstanding migrations.
+
+1. `20261026175630_strava_integration.sql`
+2. `20261028192351_strava_lifecycle.sql`
+3. `20261101000100_strava_race_matching.sql`
+4. `20261101000200_strava_worker_matching.sql`
+5. `20261102074802_strava_atomic_confirmation.sql`
+6. `20261102192931_strava_runner_scope_privacy.sql`
+
+Then apply the plan's two new migrations in order, `strava_first_runner_claims` and `strava_runner_attachments_and_snapshots`. The Supabase CLI assigns their version prefixes when those migrations are created. Check for duplicate direct owners before adding the one-owner constraint, then verify migration history, functions, constraints, grants, RLS, and database advisors.
+
+Enable email confirmation in Supabase Auth. Set the Site URL to the application URL, allowlist the intended confirmation redirect URLs for the environments in use, and configure SMTP for confirmation delivery. Verify that a new user can receive the email, confirm, and sign in.
+
+### SMTP
+
+One relay carries both kinds of mail: Supabase Auth sends confirmation mail with it, and `lib/mail` sends application mail with it. Brevo is the approved relay for the non-production project, and its free tier allows 300 messages a day — enough for confirmations and claim-code mail at demo scale. Nothing in `lib/mail` is provider-specific, so swapping relays means changing these values only.
+
+Create a Brevo account, verify the sender address under **Senders, Domains & Dedicated IPs**, then read the credentials from **SMTP & API → SMTP**. The SMTP login is a generated `…@smtp-brevo.com` address, not the account email, and the key is the long `xsmtpsib-…` value. Set these server-only variables in the ignored `.env.local`.
+
+| Variable | Value |
+|---|---|
+| `SMTP_HOST` | `smtp-relay.brevo.com` |
+| `SMTP_PORT` | `587` for STARTTLS, or `465` for implicit TLS. Port `465` is the only port treated as implicitly secure; every other port requires STARTTLS and the send fails rather than falling back to plaintext. |
+| `SMTP_USER` | Brevo SMTP login, `<id>@smtp-brevo.com` |
+| `SMTP_PASSWORD` | Brevo SMTP key (`xsmtpsib-…`). Not the account password and not the API v3 key. |
+| `MAIL_FROM_ADDRESS` | Verified sender address. One mailbox, no display name and no list. |
+| `MAIL_FROM_NAME` | Optional display name, for example `Marathon Wrapped` |
+| `MAIL_REPLY_TO` | Optional reply address for runner questions, for example the organizer inbox |
+| `APP_URL` | Public application origin with no path, query, or fragment, for example `https://marathon-wrapped.vercel.app`. HTTPS is required outside development, where `http://localhost:3000` is allowed. Claim links are built from it. |
+
+Paste the same host, port, login, and key into **Supabase → Authentication → Emails → SMTP Settings**, with the sender address and name matching `MAIL_FROM_ADDRESS` and `MAIL_FROM_NAME`. Supabase rate-limits its own built-in mail to a handful of messages per hour, so confirmation delivery is unreliable until custom SMTP is set.
+
+`sendMail` rejects a message before opening a socket when the contract is incomplete, when the recipient is not a single mailbox, or when the recipient or subject carries CR/LF — the recipient comes from `runners.email`, so a crafted registration must not be able to add headers. SMTP failures are re-thrown as `MailError` with a stable code (`not_configured`, `not_authenticated`, `rate_limited`, `delivery_failed`, `connection_failed`) and never carry the relay's own reply text, which echoes the recipient and sometimes the credential.
+
+Prefer a sender on the deployment's own domain. Brevo will verify a single consumer address, and it does send, but mail relayed through Brevo from a `gmail.com` sender does not align with that domain's DMARC record and is filtered more often. Verifying the deployment domain in Brevo and sending from an address on it avoids that.
+
+Verify the relay before relying on it: confirm a new account's signup mail arrives and signs in, and check the Brevo transactional log for the accepted message.
+
+### Claim code delivery
+
+Creating a claim code mails it to the runner's `runners.email` and still returns it to the organizer, so a relay fault never costs them the code. The response carries `mailed`, and the organizer panel reports either `Sent to the registered address` or `Could not send it`. A failed send leaves the claim row intact — the organizer can pass the code on by hand or revoke and reissue. Registration addresses never appear in an organizer payload.
+
+The mail carries a `?claim=<token>` link to the application root and the raw token beneath it. On arrival the token is moved out of the URL into session storage, so the address bar, the history entry, and any later referrer keep no copy; session storage also carries it across the sign-in redirect. The code lands in the claim field pre-filled, but **claiming stays an explicit press**: consuming a token binds the registration to whichever account is signed in, and nothing can undo that, so a mail scanner prefetching the link or a runner on a shared machine must not silently claim it.
+
+### Organizer sign-in
+
+1. Create an account in the app and confirm its email.
+2. On a trusted machine, set `SUPABASE_DEMO_PROJECT_REF` in ignored `.env.local` to match the dedicated `SUPABASE_URL` (`https://<project-ref>.supabase.co`). Use that project's server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY`. Run the grant with the confirmed email and the numeric `events.id`.
+
+   ```sh
+   npm run --silent grant:organizer -- --email <email> --event-id <id>
+   ```
+
+   Keep `--silent` so npm doesn't echo the command arguments.
+
+3. Sign in with the confirmed account. Check that `GET /api/session` includes the granted event in `events`, then open **Manage event results** on the home page. It opens `/organizer`, whose API checks the account's event access on the server before returning organizer data or accepting changes.
+
+### Strava configuration
+
+Set these server-only environment variables.
+
+| Variable | Value |
+|---|---|
+| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` | Strava application credentials |
+| `STRAVA_CALLBACK_URL` | Exact public HTTPS URL ending in `/api/strava/callback` (HTTP localhost allowed in development) |
+| `STRAVA_ENCRYPTION_KEY` | 32 random bytes encoded as 64 hexadecimal characters. Keep it stable and outside the database. Migrate existing encrypted tokens before rotating it. |
+| `STRAVA_WEBHOOK_VERIFY_TOKEN` | Random secret used when registering the webhook |
+| `STRAVA_SUBSCRIPTION_ID` | Subscription ID returned by Strava |
+| `STRAVA_PROCESS_SECRET` | Random bearer secret for the job-processing endpoint |
+
+Each athlete authorizes their own account through OAuth with `activity:read_all` so the runner can select an activity visible only to them. The server stores encrypted access and refresh tokens. The dashboard token `STRAVA_ACCESS_TOKEN` has no role in this flow.
+
+- Register the public `/api/strava/webhook` endpoint with Strava, verify its subscription challenge, and store the returned subscription ID. Webhooks queue refreshes for attached registrations.
+- Schedule periodic POST requests to `/api/internal/strava/process` with `Authorization: Bearer <STRAVA_PROCESS_SECRET>` on hosting that permits the 60-second handler. The worker handles bounded race imports, snapshot builds, and durable revocation retries. Jobs stop after eight failed attempts. Inspect failed jobs through trusted backend tooling.
+- Configure each participating category's race window, allowed `Run` type, distance tolerance, and optional start-location constraint. A sole fully qualifying activity with a passing location check may auto-select. Otherwise the runner confirms a candidate or retries when an eligible activity becomes available.
+- Begin real-provider acceptance with a private test athlete and activity on the dedicated project. Record the approved athlete capacity and API rate limits. Keep access private until acceptance passes and capacity covers the broader demo. Complete Strava app-access review before expanding beyond the approved athlete count.
+
+The dashboard and showcase read stored state while the worker handles provider requests. **Use Strava for this race** attaches a claimed registration to the account's existing athlete connection. Detach removes only that registration's Strava data. Account disconnect removes all live snapshots and queues remote revocation if cleanup needs a retry.
+
+Open [the local app](http://localhost:3000) after starting the development server. For verification, run `npm test`, `npm run test:native`, `npm run lint`, `npx tsc --noEmit`, and `npm run build`. Use the [acceptance matrix](docs/qa/acceptance-matrix.md) and the [November 11 plan](docs/superpowers/plans/2026-11-11-strava-first-runner-claims.md) for dedicated-database, browser, and real-provider checks.
 
 ## Team
 

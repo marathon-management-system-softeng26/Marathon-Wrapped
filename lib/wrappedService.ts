@@ -6,30 +6,43 @@ import { buildWrappedStats } from "@/lib/stats";
 import { mergeWrapped } from "@/lib/merge";
 import type { Enrichment, WrappedPayload } from "@/lib/wrappedPayload";
 
+async function loadEnrichment(userId: string, runnerId: string, bib: string | null): Promise<Enrichment> {
+  const controller = new AbortController();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  let grace: ReturnType<typeof setTimeout> | undefined;
+  const fallback: Enrichment = { strava: { state: "unavailable", metrics: null }, photos: [], warnings: ["Extra details are unavailable. Your chip recap is ready."] };
+  try {
+    const enrichment = getRunnerEnrichment(runnerId, bib, controller.signal, userId);
+    return await Promise.race([
+      enrichment,
+      new Promise<Enrichment>((resolve) => {
+        deadline = setTimeout(() => {
+          controller.abort();
+          grace = setTimeout(() => resolve(fallback), 25);
+          enrichment.then(
+            (value) => { if (grace) clearTimeout(grace); resolve(value); },
+            () => { if (grace) clearTimeout(grace); resolve(fallback); },
+          );
+        }, 1200);
+      }),
+    ]);
+  } catch {
+    return fallback;
+  } finally {
+    if (deadline) clearTimeout(deadline);
+    if (grace) clearTimeout(grace);
+  }
+}
+
 export async function getWrappedForUser(userId: string, runnerId: string): Promise<WrappedPayload | null> {
   await requireRunnerAccess(userId, runnerId);
   const input = await getRunnerChipInput(runnerId);
   if (!input) {
     const runner = await getRunnerSummary(runnerId);
-    return runner ? { status: "unavailable", runner, reason: "missing_result" } : null;
+    if (!runner) return null;
+    const optional = await loadEnrichment(userId, runnerId, runner.bib_number);
+    return { status: "unavailable", runner, reason: "missing_result", ...optional };
   }
-  let optional: Enrichment;
-  const controller = new AbortController();
-  let deadline: ReturnType<typeof setTimeout> | undefined;
-  try {
-    optional = await Promise.race([
-      getRunnerEnrichment(runnerId, input.bib_number, controller.signal),
-      new Promise<never>((_resolve, reject) => {
-        deadline = setTimeout(() => {
-          controller.abort();
-          reject(new Error("Optional data deadline exceeded."));
-        }, 1200);
-      }),
-    ]);
-  } catch {
-    optional = { strava: { state: "unavailable", metrics: null }, photos: [], warnings: ["Extra details are unavailable. Your chip recap is ready."] };
-  } finally {
-    if (deadline) clearTimeout(deadline);
-  }
+  const optional = await loadEnrichment(userId, runnerId, input.bib_number);
   return mergeWrapped(buildWrappedStats(input), optional);
 }

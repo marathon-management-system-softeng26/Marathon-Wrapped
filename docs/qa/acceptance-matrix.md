@@ -1,13 +1,38 @@
-# SRS V3 implementation and evidence map
+# SRS V4 acceptance matrix
 
-October 20, 2026. This distinguishes implementation from executed acceptance. It does not change the mandatory baseline. The user requested a disconnected Strava state while no API app exists; real provider lifecycle acceptance remains deferred.
+## November 11, 2026 Strava-first contract
+
+The November 11 decision supersedes the chip-first runner flow. Every row below requires verification against the approved Strava-first workflow. The [implementation plan](../superpowers/plans/2026-11-11-strava-first-runner-claims.md) defines the staged checks.
+
+Status updated 2026-11-13 after Tasks 0–14. "Automated" means the behavior is covered by a
+test that ran and passed in this repository; it is not user-level acceptance. External gates
+are named per row. Run evidence: [Strava-first runner claims](strava-first-runner-claims.md).
+
+| Requirements | Acceptance check | Status |
+| --- | --- | --- |
+| FR-01–FR-03 | Complete signup and confirmation, reject an unconfirmed sign-in, claim two registrations, and test expiry, revocation, replay, concurrent redemption, and cross-event denial. Verify the server-owned mapping and one direct owner. | Automated: unconfirmed sign-in message, claim issue/redeem/revoke/replay routes, hashed one-time tokens, single-owner SQL. Written and database-gated: HTTP claim race, catalog visibility, organizer isolation. Pending: confirmation email delivery, user-level run |
+| FR-04, FR-08 | Check a Strava action on every claimed runner card. Exercise explicit consent, denial, insufficient scope, athlete mismatch, reconnect, and reuse of one athlete connection for a second registration. | Automated: one primary action per runner across all ten workflow states, `attachable` vs `setup_required`, consent copy for private activities, insufficient-scope and reauthorize states, second-registration attach. Pending: real consent/denial round trip |
+| FR-05, FR-19 | Configure a category within the organizer's event. Test sole, ambiguous, missing-location, and no-match cases, plus a conflict when one activity is chosen twice in a connection generation. | Automated: event-scoped config route, window/tolerance/location validation, Run-only sport type, cross-event category denial. Written and database-gated: duplicate-activity conflict in one generation. Pending: real activity import |
+| FR-06–FR-07 | Verify building, ready, and failed projection states. Compare stored output with the selected activity while legacy chip values disagree. Inspect dashboard and Wrapped reads for provider traffic. | Automated: `building`/`ready`/`failed` route and showcase states, ready-only rendering, snapshot contract rejection, no provider call on any read. Pending: measured read traffic against the hosted project |
+| FR-09–FR-11 | Detach one of two registrations. Disconnect the athlete account and verify both live showcases disappear. Exercise revocation retry, obsolete generations, provider rate limits, and lost refresh credentials. | Automated: per-race detach distinct from account disconnect, fenced lifecycle, revocation retry, obsolete-generation suppression. Written and database-gated: detach preserving the sibling registration. Pending: real revocation and rate-limit behavior |
+| FR-12–FR-15 | Verify exact BIB photos, a usable ready showcase without photos, 1080 × 1350 PNG export, and a recoverable export failure. | Automated: exact-BIB photos, no-photo showcase, 1080 × 1350 export with "Powered by Strava", export failure paths. Pending: browser download inspection |
+| FR-16–FR-19, NFR-06–NFR-07 | Verify event-scoped organizer tools, direct runner ownership, and private field omission in API, UI, logs, and export. | Automated: organizer claim status without account email or user id, event-scoped guards, and private-field omission across catalog, runner route, showcase and export. Pending: log inspection on a real deployment |
+| NFR-01–NFR-05, NFR-08–NFR-09 | Check mobile/desktop workflow, keyboard focus, navigation, load budget, labeled test data, and service allowances. | Automated: labels, status/alert roles, busy state and keyboard-operable controls on the new claim, setup and organizer forms. Pending: desktop/mobile browser pass, focus order, measured load budget |
+| Deployment | Verify ordered migrations in the dedicated project, SMTP confirmation delivery, webhook challenge and refresh, authenticated scheduled worker calls, and private real-provider consent/import/revocation before reviewing athlete capacity for broader access. | Pending — Task 15. Note: `20261113113000_strava_organizer_race_config.sql` must be applied before organizer distance tolerance is settable, and the drained rollout with bounded lock/statement timeouts is required |
+
+## Historical evidence through November 3, 2026
+
+The table below and the runner-facing behavior recorded in [core foundation](core-foundation.md), [connected UI](connected-ui.md), [Strava integration](strava-integration.md), and the [November 10 PRD comparison](prd-comparison-2026-11-10.md) describe the superseded chip-first workflow. Those records also preserve tests of legacy organizer timing and results.
+
+Updated November 3, 2026. This distinguishes implementation from executed acceptance and preserves the V3 clause links used by the existing evidence. The October 20 disconnected-only decision was superseded by the approved full opt-in Strava direction. After the final review fixes, 328 local automated checks, 11 activated PGlite/PostgreSQL checks, 240 focused controlled-provider checks, 111 export/privacy checks, and the lint/type/build gates passed. The fixes cover durable runner/generation opt-in, unrelated activity-data removal, safe Connect failure returns, and organizer control suppression. The branch-wide whitespace gate is clean. Real-provider, dedicated remote database, webhook/scheduler, and manual browser acceptance remain pending because no corresponding credentials or usable authenticated browser fixture was supplied.
 
 | Clauses | Implementation / evidence | Remaining measure |
 | --- | --- | --- |
 | SR-F1–F7, F6a/b | Retrieval, validation, stats/insights, derived database ranks; unit/native/SQL/live suites | Core contracts verified; see core-foundation.md |
-| SR-F8, F9, F11; NF12; SR-D2 | No OAuth application; no simulated connection | Deferred by user no-app decision |
-| SR-F10, NF11b | Unique runner_id in strava_metrics; SQL integrity assertions | Seeded samples only |
-| SR-F12, NF3, NF6–NF7 | Enrichment deadline/fallback, missing-Strava fixture/live test, disconnected card | Real denial/provider tests deferred |
+| FR-08; SR-F8, F9; NF12 | Explicit runner-bound `POST` connect, stored callback context, state/session/scope/athlete checks, encrypted credentials, safe denial/replay handling; automated route tests | Real Strava consent, callback, and reconnect acceptance pending |
+| FR-09; SR-F10, NF11b | Configured `Run` matching, ±500 m boundary, auto/confirmation rules, atomic selection, five nullable metrics, safe candidate response, runner-owner privacy; unit/API and PGlite evidence | Dedicated remote concurrency run and real activity import pending |
+| FR-10; SR-F11 | Local ingestion disabled before remote cleanup, live selection/metrics removed transactionally, durable revocation retry, explicit disconnecting/reauthorize states; automated API/SQL evidence | Real provider revocation and refresh-persistence acceptance pending |
+| FR-11; SR-F12, NF3, NF6–NF7 | Denial/error/partial/no-match/ambiguity states, independent chip/photo fallback, callback feedback cleanup, demo/live provenance separation, export excludes health metrics; automated service/UI/export evidence | Manual provider-denial, responsive/focus, and end-to-end browser acceptance pending |
 | SR-F13–F14 | Exact-BIB filter, all returned photos rendered; three sample mappings in owned Storage | Two-photo browser fixture rendered both loaded images; cleaned up afterward |
 | SR-F15a/b, NF4 | No-photo card and empty array; no-photo fixture/live test | API and browser empty-photo card verified |
 | SR-F16–F17 | Guarded runner payload, explicit identity/event maps; alternating runner API/browser checks | Core isolation verified; sample enrichment labeled |
@@ -21,14 +46,14 @@ October 20, 2026. This distinguishes implementation from executed acceptance. It
 | SR-NF2 | One abortable recap fetch on mount; no remote provider call during read | Trace verified exactly 20 requests for 20 reloads |
 | SR-NF5a/b | DNF payload/browser/PNG null finish and pace | Verified, including explicit category-distance export label |
 | SR-NF8–NF11a | Unique immutable BIB, domain FKs, one chip result; SQL tests | Verified; atomic rollback covered |
-| SR-NF13 | Private credentials, whitelist payload, exports omit health metrics | Source/response scans and images checked; future token store deferred |
+| SR-NF13 | Encrypted token lifecycle, private/no-store API responses, allowlisted candidate payload, owner-only live metrics, exports omit health metrics | Automated privacy evidence; inspect a real browser/network/log/export run before acceptance |
 | SR-NF14 | Organizer entry hidden from runner; API guard before private access | Runner catalog/denied API verified |
 | SR-NF15 | Desktop/mobile story captures with 1280×900 / 390×844 viewport overrides | Native captures inspected; independent material fixes confirmed, ship disposition |
-| SR-NF16 | Selection → recap one transition; direct photos/save one page choice | Within three for core actions; Connect unavailable by scope decision |
+| SR-NF16 | Selection → recap one transition; direct photos/save and explicit Strava controls on the recap | Automated render/navigation evidence; manual action-count check pending |
 | SR-NF17 | Codex in-app Chromium, desktop/mobile viewports | Viewport testing is not separate mobile-browser certification |
 | SR-NF18 | Approved $0/month, measured 12.1MB database and 256KB stock asset; expected demo usage budget | Project footprint fits documented free allowances; account-wide usage review pending |
 | UR-D1 | DNF expanded, pace /km, split comparison text, cadence spm labels | Full everyday-language glossary pending |
-| UR-D2, SR-D1 | Disconnected card explains baseline is available | Browser inspected; provider-denied lifecycle deferred |
+| UR-D2, SR-D1 | Accessible card models disconnected, authorizing, importing, confirmation, no-match, connected/partial, unavailable, disconnecting, and reauthorization states with safe feedback | Static/render tests passed; provider-denied and responsive/focus browser acceptance pending |
 | UR-D3 | Pinned red/cream/lime world, local Bricolage, Impeccable detector/design docs | Full review and bounded fix confirmation: ship |
 
-User-level acceptance follows SRS section 7.4. No full UR acceptance is claimed while these gaps remain. Evidence: [core](core-foundation.md), [connected UI](connected-ui.md). Database checks were executed separately from the unit suite.
+User-level acceptance follows SRS section 7.4. No full FR-08–FR-11 or UR acceptance is claimed while the external and manual gates remain. Evidence: [core](core-foundation.md), [connected UI](connected-ui.md), and the [Strava integration runbook](strava-integration.md). Database checks are executed separately from the unit suite.

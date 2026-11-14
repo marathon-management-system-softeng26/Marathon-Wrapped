@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .gel-body { fill: #7000FF; filter: drop-shadow(0px 10px 22px rgba(112, 0, 255, 0.45)); }
+      .gel-top { fill: #121212; stroke: #00E5FF; stroke-width: 3.5; stroke-linejoin: round; }
+      .gel-accent { fill: #FF0055; }
+      .gel-stripe { fill: #CCFF00; }
+      
+      .drop-burst { fill: #00E5FF; opacity: 0.9; }
+      .drop-glow { fill: #CCFF00; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .star-white { fill: #FFFFFF; }
+      .speed-trail { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="energy-gel-item-sticker">
+    <!-- Speed Motion Trails (Behind Gel Packet) -->
+    <path class="speed-trail" d="M 80,290 C 130,310 180,300 220,330" />
+    <path class="speed-trail" d="M 60,240 C 100,260 140,250 170,280" stroke="#FF0055" stroke-width="3" />
+
+    <!-- Squeezed Gel Droplet Burst Out of Top -->
+    <g id="gel-burst">
+      <path class="drop-burst" d="M 175,110 C 140,80 120,40 135,30 C 150,20 170,60 180,75 Z" />
+      <path class="drop-glow" d="M 195,85 C 185,45 200,15 215,20 C 230,25 215,60 205,80 Z" />
+      <circle cx="120" cy="65" r="7" fill="#00E5FF" />
+      <circle cx="230" cy="40" r="5" fill="#CCFF00" />
+      <circle cx="245" cy="75" r="8" fill="#FF0055" />
+    </g>
+
+    <!-- Main Energy Gel Packet (Tilted Squeezy S-Curve, No Text) -->
+    <g transform="translate(15, 20) rotate(24, 250, 250)">
+      
+      <!-- Torn Top Tab (Opened Gel) -->
+      <path class="gel-top" d="
+        M 170,85 
+        L 230,85 
+        L 235,105 
+        L 165,105 Z" />
+
+      <!-- Seal Neck -->
+      <rect class="gel-top" x="180" y="105" width="40" height="15" rx="3" />
+
+      <!-- Squeezed Foil Packet Body (Deep Electric Purple) -->
+      <path class="gel-body" d="
+        M 160,120 
+        L 240,120 
+        C 255,120 265,135 260,155 
+        L 250,210 
+        C 242,240 260,270 265,300 
+        L 255,385 
+        C 250,405 230,415 200,415 
+        C 170,415 150,405 145,385 
+        L 135,300 
+        C 140,270 158,240 150,210 
+        L 140,155 
+        C 135,135 145,120 160,120 Z" />
+
+      <!-- High-Energy Geometric Graphic Shapes (Inspo Style) -->
+      <!-- Center Hot Pink Diagonal Chevron -->
+      <path class="gel-accent" d="M 145,210 L 255,240 L 260,280 L 140,250 Z" />
+      
+      <!-- Chartreuse Yellow Speed Stripe -->
+      <path class="gel-stripe" d="M 150,170 L 250,195 L 252,215 L 148,190 Z" />
+
+      <!-- Bottom Black Grip / Crimped Edge -->
+      <path class="gel-top" d="
+        M 145,385 
+        L 255,385 
+        L 250,410 
+        C 230,418 170,418 150,410 Z" />
+
+      <!-- Squeeze Grip Lines -->
+      <path d="M 158,220 C 170,245 170,265 155,290" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" opacity="0.8" />
+      <path d="M 242,220 C 230,245 230,265 245,290" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" opacity="0.8" />
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(380, 50) rotate(18) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Hot Pink Sparkle -->
+    <path class="sparkle-pink" d="M 60,350 Q 80,350 80,330 Q 80,350 100,350 Q 80,350 80,370 Q 80,350 60,350 Z" />
+
+    <!-- Floating Stars & Dots -->
+    <polygon class="star-white" transform="translate(420, 230) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(70, 160) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="445" cy="370" r="9" fill="#CCFF00" />
+    <circle cx="420" cy="400" r="5" fill="#00E5FF" />
+    <circle cx="90" cy="410" r="6" fill="#FF0055" />
+  </g>
+</svg>

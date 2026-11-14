@@ -1,0 +1,99 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <style>
+      .sunglass-frame { fill: #121212; stroke: #00E5FF; stroke-width: 4; stroke-linejoin: round; filter: drop-shadow(0px 10px 22px rgba(0, 229, 255, 0.45)); }
+      .sunglass-lens-left { fill: #FF0055; }
+      .sunglass-lens-right { fill: #7000FF; }
+      .lens-reflection { fill: #CCFF00; opacity: 0.85; }
+      .lens-glow { fill: #FFFFFF; opacity: 0.6; }
+      
+      .bolt-yellow { fill: #FFD600; stroke: #121212; stroke-width: 3; stroke-linejoin: round; }
+      .sparkle-pink { fill: #FF0055; }
+      .sparkle-lime { fill: #CCFF00; }
+      .star-white { fill: #FFFFFF; }
+      .speed-line { fill: none; stroke: #CCFF00; stroke-width: 4; stroke-linecap: round; }
+      .speed-line-pink { fill: none; stroke: #FF0055; stroke-width: 3; stroke-linecap: round; }
+    </style>
+  </defs>
+
+  <g id="sports-sunglasses-item-sticker">
+    <!-- Speed Motion Trails Behind Glasses -->
+    <path class="speed-line" d="M 60,200 Q 110,180 160,210" />
+    <path class="speed-line-pink" d="M 40,240 Q 90,220 140,250" />
+    <path class="speed-line" d="M 340,190 Q 390,170 440,200" />
+
+    <!-- Main Dynamic Sports Sunglasses (Angled at -10deg) -->
+    <g transform="translate(10, 20) rotate(-10, 250, 250)">
+      
+      <!-- Glasses Frame Temples (Arms) -->
+      <!-- Left Arm -->
+      <path d="M 75,205 C 50,180 40,150 55,130 C 65,120 80,135 85,160 Z" fill="#121212" stroke="#CCFF00" stroke-width="3" />
+      <!-- Right Arm -->
+      <path d="M 425,205 C 450,180 460,150 445,130 C 435,120 420,135 415,160 Z" fill="#121212" stroke="#CCFF00" stroke-width="3" />
+
+      <!-- Single Shield Lens / Lenses -->
+      <!-- Left Lens (Hot Pink to Magenta) -->
+      <path class="sunglass-lens-left" d="
+        M 80,200 
+        C 150,185 220,185 245,200 
+        L 240,270 
+        C 180,300 110,290 85,250 
+        Z" />
+
+      <!-- Right Lens (Deep Purple to Magenta) -->
+      <path class="sunglass-lens-right" d="
+        M 255,200 
+        C 280,185 350,185 420,200 
+        L 415,250 
+        C 390,290 320,300 260,270 
+        Z" />
+
+      <!-- Full Outer Shield Frame (Electric Cyan Outline) -->
+      <path class="sunglass-frame" d="
+        M 65,190 
+        C 180,165 320,165 435,190 
+        C 450,200 440,230 425,260 
+        C 390,315 315,325 250,285 
+        C 185,325 110,315 75,260 
+        C 60,230 50,200 65,190 Z" />
+
+      <!-- Nose Bridge Detail -->
+      <path d="M 235,225 C 245,215 255,215 265,225 L 260,245 C 250,238 240,238 230,245 Z" fill="#121212" stroke="#CCFF00" stroke-width="2" />
+
+      <!-- High-Energy Lens Reflection Stripes (Chartreuse Yellow) -->
+      <!-- Left Reflective Slash -->
+      <path class="lens-reflection" d="M 100,205 L 140,200 L 115,270 L 88,250 Z" />
+      <path class="lens-glow" d="M 145,200 L 165,198 L 142,275 L 125,272 Z" />
+      
+      <!-- Right Reflective Slash -->
+      <path class="lens-reflection" d="M 360,200 L 400,205 L 412,250 L 385,270 Z" />
+      <path class="lens-glow" d="M 335,198 L 355,200 L 375,272 L 358,275 Z" />
+
+      <!-- Top Ventilation Slots (Aerodynamic Sports Detail) -->
+      <rect x="150" y="180" width="25" height="5" rx="2.5" fill="#CCFF00" />
+      <rect x="185" y="178" width="25" height="5" rx="2.5" fill="#CCFF00" />
+      <rect x="290" y="178" width="25" height="5" rx="2.5" fill="#CCFF00" />
+      <rect x="325" y="180" width="25" height="5" rx="2.5" fill="#CCFF00" />
+
+    </g>
+
+    <!-- Floating Energy Pop Accents -->
+    <!-- Top Right Yellow Lightning Bolt -->
+    <g transform="translate(385, 45) rotate(22) scale(1.4)">
+      <polygon class="bolt-yellow" points="20,0 0,25 15,25 5,50 35,20 18,20" />
+    </g>
+
+    <!-- Bottom Left Lime Sparkle -->
+    <path class="sparkle-lime" d="M 60,350 Q 80,350 80,330 Q 80,350 100,350 Q 80,350 80,370 Q 80,350 60,350 Z" />
+
+    <!-- Top Left Pink Sparkle -->
+    <path class="sparkle-pink" d="M 70,120 Q 90,120 90,100 Q 90,120 110,120 Q 90,120 90,140 Q 90,120 70,120 Z" />
+
+    <!-- Floating Sparkle Stars & Dots -->
+    <polygon class="star-white" transform="translate(425, 230) scale(1.0)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <polygon class="star-white" transform="translate(60, 220) scale(0.8)" points="12,0 15,9 24,9 17,14 19,23 12,17 5,23 7,14 0,9 9,9" />
+    <circle cx="445" cy="370" r="9" fill="#CCFF00" />
+    <circle cx="420" cy="400" r="5" fill="#00E5FF" />
+    <circle cx="90" cy="410" r="6" fill="#FF0055" />
+  </g>
+</svg>

@@ -1,36 +1,25 @@
-import type { WrappedPayload } from "./wrappedPayload";
 import { formatMmSs } from "./format";
-export function shareModel(payload: WrappedPayload) {
-  const stats = payload.status === "unavailable" ? null : payload.stats;
-  const finished = payload.status === "finisher";
+import { isStravaWrappedSnapshotV1 } from "./strava/projection";
+import type { StravaFirstWrappedPayload } from "./wrappedPayload";
+
+export function shareModel(payload: StravaFirstWrappedPayload) {
+  if (payload.state !== "ready" || !isStravaWrappedSnapshotV1(payload.snapshot) ||
+      payload.snapshot.runner.id !== payload.registration.runner.id) {
+    throw new Error("Your Wrapped is not ready to share.");
+  }
+  const { registration, snapshot } = payload;
   return {
-    name:
-      stats?.name ??
-      (payload.status === "unavailable" ? payload.runner.name : "Runner"),
-    bib:
-      stats?.bib_number ??
-      (payload.status === "unavailable" ? payload.runner.bib_number : null),
-    event: stats?.event ?? "Soekarno Run 2027",
-    distance: stats ? `${stats.distance_km.toFixed(1)} km` : "—",
-    distanceLabel: finished ? "Race distance" : "Category distance",
-    result: finished
-      ? "Finished"
-      : payload.status === "dnf"
-        ? "Did not finish"
-        : payload.status === "dns"
-          ? "Did not start"
-          : "Result unavailable",
-    time:
-      finished && stats?.elapsed_seconds != null
-        ? formatMmSs(stats.elapsed_seconds)
-        : "—",
-    pace:
-      finished && stats?.avg_pace_sec_km != null
-        ? `${formatMmSs(stats.avg_pace_sec_km)} /km`
-        : "—",
-    rank:
-      finished && stats?.category_rank != null
-        ? `Category rank ${stats.category_rank}`
-        : "",
+    name: registration.runner.name,
+    bib: registration.runner.bibNumber,
+    event: registration.event.name,
+    year: registration.event.date.slice(0, 4),
+    distance: `${(snapshot.distanceMeters / 1000).toFixed(1)} km`,
+    time: formatMmSs(snapshot.movingTimeSeconds),
+    pace: snapshot.averagePaceSecondsPerKm === null
+      ? "Average pace unavailable"
+      : `${formatMmSs(snapshot.averagePaceSecondsPerKm)} /km`,
+    splits: snapshot.splits.map(({ kilometer, paceSecondsPerKm }) =>
+      `Km ${kilometer} · ${paceSecondsPerKm === null ? "Pace unavailable" : `${formatMmSs(paceSecondsPerKm)} /km`}`),
+    splitNote: snapshot.splits.length ? null : "No kilometer splits available",
   };
 }
