@@ -50,7 +50,7 @@ describe("organizer runner access", () => {
 
   it("shows a one-time code with its expiry and copy guidance, then allows revoking it", async () => {
     fetcher.mockImplementationOnce(async () => Response.json(
-      { id: "33333333-3333-3333-3333-333333333333", token: "z".repeat(43), expiresAt: "2027-08-10T09:00:00.000Z" },
+      { id: "33333333-3333-3333-3333-333333333333", token: "z".repeat(43), expiresAt: "2027-08-10T09:00:00.000Z", mailed: true },
       { status: 201 },
     ));
     await render();
@@ -70,6 +70,35 @@ describe("organizer runner access", () => {
     expect(fetcher.mock.calls[1]?.[0]).toBe(`/api/organizer/events/1/runners/${runnerId}/claim`);
     expect(fetcher.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE", body: JSON.stringify({ claimId: "33333333-3333-3333-3333-333333333333" }) });
     expect(container.textContent).not.toContain("z".repeat(43));
+  });
+
+  it("confirms the code reached the registered address without revealing it", async () => {
+    fetcher.mockImplementationOnce(async () => Response.json(
+      { id: "33333333-3333-3333-3333-333333333333", token: "z".repeat(43), expiresAt: "2027-08-10T09:00:00.000Z", mailed: true },
+      { status: 201 },
+    ));
+    await render();
+    await act(async () => find("Create claim code")!.click());
+
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/sent to the registered address/i);
+    expect(text).not.toMatch(/could not send/i);
+    expect(text).not.toContain("@");
+  });
+
+  it("tells the organizer to pass the code on when delivery failed", async () => {
+    fetcher.mockImplementationOnce(async () => Response.json(
+      { id: "33333333-3333-3333-3333-333333333333", token: "z".repeat(43), expiresAt: "2027-08-10T09:00:00.000Z", mailed: false },
+      { status: 201 },
+    ));
+    await render();
+    await act(async () => find("Create claim code")!.click());
+
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/could not send it/i);
+    expect(text).not.toMatch(/sent to the registered address/i);
+    // The token is still on screen, so a failed send never costs the organizer the code.
+    expect(text).toContain("z".repeat(43));
   });
 
   it("reports a refused claim without displaying a code", async () => {

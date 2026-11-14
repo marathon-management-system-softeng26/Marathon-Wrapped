@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import type { RunnerCatalog } from "@/lib/runnerCatalog";
+import { captureClaimToken } from "./claimHandoff";
 
 export function useCatalog() {
   const [data, setData] = useState<RunnerCatalog | null>(null),
@@ -16,6 +17,8 @@ export function useCatalog() {
       .then(async (response) => {
         if (controller.signal.aborted) return;
         if (response.status === 401) {
+          // Signing in replaces the location, so a mailed claim token is saved first.
+          captureClaimToken();
           window.location.replace("/login");
           return;
         }

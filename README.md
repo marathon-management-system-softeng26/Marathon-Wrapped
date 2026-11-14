@@ -69,6 +69,7 @@ Create a Brevo account, verify the sender address under **Senders, Domains & Ded
 | `MAIL_FROM_ADDRESS` | Verified sender address. One mailbox, no display name and no list. |
 | `MAIL_FROM_NAME` | Optional display name, for example `Marathon Wrapped` |
 | `MAIL_REPLY_TO` | Optional reply address for runner questions, for example the organizer inbox |
+| `APP_URL` | Public application origin with no path, query, or fragment, for example `https://marathon-wrapped.vercel.app`. HTTPS is required outside development, where `http://localhost:3000` is allowed. Claim links are built from it. |
 
 Paste the same host, port, login, and key into **Supabase → Authentication → Emails → SMTP Settings**, with the sender address and name matching `MAIL_FROM_ADDRESS` and `MAIL_FROM_NAME`. Supabase rate-limits its own built-in mail to a handful of messages per hour, so confirmation delivery is unreliable until custom SMTP is set.
 
@@ -77,6 +78,12 @@ Paste the same host, port, login, and key into **Supabase → Authentication →
 Prefer a sender on the deployment's own domain. Brevo will verify a single consumer address, and it does send, but mail relayed through Brevo from a `gmail.com` sender does not align with that domain's DMARC record and is filtered more often. Verifying the deployment domain in Brevo and sending from an address on it avoids that.
 
 Verify the relay before relying on it: confirm a new account's signup mail arrives and signs in, and check the Brevo transactional log for the accepted message.
+
+### Claim code delivery
+
+Creating a claim code mails it to the runner's `runners.email` and still returns it to the organizer, so a relay fault never costs them the code. The response carries `mailed`, and the organizer panel reports either `Sent to the registered address` or `Could not send it`. A failed send leaves the claim row intact — the organizer can pass the code on by hand or revoke and reissue. Registration addresses never appear in an organizer payload.
+
+The mail carries a `?claim=<token>` link to the application root and the raw token beneath it. On arrival the token is moved out of the URL into session storage, so the address bar, the history entry, and any later referrer keep no copy; session storage also carries it across the sign-in redirect. The code lands in the claim field pre-filled, but **claiming stays an explicit press**: consuming a token binds the registration to whichever account is signed in, and nothing can undo that, so a mail scanner prefetching the link or a runner on a shared machine must not silently claim it.
 
 ### Organizer sign-in
 

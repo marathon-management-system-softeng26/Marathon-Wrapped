@@ -9,7 +9,7 @@ export type AccessRow = {
   linked: boolean;
 };
 
-type Issued = { runnerId: string; claimId: string; token: string; expiresAt: string };
+type Issued = { runnerId: string; claimId: string; token: string; expiresAt: string; mailed: boolean };
 
 const expiry = (value: string) => {
   const date = new Date(value);
@@ -40,7 +40,7 @@ export default function OrganizerRunnerAccess({ eventId, rows }: { eventId: stri
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "Could not create a claim code. Retry.");
-      setIssued({ runnerId, claimId: body.id, token: body.token, expiresAt: body.expiresAt });
+      setIssued({ runnerId, claimId: body.id, token: body.token, expiresAt: body.expiresAt, mailed: body.mailed === true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not create a claim code. Retry.");
     } finally {
@@ -74,8 +74,8 @@ export default function OrganizerRunnerAccess({ eventId, rows }: { eventId: stri
     <section className="organizer-access" aria-labelledby="organizer-access-heading">
       <h3 id="organizer-access-heading">Runner claims</h3>
       <p>
-        Give a runner their one-time code so they can claim their own registration. The code is shown once and is
-        not stored in a readable form, so issue a new one if it is lost.
+        Creating a code sends it to the runner&apos;s registered address. The code also appears here once and is not
+        stored in a readable form, so issue a new one if it is lost.
       </p>
       {error && <p role="alert">{error}</p>}
       <ul className="organizer-access-list" role="list">
@@ -94,6 +94,11 @@ export default function OrganizerRunnerAccess({ eventId, rows }: { eventId: stri
               {claim ? (
                 <div className="organizer-access-code">
                   <code>{claim.token}</code>
+                  <p role="status">
+                    {claim.mailed
+                      ? "Sent to the registered address."
+                      : "Could not send it — give this code to the runner yourself."}
+                  </p>
                   <p>Copy this code now — it is shown once{when ? `, and expires ${when} WIB` : ""}.</p>
                   <button type="button" disabled={busy === row.runner_id} onClick={() => void revoke(claim)}>
                     Revoke claim code

@@ -1,12 +1,26 @@
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import {
+  claimTokenSnapshot,
+  clearClaimToken,
+  serverClaimTokenSnapshot,
+  subscribeClaimToken,
+} from "./claimHandoff";
 
 export default function RunnerClaimForm({ onClaimed }: { onClaimed: () => void }) {
   const inputId = useId();
-  const [code, setCode] = useState("");
+  // A mailed claim link fills the field. Claiming stays an explicit press: consuming a
+  // token binds the registration to whoever is signed in, and that cannot be undone.
+  const mailed = useSyncExternalStore(subscribeClaimToken, claimTokenSnapshot, serverClaimTokenSnapshot);
+  const [typed, setTyped] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const submitting = useRef(false);
+
+  // What the runner typed wins; until they type anything, the mailed token shows.
+  const code = typed ?? mailed;
+  const fromLink = typed === null && mailed !== "";
+  const setCode = setTyped;
 
   async function claim(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,9 +44,12 @@ export default function RunnerClaimForm({ onClaimed }: { onClaimed: () => void }
       });
       if (response.ok) {
         setCode("");
+        clearClaimToken();
         setNotice("Registration claimed.");
         onClaimed();
       } else if (response.status === 400) {
+        // A spent or expired code must not come back on the next reload.
+        clearClaimToken();
         setError("This claim is invalid or no longer available.");
       } else if (response.status === 401) {
         setError("Sign in again to claim your registration.");
@@ -50,7 +67,11 @@ export default function RunnerClaimForm({ onClaimed }: { onClaimed: () => void }
   return (
     <form className="runner-claim" onSubmit={claim} method="post" aria-busy={pending} aria-labelledby={`${inputId}-heading`}>
       <h2 id={`${inputId}-heading`}>Claim a race registration</h2>
-      <p id={`${inputId}-hint`}>Enter the code from your race organizer.</p>
+      <p id={`${inputId}-hint`}>
+        {fromLink
+          ? "Your code is filled in. Check it belongs to this account, then claim your registration."
+          : "Enter the code from your race organizer."}
+      </p>
       <div className="runner-claim-fields">
         <label htmlFor={inputId}>
           Claim code

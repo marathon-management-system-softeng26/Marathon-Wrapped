@@ -4,16 +4,39 @@ import { requireUser, AuthenticationError } from "@/lib/auth/session";
 import { createRunnerClaim, revokeRunnerClaim } from "@/lib/auth/runnerClaims";
 import { eventIdFrom, privateHeaders, organizerNotFound } from "@/lib/organizerHttp";
 import { sameOrigin } from "@/lib/authHttp";
+import { sendClaimInvitation } from "@/lib/mail/claimInvitation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 const fail = (message: string, status: number) => Response.json({ error: message }, { status, headers: privateHeaders });
-async function scopeRunnerToEvent(eventId: number, runnerId: string): Promise<boolean> {
+const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+/** The registration behind the URL scope, or null when it sits outside this event. */
+type ScopedRunner = { email: string | null; name: string | null; eventName: string | null };
+async function scopeRunnerToEvent(eventId: number, runnerId: string): Promise<ScopedRunner | null> {
   const db = getSupabaseAdmin();
-  const runner = await db.from("runners").select("category_id").eq("id", runnerId).maybeSingle();
+  const runner = await db.from("runners").select("category_id, name, email").eq("id", runnerId).maybeSingle();
   if (runner.error) throw new Error("Runner claim service is unavailable.");
-  if (!runner.data) return false;
+  if (!runner.data) return null;
   const category = await db.from("categories").select("event_id").eq("id", runner.data.category_id).maybeSingle();
   if (category.error) throw new Error("Runner claim service is unavailable.");
-  return category.data?.event_id === eventId;
+  if (category.data?.event_id !== eventId) return null;
+  const event = await db.from("events").select("name").eq("id", eventId).maybeSingle();
+  if (event.error) throw new Error("Runner claim service is unavailable.");
+  return { email: text(runner.data.email), name: text(runner.data.name), eventName: text(event.data?.name) };
+}
+/**
+ * Mail the code to the registered address. A relay fault must not cost the organizer the
+ * token: the claim row already exists, so the response still carries it with mailed false.
+ */
+async function mailClaim(runner: ScopedRunner, claim: { token: string; expiresAt: string }): Promise<boolean> {
+  if (!runner.email) return false;
+  try {
+    await sendClaimInvitation({
+      to: runner.email, runnerName: runner.name ?? "", eventName: runner.eventName,
+      token: claim.token, expiresAt: claim.expiresAt,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 async function boundedJson(request: Request): Promise<unknown> {
   if (!request.body) throw new SyntaxError();
@@ -41,9 +64,11 @@ export async function POST(request: Request, context: { params: Promise<{ eventI
   try {
     const user = await requireUser();
     await requireOrganizerAccess(user.id, eventId);
-    if (!(await scopeRunnerToEvent(eventId, runnerId))) return organizerNotFound();
+    const runner = await scopeRunnerToEvent(eventId, runnerId);
+    if (!runner) return organizerNotFound();
     const claim = await createRunnerClaim(user.id, eventId, runnerId);
-    return Response.json(claim, { status: 201, headers: { ...privateHeaders, "Referrer-Policy": "no-referrer" } });
+    const mailed = await mailClaim(runner, claim);
+    return Response.json({ ...claim, mailed }, { status: 201, headers: { ...privateHeaders, "Referrer-Policy": "no-referrer" } });
   } catch (cause) {
     if (cause instanceof AuthenticationError) return fail(cause.message, 401);
     if (cause instanceof AccessDeniedError) return organizerNotFound();
