@@ -75,7 +75,7 @@
 ### Task 3: Add a server-only, idempotent import boundary
 
 **Files:**
-- Create: `supabase/migrations/20261119000100_scorenow_result_import.sql`
+- Create: `supabase/migrations/20261119032732_scorenow_result_import.sql`
 - Create: `tests/sql/scorenow-result-import.sql`
 - Create: `lib/scorenow/import.ts`
 - Create: `tests/scorenowImport.test.ts`
@@ -118,3 +118,35 @@
 - Coverage: source inspection, parsing, complete scrape, secure staging, idempotent import, Supabase verification, and evidence are assigned.
 - Interface check: Task 2 consumes Task 1; Task 3 consumes Task 2; Task 4 consumes Tasks 2–3 with matching types and names.
 - Scope ruling: a separate staging table is required by SRS V4's trusted-registration boundary and the source's missing registration fields; direct insertion into `runners` would require fabricated personal data.
+
+## Execution status and Claude handoff — 2026-11-19
+
+Tasks 1–4 are implemented and committed through `3ddef70`. The required fresh whole-branch review then found seven Important issues; the single permitted TDD fix pass is implemented and verified for the handoff commit.
+
+Completed review fixes:
+
+- Preserve and live-backfill all 2,183 explicit outcomes: 10K `CUT=62`, `DNF=18`, `DNS=775`; 5K `CUT=16`, `DNF=12`, `DNS=1300`.
+- Align committed migration versions with hosted history: `20261119032732`, `20261119033210`, and newly applied `20261119102908`.
+- Validate the entire artifact before producing or importing any batch: provenance, category coverage, UID and position uniqueness, required fields, nullable pairs, ranks, checkpoints, and statuses.
+- Reject captured rows whose UID competition/race/event does not match the requested page context.
+- Remove immediate database position uniqueness and cover corrected cross-batch position swaps in rollback-wrapped SQL; final uniqueness is enforced before the first RPC.
+- Replace real-participant test fixtures with synthetic identifiers and values.
+- Require a capture manifest with the original timestamp and add a guarded, acknowledgement-checking `npm run import:scorenow` workflow.
+
+Live Supabase state:
+
+- Project `anbnuegocddoowagqmxw` contains 9,982 rows and 9,982 distinct source UIDs.
+- `result_status` is backfilled with the exact six category/status totals above; zero unranked rows lack a status.
+- Browser roles remain denied; the service-only invoker RPC retains `search_path = ''`.
+- The ranked-position index is removed. Full three-migration replay was verified transactionally in a disposable schema and rolled back.
+
+Verification at handoff:
+
+- Focused ScoreNow suite: 24 passed.
+- Full Vitest suite: 660 passed, 21 environment-gated integration skips.
+- Native suite: 35 passed, 1 PostgreSQL/PGlite environment-gated skip.
+- `npm run lint`, `npx tsc --noEmit`, and `npm run build`: passed.
+- Updated rollback-wrapped SQL regression: passed against the dedicated project.
+- Three-migration replay and upgrade path: passed in a disposable hosted schema and rolled back.
+
+Claude should begin from the named `codex/scorenow-results-import` branch and `git status`. Do not dispatch a second review: the executing-plans skill allows only the completed fresh reviewer and verifies Important fixes through RED→GREEN tests plus the green suite above. The reviewer’s three Minor findings are deliberately deferred: POSIX path fixture, no repository SQL-test entry point, and the blank-name ranked/unranked wording detail.

@@ -32,6 +32,7 @@ select public.import_scorenow_results('[{
   "position": 1,
   "bib_number": "TEST-1",
   "runner_name": "",
+  "result_status": "DNF",
   "official_time": "00:30:00.000",
   "official_time_ms": 1800000,
   "source_category": "Umum",
@@ -57,6 +58,7 @@ select public.import_scorenow_results('[{
   "position": 1,
   "bib_number": "TEST-1",
   "runner_name": "SQL Test Runner Updated",
+  "result_status": "DNF",
   "official_time": "00:30:00.000",
   "official_time_ms": 1800000,
   "source_category": "Umum",
@@ -71,6 +73,26 @@ select public.import_scorenow_results('[{
   "scraped_at": "2026-11-19T03:00:00Z"
 }]'::jsonb);
 
+select public.import_scorenow_results(jsonb_build_array(
+  (select to_jsonb(result) || jsonb_build_object(
+    'source_uid', 'sql-swap-result',
+    'position', 2,
+    'detail_url', 'https://results.scorenow.co.id/myresults.aspx?uid=sql-swap-result'
+  )
+  from public.scorenow_results result
+  where source_uid = 'sql-test-result')
+));
+
+-- Corrected source rankings can swap positions across separate import batches.
+select public.import_scorenow_results(jsonb_build_array(
+  (select to_jsonb(result) || jsonb_build_object('position', 2)
+   from public.scorenow_results result where source_uid = 'sql-test-result')
+));
+select public.import_scorenow_results(jsonb_build_array(
+  (select to_jsonb(result) || jsonb_build_object('position', 1)
+   from public.scorenow_results result where source_uid = 'sql-swap-result')
+));
+
 do $$
 begin
   if (select count(*) from public.scorenow_results where source_uid = 'sql-test-result') <> 1 then
@@ -78,6 +100,12 @@ begin
   end if;
   if (select runner_name from public.scorenow_results where source_uid = 'sql-test-result') <> 'SQL Test Runner Updated' then
     raise exception 'idempotent import did not update the existing row';
+  end if;
+  if (select result_status from public.scorenow_results where source_uid = 'sql-test-result') <> 'DNF' then
+    raise exception 'result status was not preserved';
+  end if;
+  if (select count(distinct position) from public.scorenow_results where source_uid in ('sql-test-result', 'sql-swap-result')) <> 2 then
+    raise exception 'corrected position swap did not converge';
   end if;
 end
 $$;

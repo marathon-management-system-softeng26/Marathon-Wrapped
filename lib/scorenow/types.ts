@@ -12,6 +12,8 @@ export type ScoreNowCheckpoint = {
   value: string;
 };
 
+export type ScoreNowResultStatus = "CUT" | "DNF" | "DNS";
+
 export type ScoreNowResult = {
   competitionId: number;
   raceId: number;
@@ -21,6 +23,7 @@ export type ScoreNowResult = {
   position: number | null;
   bibNumber: string;
   name: string;
+  status: ScoreNowResultStatus | null;
   officialTime: string | null;
   officialTimeMilliseconds: number | null;
   categoryName: string;

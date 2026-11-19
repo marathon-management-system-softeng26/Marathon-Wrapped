@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createScoreNowDirectoryFetcher, scrapeScoreNow } from "@/lib/scorenow/scraper";
+import { createScoreNowDirectoryFetcher, parseScoreNowCaptureManifest, scrapeScoreNow } from "@/lib/scorenow/scraper";
 
 function resultRow(eventId: number, index: number, uid = `19723-308-${eventId}-${index}`) {
   const position = index + 1;
@@ -86,6 +86,13 @@ describe("scrapeScoreNow", () => {
     await expect(scrapeScoreNow(completeFetcher(overrides), options)).rejects.toThrow("Requested page 2 but received page 3");
   });
 
+  it("rejects a captured page whose result UIDs identify another event", async () => {
+    const swapped = resultPage(2, 1, 80, 3995, Array.from({ length: 50 }, (_, index) => resultRow(2, index)));
+    await expect(scrapeScoreNow(completeFetcher(new Map([["1:1", swapped]])), options)).rejects.toThrow(
+      "Source UID does not match page context",
+    );
+  });
+
   it("rejects duplicate source UIDs", async () => {
     const duplicate = resultPage(1, 2, 80, 3995, [resultRow(1, 50, "19723-308-1-0"), ...Array.from({ length: 49 }, (_, index) => resultRow(1, 51 + index))]);
     await expect(scrapeScoreNow(completeFetcher(new Map([["1:2", duplicate]])), options)).rejects.toThrow("Duplicate source UID");
@@ -106,5 +113,19 @@ describe("scrapeScoreNow", () => {
 
     const dataset = await scrapeScoreNow(completeFetcher(new Map([["1:80", finalPage]])), options);
     expect(dataset.categories[0].results.at(-1)?.position).toBeNull();
+  });
+
+  it("requires a stable capture timestamp and exact page inventory in the capture manifest", () => {
+    expect(
+      parseScoreNowCaptureManifest({
+        sourceUrl: "https://results.scorenow.co.id/results.aspx?CId=19723&RId=308",
+        capturedAt: "2026-11-19T03:23:05.244Z",
+        categories: [
+          { eventId: 1, pages: 80 },
+          { eventId: 2, pages: 120 },
+        ],
+      }),
+    ).toMatchObject({ capturedAt: "2026-11-19T03:23:05.244Z" });
+    expect(() => parseScoreNowCaptureManifest({ capturedAt: "not-a-date" })).toThrow("capture manifest");
   });
 });

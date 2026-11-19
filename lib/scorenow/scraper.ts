@@ -12,11 +12,38 @@ export type ScoreNowScrapeOptions = {
   retryDelayMs?: number;
 };
 
+export type ScoreNowCaptureManifest = {
+  sourceUrl: typeof SOURCE_URL;
+  capturedAt: string;
+  categories: [{ eventId: 1; pages: 80 }, { eventId: 2; pages: 120 }];
+};
+
 const SOURCE_URL = "https://results.scorenow.co.id/results.aspx?CId=19723&RId=308";
 const CATEGORIES = [
   { eventId: 1, category: "10K" as const },
   { eventId: 2, category: "5K" as const },
 ];
+
+export function parseScoreNowCaptureManifest(value: unknown): ScoreNowCaptureManifest {
+  const candidate = value as Partial<ScoreNowCaptureManifest> | null;
+  const capturedAt = candidate?.capturedAt;
+  const categories = candidate?.categories;
+  if (
+    candidate?.sourceUrl !== SOURCE_URL ||
+    typeof capturedAt !== "string" ||
+    !Number.isFinite(Date.parse(capturedAt)) ||
+    new Date(capturedAt).toISOString() !== capturedAt ||
+    !Array.isArray(categories) ||
+    categories.length !== 2 ||
+    categories[0]?.eventId !== 1 ||
+    categories[0]?.pages !== 80 ||
+    categories[1]?.eventId !== 2 ||
+    categories[1]?.pages !== 120
+  ) {
+    throw new Error("Invalid ScoreNow capture manifest");
+  }
+  return candidate as ScoreNowCaptureManifest;
+}
 
 export function createScoreNowDirectoryFetcher(readText: ScoreNowReadText, directory: string): ScoreNowFetchPage {
   return async (url) => {

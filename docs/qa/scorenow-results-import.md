@@ -24,19 +24,25 @@ Direct non-browser HTTP requests received a Cloudflare 403 challenge. The source
 | Literal blank source names | 22 |
 | Minimum / maximum race date | `2026-02-15` / `2026-02-15` |
 
-The source publishes 855 unranked 10K rows and 1,328 unranked 5K rows without official position/time or category/gender ranks. Those values are stored as null rather than fabricated. Some of those unranked entries have no published name; all 22 remain non-null empty strings so the import preserves the source total and provenance.
+The source publishes 855 unranked 10K rows and 1,328 unranked 5K rows without official position/time or category/gender ranks. Those values are stored as null rather than fabricated. Their literal outcomes are preserved: 10K has 62 `CUT`, 18 `DNF`, and 775 `DNS`; 5K has 16 `CUT`, 12 `DNF`, and 1,300 `DNS`. All 22 empty published names remain non-null empty strings so the import preserves source totals and provenance.
 
 ## Storage and import boundary
 
-The rows are stored in `public.scorenow_results` in dedicated Supabase project `anbnuegocddoowagqmxw`. They are not inserted into trusted `runners` or legacy `chip_results`. The staging table has RLS enabled, explicit browser-role revokes, service-role grants, source-key and ranked-position uniqueness, paired nullable time/rank checks, and JSON-array checkpoint validation.
+The rows are stored in `public.scorenow_results` in dedicated Supabase project `anbnuegocddoowagqmxw`. They are not inserted into trusted `runners` or legacy `chip_results`. The staging table has RLS enabled, explicit browser-role revokes, service-role grants, source-key uniqueness, paired nullable time/rank checks, literal status validation, and JSON-array checkpoint validation. Whole-artifact validation checks final position uniqueness before the first RPC; the database allows a transient duplicate while corrected positions swap across batches.
 
 Import used `public.import_scorenow_results(jsonb)` in 125-row calls (the final call contained 107 rows). Every RPC result matched its input count. Re-importing a 125-row sample returned 125 affected rows while the table remained at 9,982 rows, proving source-key idempotency. `tests/sql/scorenow-result-import.sql` independently checks catalog permissions, blank-name preservation, and rollback-wrapped upsert idempotency.
+
+### Reproducible capture and import
+
+An authorized browser capture consists of rendered HTML at `.data/scorenow/pages/{eventId}-{page}.html`: event 1 requires pages 1–80 and event 2 pages 1–120. Save `.data/scorenow/capture-manifest.json` with the canonical source URL, original ISO capture time, and exact page inventory. The manifest is required so replaying cached HTML cannot claim a new scrape time. Then run `npm run scrape:scorenow`.
+
+For import, configure `SUPABASE_URL`, `SUPABASE_DEMO_PROJECT_REF=anbnuegocddoowagqmxw`, and a server-only `SUPABASE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` in the trusted shell, then run `npm run import:scorenow`. The command refuses any other project, validates the entire artifact before its first request, imports bounded batches, and checks every RPC acknowledgement. Afterward, run `tests/sql/scorenow-result-import.sql` through trusted Supabase SQL tooling and repeat the aggregate invariant query. Never commit the capture, manifest, normalized artifact, or service key.
 
 ## Verification evidence
 
 Repository gates run after the import:
 
-- `npm test`: 653 passed, 21 environment-gated integration tests skipped.
+- `npm test`: 660 passed, 21 environment-gated integration tests skipped.
 - `npm run test:native`: 35 passed, 1 PostgreSQL/PGlite test skipped because `STRAVA_PGLITE_MODULE` was not configured.
 - `npm run lint`: passed.
 - `npx tsc --noEmit`: passed after Next.js type generation.

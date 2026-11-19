@@ -82,6 +82,10 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
   const detailUrl = new URL(detailPath, RESULT_ORIGIN).toString();
   const sourceUid = new URL(detailUrl).searchParams.get("uid");
   if (!sourceUid) throw new Error(`Missing source UID: ${detailUrl}`);
+  const expectedUidPrefix = `${context.competitionId}-${context.raceId}-${context.eventId}-`;
+  if (!sourceUid.startsWith(expectedUidPrefix)) {
+    throw new Error(`Source UID does not match page context: ${sourceUid}`);
+  }
 
   const nameIndex = rowCells.findIndex(
     (cell) => /grid-name/i.test(cell.html) && /d-none/i.test(cell.attributes) && /d-sm-table-cell/i.test(cell.attributes),
@@ -92,6 +96,13 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
   if (!positionCell || resolvedNameIndex < 1 || !timeCell) throw new Error(`Incomplete result row: ${sourceUid}`);
 
   const nameLink = links(rowCells[resolvedNameIndex].html).find((link) => link.className.split(/\s+/).includes("grid-name"));
+  const statusMatch = text(
+    rowCells[resolvedNameIndex].html.match(
+      /<span\b[^>]*class=["'][^"']*(?:^|\s)badge(?:\s|$)[^"']*["'][^>]*>([\s\S]*?)<\/span>/i,
+    )?.[1] ?? "",
+  ).toUpperCase();
+  const status = statusMatch ? (statusMatch as ScoreNowResult["status"]) : null;
+  if (status !== null && !["CUT", "DNF", "DNS"].includes(status)) throw new Error(`Invalid result status: ${status}`);
   const category = rankedCell(rowCells, "category");
   const gender = rankedCell(rowCells, "gender");
   const checkpointValues = rowCells
@@ -112,6 +123,7 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
     position: position ? integer(position, "position") : null,
     bibNumber: text(rowCells[resolvedNameIndex - 1].html),
     name: nameLink?.label ?? "",
+    status,
     officialTime: officialTime || null,
     officialTimeMilliseconds: officialTime ? durationMilliseconds(officialTime) : null,
     categoryName: category.label,
