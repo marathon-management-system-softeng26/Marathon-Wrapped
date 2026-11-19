@@ -18,17 +18,17 @@ export type ScoreNowResult = {
   eventId: number;
   sourceUid: string;
   category: "5K" | "10K";
-  position: number;
+  position: number | null;
   bibNumber: string;
   name: string;
-  officialTime: string;
-  officialTimeMilliseconds: number;
+  officialTime: string | null;
+  officialTimeMilliseconds: number | null;
   categoryName: string;
-  categoryRank: number;
-  categoryTotal: number;
+  categoryRank: number | null;
+  categoryTotal: number | null;
   gender: string;
-  genderRank: number;
-  genderTotal: number;
+  genderRank: number | null;
+  genderTotal: number | null;
   checkpoints: ScoreNowCheckpoint[];
   detailUrl: string;
   sourceUrl: string;
@@ -41,4 +41,23 @@ export type ScoreNowPage = {
   totalPages: number;
   checkpointLabels: string[];
   results: ScoreNowResult[];
+};
+
+export type ScoreNowCategoryDataset = {
+  eventId: number;
+  category: "5K" | "10K";
+  declaredTotal: number;
+  totalPages: number;
+  results: ScoreNowResult[];
+};
+
+export type ScoreNowDataset = {
+  competitionId: number;
+  raceId: number;
+  raceName: "Soekarno Run 2026";
+  raceDate: "2026-02-15";
+  sourceUrl: string;
+  scrapedAt: string;
+  totalResults: number;
+  categories: ScoreNowCategoryDataset[];
 };

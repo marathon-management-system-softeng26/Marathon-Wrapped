@@ -39,6 +39,15 @@ const tenKilometerRow = `
   </tr>`;
 
 describe("parseScoreNowPage", () => {
+  it("parses the result summary when the view bar contains nested controls", () => {
+    const html = page(tenKilometerRow).replace(
+      '<div id="ctl00_Content_Main_divV3ViewBar">3,995 results · page 1 of 80</div>',
+      '<div id="ctl00_Content_Main_divV3ViewBar"><div><a>Advanced</a></div><span>3,995 results · page 1 of 80</span></div>',
+    );
+
+    expect(parseScoreNowPage(html, context)).toMatchObject({ declaredTotal: 3995, pageNumber: 1, totalPages: 80 });
+  });
+
   it("parses the desktop 10K cells without duplicating responsive values", () => {
     const parsed = parseScoreNowPage(page(tenKilometerRow), context);
 
@@ -104,5 +113,34 @@ describe("parseScoreNowPage", () => {
     expect(() => parseScoreNowPage(page(tenKilometerRow.replaceAll("00:33:25.213", "not-a-time")), context)).toThrow(
       "Invalid official time",
     );
+  });
+
+  it("preserves blank checkpoint values for runners without intermediate splits", () => {
+    const row = tenKilometerRow
+      .replace('<td class="rtv3-splitcell"><span class="rtv3-split-time">11:58.8</span></td>', '<td class="rtv3-splitcell"></td>')
+      .replace('<td class="rtv3-splitcell"><span class="rtv3-split-time">16:19.1</span></td>', '<td class="rtv3-splitcell"></td>');
+
+    expect(parseScoreNowPage(page(row), context).results[0].checkpoints).toEqual([
+      { label: "Checkpoint 1 - KM 3.7", value: "" },
+      { label: "Checkpoint 2 - KM 8.3", value: "" },
+      { label: "Finish", value: "0:35.9" },
+    ]);
+  });
+
+  it("keeps unranked finishers instead of inventing positions or official times", () => {
+    const row = tenKilometerRow
+      .replace('<span class="rtv3-pos">1</span>', "")
+      .replaceAll("00:33:25.213", "")
+      .replaceAll(/<div class="rtv3-sub">[^<]+<\/div>/g, "");
+
+    expect(parseScoreNowPage(page(row), context).results[0]).toMatchObject({
+      position: null,
+      officialTime: null,
+      officialTimeMilliseconds: null,
+      categoryRank: null,
+      categoryTotal: null,
+      genderRank: null,
+      genderTotal: null,
+    });
   });
 });

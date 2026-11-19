@@ -1,4 +1,4 @@
-import type { ScoreNowPage, ScoreNowPageContext, ScoreNowResult } from "./types";
+import type { ScoreNowPage, ScoreNowPageContext, ScoreNowResult } from "./types.ts";
 
 const RESULT_ORIGIN = "https://results.scorenow.co.id/";
 
@@ -69,6 +69,7 @@ function rankedCell(rowCells: ReturnType<typeof cells>, kind: "category" | "gend
     });
   if (!found?.link) throw new Error(`Missing ${kind} cell`);
   const rankText = text(found.cell.html.match(/<div\b[^>]*class=["'][^"']*rtv3-sub[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1] ?? "");
+  if (!rankText) return { label: found.link.label, rank: null, total: null };
   const rank = rankText.match(/^([\d,]+)\s+of\s+([\d,]+)$/i);
   if (!rank) throw new Error(`Invalid ${kind} rank: ${rankText}`);
   return { label: found.link.label, rank: integer(rank[1], `${kind} rank`), total: integer(rank[2], `${kind} total`) };
@@ -82,22 +83,25 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
   const sourceUid = new URL(detailUrl).searchParams.get("uid");
   if (!sourceUid) throw new Error(`Missing source UID: ${detailUrl}`);
 
-  const positionCell = rowCells.find((cell) => /rtv3-pos/i.test(cell.html));
   const nameIndex = rowCells.findIndex(
     (cell) => /grid-name/i.test(cell.html) && /d-none/i.test(cell.attributes) && /d-sm-table-cell/i.test(cell.attributes),
   );
   const resolvedNameIndex = nameIndex >= 0 ? nameIndex : rowCells.findIndex((cell) => /grid-name/i.test(cell.html));
+  const positionCell = rowCells.find((cell) => /rtv3-pos/i.test(cell.html)) ?? rowCells[resolvedNameIndex - 2];
   const timeCell = rowCells.find((cell) => /(?:^|\s)ltw-time(?:\s|$)/i.test(attribute(cell.attributes, "class") ?? ""));
   if (!positionCell || resolvedNameIndex < 1 || !timeCell) throw new Error(`Incomplete result row: ${sourceUid}`);
 
   const nameLink = links(rowCells[resolvedNameIndex].html).find((link) => link.className.split(/\s+/).includes("grid-name"));
   const category = rankedCell(rowCells, "category");
   const gender = rankedCell(rowCells, "gender");
-  const checkpointValues = Array.from(rowHtml.matchAll(/<span\b[^>]*class=["'][^"']*rtv3-split-time[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi), (match) => text(match[1]));
+  const checkpointValues = rowCells
+    .filter((cell) => /(?:^|\s)rtv3-splitcell(?:\s|$)/i.test(attribute(cell.attributes, "class") ?? ""))
+    .map((cell) => text(cell.html.match(/<span\b[^>]*class=["'][^"']*rtv3-split-time[^"']*["'][^>]*>([\s\S]*?)<\/span>/i)?.[1] ?? ""));
   if (checkpointValues.length !== checkpointLabels.length) {
     throw new Error(`Checkpoint count mismatch for ${sourceUid}: ${checkpointValues.length}/${checkpointLabels.length}`);
   }
   const officialTime = text(timeCell.html);
+  const position = text(positionCell.html);
 
   return {
     competitionId: context.competitionId,
@@ -105,11 +109,11 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
     eventId: context.eventId,
     sourceUid,
     category: context.category,
-    position: integer(text(positionCell.html), "position"),
+    position: position ? integer(position, "position") : null,
     bibNumber: text(rowCells[resolvedNameIndex - 1].html),
     name: nameLink?.label ?? "",
-    officialTime,
-    officialTimeMilliseconds: durationMilliseconds(officialTime),
+    officialTime: officialTime || null,
+    officialTimeMilliseconds: officialTime ? durationMilliseconds(officialTime) : null,
     categoryName: category.label,
     categoryRank: category.rank,
     categoryTotal: category.total,
@@ -124,7 +128,9 @@ function parseRow(rowAttributes: string, rowHtml: string, checkpointLabels: stri
 }
 
 export function parseScoreNowPage(html: string, context: ScoreNowPageContext): ScoreNowPage {
-  const summaryHtml = html.match(/<[^>]+id=["']ctl00_Content_Main_divV3ViewBar["'][^>]*>([\s\S]*?)<\/[^>]+>/i)?.[1] ?? "";
+  const viewBar = /<[^>]+id=["']ctl00_Content_Main_divV3ViewBar["'][^>]*>/i.exec(html);
+  const tableStart = html.search(/<table\b[^>]*id=["']ctl00_Content_Main_tblResults["']/i);
+  const summaryHtml = viewBar && tableStart > viewBar.index ? html.slice(viewBar.index + viewBar[0].length, tableStart) : "";
   const summary = text(summaryHtml);
   const counts = summary.match(/([\d,]+)\s+results\s*[·•-]\s*page\s+(\d+)\s+of\s+(\d+)/i);
   if (!counts) throw new Error(`Invalid result summary: ${summary}`);

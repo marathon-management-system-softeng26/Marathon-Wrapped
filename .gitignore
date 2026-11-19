@@ -41,6 +41,7 @@ Thumbs.db
 /coverage
 /.impeccable/review/
 /.impeccable/detector.json
+/.data/
 
 # Vercel
 .vercel
