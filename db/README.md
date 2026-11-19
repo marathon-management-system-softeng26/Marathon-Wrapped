@@ -49,6 +49,14 @@ Run `npm run build`, then `npm run start -- --port 3007` in one terminal and `np
 - `reset.sql` — drops every table. **Wipes all data** — only run on purpose
 - `seed.sql` — sample runners, chip results, per-km splits, FotoYu photo mapping
 
+## ScoreNow public-result staging
+
+`20261119000100_scorenow_result_import.sql` adds `public.scorenow_results` and the service-only `import_scorenow_results(jsonb)` RPC. This table is staging for public organizer results, not a trusted registration or app-user identity source. It deliberately remains separate from `runners`, `chip_results`, and runner ownership because ScoreNow does not provide the registration, contact, consent, or ownership fields required by the application contract.
+
+RLS is enabled with no browser policies. `PUBLIC`, `anon`, and `authenticated` have no table or RPC privileges; `service_role` performs bounded, idempotent upserts keyed by `(competition_id, race_id, source_event_id, source_uid)`. The function uses invoker rights, an empty search path, and schema-qualified relations. `20261119000200_allow_blank_scorenow_runner_names.sql` preserves the source's unnamed unranked rows: `runner_name` is always non-null but may be an empty literal source value.
+
+The complete Soekarno Run 2026 import and its verification evidence are documented in [ScoreNow results import QA](../docs/qa/scorenow-results-import.md). Browser-captured HTML and the normalized JSON artifact live under ignored `.data/scorenow/`; they contain public participant result data and must not be committed.
+
 ## Strava race matching storage
 
 `20261101000100_strava_race_matching.sql` extends the preserved Strava lifecycle with four server-only tables. `strava_race_configs` has one row per category, with `start_time_from`/`start_time_to` as finite UTC instants (`timestamptz`), `allowed_sport_types = ['Run']`, and `distance_tolerance_m` (originally pinned to 500; `20261113113000_strava_organizer_race_config.sql` relaxes that check to a bounded `> 0 and <= 5000` range so organizers can set it). The nullable `start_latitude`, `start_longitude`, and `start_radius_m` must be supplied together; radius may be zero. Category distance stays in `categories.distance_km`. No race window or coordinates are seeded by the migration; approved values must be configured before ingestion.

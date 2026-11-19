@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseScoreNowPage } from "@/lib/scorenow/parser";
+import type { ScoreNowPageContext } from "@/lib/scorenow/types";
 
-const context = {
+const context: ScoreNowPageContext = {
   competitionId: 19723,
   raceId: 308,
   eventId: 1,

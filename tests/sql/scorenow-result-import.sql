@@ -22,8 +22,8 @@ end
 $$;
 
 select public.import_scorenow_results('[{
-  "competition_id": 19723,
-  "race_id": 308,
+  "competition_id": 999999,
+  "race_id": 999999,
   "source_event_id": 1,
   "source_uid": "sql-test-result",
   "race_name": "Soekarno Run 2026",
@@ -31,7 +31,7 @@ select public.import_scorenow_results('[{
   "category": "10K",
   "position": 1,
   "bib_number": "TEST-1",
-  "runner_name": "SQL Test Runner",
+  "runner_name": "",
   "official_time": "00:30:00.000",
   "official_time_ms": 1800000,
   "source_category": "Umum",
@@ -47,8 +47,8 @@ select public.import_scorenow_results('[{
 }]'::jsonb);
 
 select public.import_scorenow_results('[{
-  "competition_id": 19723,
-  "race_id": 308,
+  "competition_id": 999999,
+  "race_id": 999999,
   "source_event_id": 1,
   "source_uid": "sql-test-result",
   "race_name": "Soekarno Run 2026",

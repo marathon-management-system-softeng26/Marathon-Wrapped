@@ -13,7 +13,7 @@ create table public.scorenow_results (
   category text not null check (category in ('5K', '10K')),
   position integer check (position is null or position > 0),
   bib_number text not null check (btrim(bib_number) <> ''),
-  runner_name text not null check (btrim(runner_name) <> ''),
+  runner_name text not null,
   official_time text,
   official_time_ms bigint check (official_time_ms is null or official_time_ms >= 0),
   source_category text not null check (btrim(source_category) <> ''),
