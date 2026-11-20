@@ -106,7 +106,7 @@ Only the server `service_role` can read/write claims or execute these RPCs. Brow
 
 ## Runner profiles and BIB linking
 
-`20261114120000_runner_profiles_and_bib_linking.sql` adds two server-only tables and two RPCs.
+`20261119193546_runner_profiles_and_bib_linking.sql` adds two server-only tables and two RPCs.
 
 `runner_profiles` holds one row per account: the display name a runner chooses for themselves,
 1 to 120 characters after trimming. It is deliberately separate from `runners.name`, which belongs
