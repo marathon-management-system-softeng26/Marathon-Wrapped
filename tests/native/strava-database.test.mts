@@ -267,6 +267,14 @@ test(
       try { await db.exec(await readFile("tests/sql/strava-wrapped-confirmation.sql", "utf8")); }
       finally { await db.exec("rollback"); }
 
+      // Runner profiles and BIB linking apply on top of the full chain; their assertions roll
+      // back so the ownership fixtures below still start from a known state.
+      for (const file of (await readdir("supabase/migrations"))
+        .filter((file) => file.endsWith("_runner_profiles_and_bib_linking.sql")).sort()) {
+        await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+      }
+      await db.exec(await readFile("tests/sql/runner-profiles.sql", "utf8"));
+
       // PGlite queues these calls on one connection: this tests competing requests
       // and the ownership constraint, not independent PostgreSQL lock scheduling.
       await db.exec(`

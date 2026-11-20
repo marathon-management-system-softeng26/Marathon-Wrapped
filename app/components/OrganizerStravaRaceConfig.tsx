@@ -1,20 +1,9 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { StravaRaceConfig } from "@/lib/strava/raceConfig";
+import { toRaceLocalInput, withRaceZone } from "@/lib/raceTime";
 
 type CategoryConfig = { id: number; name: string; config: StravaRaceConfig | null };
-
-/** An ISO instant rendered for a datetime-local control, kept in the race's own offset. */
-const localValue = (iso: string | undefined) => {
-  if (!iso) return "";
-  const date = new Date(iso);
-  if (!Number.isFinite(date.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
-    hourCycle: "h23", timeZone: "Asia/Jakarta",
-  }).format(date);
-  return parts.replace(" ", "T");
-};
 
 const number = (value: FormDataEntryValue | null) => {
   if (typeof value !== "string" || value.trim() === "") return null;
@@ -59,16 +48,13 @@ export default function OrganizerStravaRaceConfig({ eventId }: { eventId: string
     setNotice("");
     setError("");
     try {
-      // A datetime-local value carries no offset, so the race's own zone is attached here.
-      const withZone = (value: FormDataEntryValue | null) =>
-        typeof value === "string" && value ? `${value.length === 16 ? `${value}:00` : value}+07:00` : value;
       const response = await fetch(`/api/organizer/events/${encodeURIComponent(eventId)}/strava-config`, {
         method: "PUT", credentials: "same-origin", cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           categoryId: number(form.get("categoryId")),
-          startTimeFrom: withZone(form.get("startTimeFrom")),
-          startTimeTo: withZone(form.get("startTimeTo")),
+          startTimeFrom: withRaceZone(form.get("startTimeFrom")),
+          startTimeTo: withRaceZone(form.get("startTimeTo")),
           distanceToleranceM: number(form.get("distanceToleranceM")),
           startLatitude: number(form.get("startLatitude")),
           startLongitude: number(form.get("startLongitude")),
@@ -105,11 +91,11 @@ export default function OrganizerStravaRaceConfig({ eventId }: { eventId: string
           <div className="organizer-config-fields">
             <label>
               Window start (WIB)
-              <input type="datetime-local" name="startTimeFrom" required defaultValue={localValue(category.config?.startTimeFrom)} />
+              <input type="datetime-local" name="startTimeFrom" required defaultValue={toRaceLocalInput(category.config?.startTimeFrom)} />
             </label>
             <label>
               Window end (WIB)
-              <input type="datetime-local" name="startTimeTo" required defaultValue={localValue(category.config?.startTimeTo)} />
+              <input type="datetime-local" name="startTimeTo" required defaultValue={toRaceLocalInput(category.config?.startTimeTo)} />
             </label>
             <label>
               Distance tolerance (m)

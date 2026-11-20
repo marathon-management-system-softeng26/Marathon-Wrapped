@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RunnerSelection from "@/app/components/RunnerSelection";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({}) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({}), usePathname: () => "/" }));
 
 const fetcher = vi.fn<typeof fetch>();
 let container: HTMLDivElement;
@@ -85,6 +85,58 @@ describe("runner registration desk", () => {
         expect(actions[0].hasAttribute("tabindex")).toBe(false);
       }
     });
+  });
+
+  it("leaves the next step as the only thing a card says about its state", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({
+      runners: cases.map(([workflowState, primaryAction], index) => ({ ...runner, id: `runner-${index}`, workflowState, primaryAction })),
+      events: [],
+    }));
+    await renderDashboard();
+
+    const rows = container.querySelectorAll("main ul li");
+    expect(rows).toHaveLength(cases.length);
+    rows.forEach((row) => {
+      // No status chip: the action's own label carries the state, so nothing competes with it.
+      expect(row.querySelector(".registration-status")).toBeNull();
+      expect(row.querySelectorAll("a, button, [role=status]")).toHaveLength(1);
+    });
+  });
+
+  it("colours a step taken in Strava as a Strava action, and the recap as its own", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({
+      runners: cases.map(([workflowState, primaryAction], index) => ({ ...runner, id: `runner-${index}`, workflowState, primaryAction })),
+      events: [],
+    }));
+    await renderDashboard();
+
+    const rows = [...container.querySelectorAll("main ul li")];
+    cases.forEach(([, , , kind], index) => {
+      const link = rows[index].querySelector("a");
+      if (kind === "setup") {
+        expect(link?.className).toContain("strava-action");
+      } else {
+        expect(link?.className ?? "").not.toContain("strava-action");
+      }
+    });
+  });
+
+  it("offers event management in the shell only to an account with organizer access", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({ runners: [], events: [{ id: 1, name: "Soekarno Run 2027" }] }));
+    await renderDashboard();
+
+    const nav = container.querySelector("header nav")!;
+    expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual(["Races", "Profile", "Manage event"]);
+    expect(nav.querySelector("[aria-current=page]")?.textContent).toBe("Races");
+    expect(container.querySelector("main a[href='/organizer']")).toBeNull();
+  });
+
+  it("omits event management for a runner-only account", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({ runners: [], events: [] }));
+    await renderDashboard();
+
+    const nav = container.querySelector("header nav")!;
+    expect([...nav.querySelectorAll("a")].map((link) => link.textContent)).toEqual(["Races", "Profile"]);
   });
 
   it("posts a claim once, then clears the code and reloads the registrations", async () => {

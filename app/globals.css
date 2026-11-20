@@ -15,6 +15,8 @@
   --surface-secondary: #efded4;
   --surface-secondary-hover: #e5cdc0;
   --field-border: #bd9a94;
+  --strava: #fc4c02;
+  --strava-hover: #e84402;
   color: var(--deep);
   background: var(--cream);
   font-family: Bricolage, Arial, sans-serif;
@@ -176,64 +178,196 @@ small {
   font-size: 1.2rem;
   max-width: 46ch;
 }
-.demo-note {
-  font-size: 0.85rem;
-  font-weight: 700;
-}
 .runner-registrations,
 .runner-claim {
   margin: 38px 0 28px;
 }
 .runner-dashboard h2 {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   font-size: 1.5rem;
 }
-.runner-list {
+/* An application page states where you are; it does not sell you the product. */
+.page-title {
+  margin: 40px 0 10px;
+  font-size: clamp(2.25rem, 5vw, 3rem);
+}
+.page-subtitle {
+  margin: 0;
+  max-width: 52ch;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 1.05rem;
+}
+.loading-note {
+  margin: 32px 0 16px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 700;
+}
+.dashboard-error {
+  margin: 32px 0;
+}
+.dashboard-error p {
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+.registration-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 16px;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--field-border);
   list-style: none;
 }
-.runner-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--field-border);
+.registration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 14px;
+  padding: 22px;
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  background: #fffaf4;
+  transition: box-shadow 0.18s ease;
 }
-.runner-row h3 {
+.registration-card:hover,
+.registration-card:focus-within {
+  box-shadow: 0 12px 26px -16px rgba(122, 5, 29, 0.5);
+}
+.registration-card h3 {
   margin: 0 0 4px;
   font-weight: 700;
   overflow-wrap: anywhere;
 }
-.runner-row p,
-.runner-row .button,
+.registration-card > div {
+  width: 100%;
+}
+/* The next step sits on the card's floor, so a grid of cards lines its actions up. */
+.registration-card > :last-child {
+  margin-top: auto;
+  width: 100%;
+}
+.registration-event {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+}
+.registration-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid #e8d3c8;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+/* A step taken in Strava wears Strava's own colour, so it reads as leaving the app. Dark text
+   rather than white: white on this orange measures 3.4:1, which fails on 16px type. */
+.strava-action,
+.strava-action:hover {
+  background: var(--strava);
+  color: #1a1208;
+}
+.strava-action:hover {
+  background: var(--strava-hover);
+}
+.registration-skeleton {
+  min-height: 198px;
+  border-style: dashed;
+  background: var(--surface-secondary);
+  animation: card-pulse 1.5s ease-in-out infinite;
+}
 .runner-claim p,
 .runner-claim label,
 .runner-claim button {
   font-family: Arial, Helvetica, sans-serif;
 }
-.runner-row p,
 .runner-claim p {
   margin: 0;
 }
-.runner-row-details {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  font-size: 0.875rem;
-  font-variant-numeric: tabular-nums;
-}
-.runner-row-details span + span {
-  padding-left: 16px;
-  border-left: 1px solid var(--field-border);
-}
 .runner-workflow-status {
-  padding: 10px 14px;
+  margin: 0;
+  padding: 11px 14px;
   background: var(--surface-secondary);
-  border-radius: 8px;
+  border-radius: 12px;
+  font-family: Arial, Helvetica, sans-serif;
   font-size: 0.9375rem;
+  text-align: center;
+}
+.profile-panel {
+  margin: 34px 0;
+  padding: 24px;
+  border: 1px solid var(--field-border);
+  border-radius: 16px;
+  background: #fffaf4;
+  max-width: 44rem;
+}
+.profile-panel h2 {
+  margin: 0 0 10px;
+  font-size: 1.375rem;
+}
+.profile-panel p,
+.profile-panel label,
+.profile-panel button {
+  font-family: Arial, Helvetica, sans-serif;
+}
+.profile-panel p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.profile-panel form p:not(:empty) {
+  margin-top: 12px;
+}
+.profile-panel [role="alert"] {
+  font-weight: 700;
+}
+.profile-email {
+  margin-top: 10px;
+  opacity: 0.75;
+  overflow-wrap: anywhere;
+}
+.profile-actions {
+  margin-top: 16px;
+}
+.profile-field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 16px;
+}
+.app-nav ul {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.app-nav a:hover {
+  background: var(--surface-secondary);
+}
+.app-nav a[aria-current="page"] {
+  background: var(--surface-secondary);
+  color: var(--red);
+}
+.field-problem {
+  display: block;
+  margin-top: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 400;
+  color: #9b1726;
 }
 .runner-claim-fields {
   display: grid;
@@ -797,6 +931,11 @@ td {
 .table-scroll:focus-visible {
   outline-color: var(--red);
 }
+@keyframes card-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
 @keyframes story-reveal {
   from {
     clip-path: inset(0 0 5% 0);
@@ -895,13 +1034,35 @@ td {
   .share-preview {
     max-width: 320px;
   }
-  .runner-row,
   .runner-claim-fields {
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
-  .runner-row > :last-child {
-    justify-self: start;
+  .app-header {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  /* The sections become a tab row of their own rather than crowding the wordmark. */
+  .app-nav {
+    order: 3;
+    width: 100%;
+  }
+  .app-nav ul {
+    gap: 2px;
+  }
+  .app-nav a {
+    padding: 0 11px;
+    font-size: 0.875rem;
+  }
+  .registration-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .profile-panel {
+    padding: 20px;
+  }
+  .profile-field-row {
+    grid-template-columns: minmax(0, 1fr);
   }
   .toolbar {
     align-items: stretch;

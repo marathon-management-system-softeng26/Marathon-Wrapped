@@ -21,18 +21,18 @@ export default function RunnerWorkflowCard({ runner }: { runner: CatalogRunner }
   const detailsId = useId();
   const action = actions[runner.primaryAction];
   return (
-    <li className="runner-row">
+    <li className="registration-card">
       <div id={detailsId}>
         <h3>{runner.name}</h3>
-        <p>{runner.event}</p>
-        <p className="runner-row-details">
+        <p className="registration-event">{runner.event}</p>
+        <p className="registration-meta">
           <span>{runner.category}</span>
           <span>{runner.bib_number ? `BIB ${runner.bib_number}` : "BIB unassigned"}</span>
         </p>
       </div>
       {action.kind !== "status" ? (
         <Link
-          className="button"
+          className={action.kind === "setup" ? "button strava-action" : "button"}
           href={action.kind === "wrapped"
             ? `/wrapped/${encodeURIComponent(runner.id)}`
             : `/runners/${encodeURIComponent(runner.id)}/strava`}

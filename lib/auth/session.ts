@@ -9,7 +9,7 @@ export class AuthenticationError extends Error {
   }
 }
 
-export async function requireUser(): Promise<{ id: string }> {
+export async function requireUser(): Promise<{ id: string; email: string | null }> {
   const client = await createSupabaseSession();
   const { data, error } = await client.auth.getUser();
   if (
@@ -22,5 +22,6 @@ export async function requireUser(): Promise<{ id: string }> {
     throw new Error("Authentication is temporarily unavailable. Please retry.");
   }
   if (error || !data.user) throw new AuthenticationError();
-  return { id: data.user.id };
+  // Identity comes from the verified session only, never from user metadata.
+  return { id: data.user.id, email: data.user.email ?? null };
 }
