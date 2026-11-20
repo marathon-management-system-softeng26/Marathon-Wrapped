@@ -116,8 +116,13 @@ themselves never rewrites a timed registration.
 `bib_link_attempts` records one row per BIB-link attempt with its outcome. A partial index on
 `(user_id, attempted_at desc) where outcome = 'rejected'` serves the rate-limit lookup; successful
 links are recorded but never counted against the limit, so an account holding several
-registrations is not penalised for holding them. `runners_bib_upper` makes BIB entry
-case-insensitive against the organizer's stored casing.
+registrations is not penalised for holding them. Rows outside the fifteen-minute window are
+deleted by the next call from the same account, so the log stays bounded by the activity that
+writes it and needs no scheduler. `runners_bib_upper` makes BIB entry case-insensitive against
+the organizer's stored casing, and is **unique** on the folded value: `runners_bib_number_key` is
+case-sensitive, so without that uniqueness `A1205` and `a1205` could both exist and the
+case-insensitive lookup would match two rows, letting a non-`STRICT` `select ... into` take an
+arbitrary one. Unassigned BIBs stay exempt, since a unique index permits many nulls.
 
 Both tables have RLS enabled, no policies, and no privileges for `PUBLIC`, `anon` or
 `authenticated`. Only `service_role` can read or write them or execute these RPCs, which use
@@ -127,6 +132,7 @@ invoker rights and empty locked search paths and take an already-authenticated s
 | --- | --- |
 | `upsert_runner_profile(p_user uuid, p_name text)` | Returns the stored trimmed name. Inserts or replaces the account's own row and refreshes `updated_at`. A blank, overlong or absent name, or an account that does not exist, raises `22023`. |
 | `link_runner_by_bib(p_user uuid, p_bib text)` | Returns `linked`, `already_yours`, `throttled`, or `unavailable`. Matches `upper(bib_number)`, locks the runner row, and inserts exclusive access only when the registration is unclaimed. An absent BIB, an unassigned BIB, a BIB owned by another account and a lost ownership race all return `unavailable`. Seven rejected attempts inside fifteen minutes return `throttled`. A malformed BIB returns `unavailable` without recording an attempt. |
+| `release_runner_by_bib(p_user uuid, p_bib text)` | Returns `released` or `unavailable`. Deletes only the caller's own `runner_access` row, matched on `upper(bib_number)`. An absent BIB, a malformed BIB and a registration held by another account all return `unavailable`, so releasing is never an oracle for which BIBs exist or who holds them. Dependent `strava_runner_attachments`, `strava_activity_candidates` and `strava_oauth_attempts` rows cascade from the delete, and through them the activities, snapshots and live metrics, so a released registration carries no private data forward to its next holder. |
 
 ### Accepted exposure in BIB linking
 
@@ -138,6 +144,22 @@ raise the cost of enumeration; they do not remove it, because a successful link 
 the BIB was valid. Every refusal returns one identical message so a *response* never confirms
 which BIBs exist. The one-time `runner_claims` code remains available and remains the safer route
 for an organizer to hand out.
+
+`20261119195200_bib_link_hardening.sql` tightens three of these edges after review. The per-account
+rate limit is only a cost if an account is worth more than a throwaway address, so the HTTP layer
+now requires a *confirmed* account (`requireConfirmedUser`) before linking or releasing, which is
+also what FR-01 asks for. The attempt log is pruned to the window it serves. And a registration
+taken by BIB can now be given back by its holder, which it could not before: nothing deleted a
+`runner_access` row, so a runner who linked the wrong BIB, or whose BIB was taken first, had no
+route out that did not involve an operator. Taking a registration remains first-come: releasing
+gives the holder a way out, it does not arbitrate between two accounts that both want one.
+
+This path is recorded as **FR-20** in `docs/SRS_v4.md`, and FR-01 was amended to name it as the
+single exception to "a public BIB confers no access". Widening it further needs FR-01 amended
+again, not another exception.
+
+`tests/sql/bib-link-hardening.sql` asserts the folded uniqueness, the pruning, the throttle
+window, release ownership and its cascade, and the server-only grants.
 
 `tests/sql/runner-profiles.sql` checks these outcomes along with the catalogs for RLS, grants,
 function configuration and FK/index coverage. The native harness applies the migration on top of
