@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import AppHeader from "./AppHeader";
 import RunnerClaimForm from "./RunnerClaimForm";
 import RunnerWorkflowCard from "./RunnerWorkflowCard";
@@ -46,6 +47,7 @@ export default function RunnerSelection() {
                 </ul>
               </section>
             )}
+            <p><Link className="auth-primary-link" href="/register?link=1">Link an official race result</Link></p>
             <RunnerClaimForm onClaimed={retry} />
           </>
         )}

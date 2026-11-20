@@ -47,7 +47,7 @@ export async function getHeroDraft(
     db
       .from("fotoyu_photos")
       .select("photo_url,photographer,captured_km,captured_at")
-      .eq("bib_number", row.data.bib_number),
+      .eq("runner_id", runnerId),
   ]);
   if (chip.error || splits.error || metrics.error || photos.error)
     throw new Error("Result unavailable");

@@ -31,7 +31,7 @@ export async function getRunnerEnrichment(runnerId: string, bib: string | null, 
   const [demo, photos, live] = await Promise.allSettled([
     stopOnAbort(db.from("strava_metrics").select(`${fields},data_source`).eq("runner_id", runnerId).eq("data_source", "demo").abortSignal(signal).maybeSingle(), signal),
     stopOnAbort<{ data: Photo[] | null; error: unknown }>(bib === null ? Promise.resolve({ data: [], error: null }) : db.from("fotoyu_photos")
-      .select("id,bib_number,photo_url,photographer,captured_km,captured_at").eq("bib_number", bib).order("captured_at", { ascending: true }).abortSignal(signal), signal),
+      .select("id,bib_number,photo_url,photographer,captured_km,captured_at").eq("runner_id", runnerId).order("captured_at", { ascending: true }).abortSignal(signal), signal),
     stopOnAbort(userId ? getRunnerStravaRoute(userId, runnerId, signal) : Promise.resolve(null), signal),
   ]);
   const warnings: string[] = [];
