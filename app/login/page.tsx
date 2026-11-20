@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
+import { startGoogleSignIn } from "@/lib/auth/google";
 export default function Login() {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -27,6 +29,17 @@ export default function Login() {
           ? cause.message
           : "Sign in failed. Please retry.",
       );
+      setBusy(false);
+    }
+  }
+  async function googleSignIn() {
+    setBusy(true);
+    setError("");
+    try {
+      const error = await startGoogleSignIn();
+      if (error) throw error;
+    } catch {
+      setError("Google sign-in is unavailable. Please retry.");
       setBusy(false);
     }
   }
@@ -74,6 +87,13 @@ export default function Login() {
           )}
           <button disabled={busy} type="submit">
             {busy ? "Signing in…" : "Find my race"}
+          </button>
+          <div className="auth-divider" aria-hidden="true">
+            <span>or</span>
+          </div>
+          <button className="google-auth-button" disabled={busy} onClick={googleSignIn} type="button">
+            <Image alt="" aria-hidden="true" height={20} src="/auth/google-g.svg" width={20} />
+            Continue with Google
           </button>
           <button
             className="auth-text-button"
