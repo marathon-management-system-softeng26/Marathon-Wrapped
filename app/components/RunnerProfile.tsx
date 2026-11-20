@@ -23,6 +23,10 @@ export default function RunnerProfile() {
   const [nameError, setNameError] = useState("");
   const [bib, setBib] = useState("");
   const [addingBib, setAddingBib] = useState(false);
+  // Releasing is confirmed in place rather than through a browser dialog, which would block the
+  // page and cannot be styled or read by assistive technology.
+  const [confirmRelease, setConfirmRelease] = useState<string | null>(null);
+  const [releasing, setReleasing] = useState("");
   const [bibNotice, setBibNotice] = useState("");
   const [bibError, setBibError] = useState("");
 
@@ -131,6 +135,39 @@ export default function RunnerProfile() {
     }
   }
 
+  async function releaseBib(bibNumber: string) {
+    if (releasing) return;
+    setReleasing(bibNumber);
+    setBibNotice("");
+    setBibError("");
+    try {
+      const response = await fetch("/api/registrations/bib", {
+        method: "DELETE",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bib_number: bibNumber }),
+        signal: AbortSignal.timeout(12000),
+      });
+      if (response.status === 401) {
+        window.location.replace("/login");
+        return;
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : "");
+      setConfirmRelease(null);
+      setBibNotice(`BIB ${bibNumber} removed. It is free for its runner to add again.`);
+      retry();
+    } catch (cause) {
+      setBibError(
+        cause instanceof Error && cause.message
+          ? cause.message
+          : "That BIB could not be removed. Try again.",
+      );
+    } finally {
+      setReleasing("");
+    }
+  }
+
   return (
     <div className="workspace">
       <AppHeader showOrganizerLink={!!data?.events.length} />
@@ -234,6 +271,40 @@ export default function RunnerProfile() {
                       </span>
                     </p>
                   </div>
+                  {runner.bib_number && (
+                    <div className="registration-release">
+                      {confirmRelease === runner.bib_number ? (
+                        <>
+                          <p role="status">
+                            Remove BIB {runner.bib_number}? Your Strava selection and
+                            showcase for it are deleted too.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => releaseBib(runner.bib_number as string)}
+                            disabled={releasing === runner.bib_number}
+                            aria-busy={releasing === runner.bib_number}
+                          >
+                            {releasing === runner.bib_number ? "Removing…" : "Confirm remove"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmRelease(null)}
+                            disabled={releasing === runner.bib_number}
+                          >
+                            Keep it
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmRelease(runner.bib_number as string)}
+                        >
+                          Remove BIB
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

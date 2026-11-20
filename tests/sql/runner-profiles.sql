@@ -22,7 +22,7 @@ begin
   assert to_regclass('public.runner_profiles') is not null, 'runner_profiles table must exist';
   assert to_regclass('public.bib_link_attempts') is not null, 'bib_link_attempts table must exist';
 
-  insert into auth.users values (claimant), (rival), (walker);
+  insert into auth.users(id) values (claimant), (rival), (walker);
   insert into public.events(name,event_date) values ('Profile race','2027-08-17') returning id into event;
   insert into public.categories(event_id,name,distance_km,min_age) values (event,'5K',5,13) returning id into category;
   insert into public.runners(id,category_id,bib_number,name,date_of_birth,gender,email,phone,id_type,id_number,jersey_size)

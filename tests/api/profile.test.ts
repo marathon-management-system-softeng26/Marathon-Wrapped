@@ -4,21 +4,28 @@ const mocks = vi.hoisted(() => ({
   readName: vi.fn(),
   saveName: vi.fn(),
   linkBib: vi.fn(),
+  releaseBib: vi.fn(),
 }));
 vi.mock("@/lib/auth/session", async (original) => ({
   ...(await original<object>()),
   requireUser: mocks.user,
+  requireConfirmedUser: mocks.user,
 }));
 vi.mock("@/controllers/profileController", async (original) => ({
   ...(await original<object>()),
   getProfileName: mocks.readName,
   saveProfileName: mocks.saveName,
   linkRegistrationByBib: mocks.linkBib,
+  releaseRegistrationByBib: mocks.releaseBib,
 }));
 import { GET, PUT } from "@/app/api/profile/route";
-import { POST } from "@/app/api/registrations/bib/route";
-import { AuthenticationError } from "@/lib/auth/session";
-import { ProfileError, unavailableBibMessage } from "@/controllers/profileController";
+import { POST, DELETE } from "@/app/api/registrations/bib/route";
+import { AuthenticationError, UnconfirmedEmailError } from "@/lib/auth/session";
+import {
+  ProfileError,
+  unavailableBibMessage,
+  unreleasableBibMessage,
+} from "@/controllers/profileController";
 
 const write = (
   path: string,
@@ -35,10 +42,15 @@ const write = (
 describe("profile HTTP boundaries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.user.mockResolvedValue({ id: "runner", email: "runner@example.invalid" });
+    mocks.user.mockResolvedValue({
+      id: "runner",
+      email: "runner@example.invalid",
+      emailConfirmedAt: "2026-11-20T00:00:00Z",
+    });
     mocks.readName.mockResolvedValue("Dewi Kartika");
     mocks.saveName.mockResolvedValue("Dewi Kartika");
     mocks.linkBib.mockResolvedValue("linked");
+    mocks.releaseBib.mockResolvedValue("released");
   });
 
   it("returns the stored name with the verified session email", async () => {
@@ -120,6 +132,41 @@ describe("profile HTTP boundaries", () => {
     mocks.linkBib.mockRejectedValue(new ProfileError("Too many tries.", 429));
     const response = await POST(write("/api/registrations/bib", "POST", { bib_number: "A1207" }));
     expect(response.status).toBe(429);
+  });
+
+  it("refuses an unconfirmed account without sending it back to sign in", async () => {
+    mocks.user.mockRejectedValue(new UnconfirmedEmailError());
+    const response = await POST(write("/api/registrations/bib", "POST", { bib_number: "A1205" }));
+    // 403, not 401: the caller has a valid session, so /login would be a loop.
+    expect(response.status).toBe(403);
+    expect(mocks.linkBib).not.toHaveBeenCalled();
+  });
+
+  it("releases a held BIB under the verified account id, never a body field", async () => {
+    const response = await DELETE(
+      write("/api/registrations/bib", "DELETE", { bib_number: "A1205", user_id: "someone-else" }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "released" });
+    expect(mocks.releaseBib).toHaveBeenCalledWith("runner", "A1205");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("answers a release of a BIB the account does not hold with one blank message", async () => {
+    mocks.releaseBib.mockRejectedValue(new ProfileError(unreleasableBibMessage, 400));
+    const response = await DELETE(write("/api/registrations/bib", "DELETE", { bib_number: "Z9999" }));
+    expect(response.status).toBe(400);
+    // Absent and held-by-someone-else must read identically, as on the linking side.
+    expect(await response.json()).toEqual({ error: unreleasableBibMessage });
+  });
+
+  it("rejects a cross-origin release before any query", async () => {
+    const response = await DELETE(
+      write("/api/registrations/bib", "DELETE", { bib_number: "A1205" }, "https://attacker.example"),
+    );
+    expect(response.status).toBe(403);
+    expect(mocks.user).not.toHaveBeenCalled();
+    expect(mocks.releaseBib).not.toHaveBeenCalled();
   });
 
   it("asks an unauthenticated writer to sign in before touching ownership", async () => {

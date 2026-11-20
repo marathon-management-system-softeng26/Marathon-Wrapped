@@ -80,3 +80,31 @@ export async function linkRegistrationByBib(
     );
   throw new ProfileError(unavailableBibMessage, 400);
 }
+
+/**
+ * One message for every way a release can fail. A BIB that does not exist and a BIB held by
+ * somebody else are deliberately indistinguishable here too, so releasing is never a way to ask
+ * who holds what.
+ */
+export const unreleasableBibMessage =
+  "That BIB is not yours to remove. Check it with your race organizer.";
+
+/**
+ * Give a held registration back. The database removes only the caller's own ownership row, and
+ * every dependent Strava row cascades from it, so nothing private survives for the next holder.
+ */
+export async function releaseRegistrationByBib(
+  userId: string,
+  bib: unknown,
+): Promise<"released"> {
+  if (typeof bib !== "string" || !BIB_PATTERN.test(bib.trim()))
+    throw new ProfileError(unreleasableBibMessage, 400);
+  const { data, error } = await getSupabaseAdmin().rpc("release_runner_by_bib", {
+    p_user: userId,
+    p_bib: bib.trim(),
+  });
+  if (error)
+    throw new Error("Removing a BIB is temporarily unavailable. Please retry.");
+  if (data === "released") return data;
+  throw new ProfileError(unreleasableBibMessage, 400);
+}
