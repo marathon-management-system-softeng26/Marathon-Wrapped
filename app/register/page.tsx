@@ -145,7 +145,7 @@ function RegisterForm() {
         {!linking && (
           <>
             <label className="register-field">
-              <span>Race registration email</span>
+              <span>Demo email (any valid address)</span>
               <input name="email" type="email" autoComplete="email" required maxLength={254} />
             </label>
             <label className="register-field">

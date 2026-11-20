@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       return bibResponse({ error: "Too many attempts. Wait a few minutes and try again." }, 429);
     }
     if (await beginBibSignup(ticket, email) !== "reserved") {
-      return bibResponse({ error: "This BIB could not be reserved. Check your registration email or look up your BIB again." }, 409);
+      return bibResponse({ error: "This BIB could not be reserved. Look it up again and retry." }, 409);
     }
 
     const client = await createSupabaseSession();
