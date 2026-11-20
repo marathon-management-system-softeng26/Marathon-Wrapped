@@ -83,14 +83,14 @@ async function loadConfirmation(
   return candidates.length ? { state: "needs_confirmation", registration, candidates } : { state, registration };
 }
 
-async function loadPhotos(db: Database, bib: string | null): Promise<Photo[]> {
+async function loadPhotos(db: Database, runnerId: string, bib: string | null): Promise<Photo[]> {
   if (bib === null) return [];
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const query = db.from("fotoyu_photos")
-      .select("id,bib_number,photo_url,photographer,captured_km,captured_at")
-      .eq("bib_number", bib).order("captured_at", { ascending: true })
+      .select("id,runner_id,bib_number,photo_url,photographer,captured_km,captured_at")
+      .eq("runner_id", runnerId).order("captured_at", { ascending: true })
       .retry(false).abortSignal(controller.signal);
     const deadline = new Promise<null>((resolve) => {
       timer = setTimeout(() => {
@@ -100,8 +100,8 @@ async function loadPhotos(db: Database, bib: string | null): Promise<Photo[]> {
     });
     const result = await Promise.race([query, deadline]);
     if (!result || result.error) return [];
-    return result.data.map(({ id, bib_number, photo_url, photographer, captured_km, captured_at }) =>
-      ({ id, bib_number, photo_url, photographer, captured_km, captured_at }));
+    return result.data.filter((photo) => !photo.runner_id || photo.runner_id === runnerId).map(({ id, bib_number, photo_url, photographer, captured_km, captured_at }) =>
+      ({ id, bib_number: bib_number ?? bib, photo_url, photographer, captured_km, captured_at }));
   } catch {
     return [];
   } finally {
@@ -135,7 +135,7 @@ export async function getStravaWrappedForUser(userId: string, runnerId: string):
   if (!isReadyWrappedSnapshot(snapshot, runnerId)) {
     return state("failed");
   }
-  const photos = await loadPhotos(db, registration.runner.bibNumber);
+  const photos = await loadPhotos(db, runnerId, registration.runner.bibNumber);
 
   // A slow optional read must never return data from a detached runner, replaced
   // selection or projection, or a connection that changed during the request.

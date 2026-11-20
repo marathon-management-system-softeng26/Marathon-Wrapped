@@ -4,6 +4,13 @@ const url = process.env.SUPABASE_URL, ref = process.env.SUPABASE_DEMO_PROJECT_RE
 const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !ref || !key || new URL(url).hostname !== `${ref}.supabase.co`) throw new Error("Dedicated demo project opt-in required.");
 const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+const demoEvent = await client.from("events").select("id").eq("name", "Soekarno Run 2027")
+  .eq("event_date", "2027-08-17").single();
+if (demoEvent.error) throw new Error("Seed the demo event before uploading photos.");
+const runners = await client.from("runners").select("id").eq("event_id", demoEvent.data.id)
+  .eq("source_kind", "legacy").in("bib_number", ["HERO-5K-001", "HERO-10K-001", "HERO-10K-002"]);
+if (runners.error || runners.data.length !== 3) throw new Error("Seed the three demo runners before uploading photos.");
+const runnerIds = runners.data.map(({ id }) => id);
 const bucket = await client.storage.getBucket("race-photos");
 if (bucket.error) {
   const created = await client.storage.createBucket("race-photos", { public: true, allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"], fileSizeLimit: 5*1024*1024 });
@@ -15,6 +22,6 @@ const photoUrl = client.storage.from("race-photos").getPublicUrl("demo-race.jpg"
 const check = await fetch(photoUrl, { signal: AbortSignal.timeout(10000) });
 if (!check.ok || !check.headers.get("content-type")?.includes("image/jpeg")) throw new Error("Uploaded demo photo is not usable.");
 const updated = await client.from("fotoyu_photos").update({ photo_url: photoUrl })
-  .in("bib_number", ["HERO-5K-001", "HERO-10K-001", "HERO-10K-002"]).eq("photographer", "Martin Vorel (CC0; demo stock)").select("id");
+  .in("runner_id", runnerIds).eq("photographer", "Martin Vorel (CC0; demo stock)").select("id");
 if (updated.error || updated.data?.length !== 3) throw new Error("Seed exactly three hero photo mappings before uploading.");
-console.log("Verified shared CC0 demo race photo in Storage; three manual synthetic BIB mappings updated.");
+console.log("Verified shared CC0 demo race photo in Storage; three synthetic runner mappings updated.");

@@ -80,3 +80,22 @@ export async function linkRegistrationByBib(
     );
   throw new ProfileError(unavailableBibMessage, 400);
 }
+
+export const unreleasableBibMessage =
+  "That BIB is not yours to remove. Check it with your race organizer.";
+
+export async function releaseRegistrationByBib(
+  userId: string,
+  bib: unknown,
+): Promise<"released"> {
+  if (typeof bib !== "string" || !BIB_PATTERN.test(bib.trim())) {
+    throw new ProfileError(unreleasableBibMessage, 400);
+  }
+  const { data, error } = await getSupabaseAdmin().rpc("release_runner_by_bib", {
+    p_user: userId,
+    p_bib: bib.trim(),
+  });
+  if (error) throw new Error("Removing a BIB is temporarily unavailable. Please retry.");
+  if (data === "released") return data;
+  throw new ProfileError(unreleasableBibMessage, 400);
+}

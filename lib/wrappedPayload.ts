@@ -35,3 +35,33 @@ export type StravaFirstWrappedPayload = { registration: WrappedRegistration } & 
   | { state: "needs_confirmation"; candidates: StravaCandidate[] }
   | { state: "ready"; snapshot: StravaWrappedSnapshotV1; photos: Photo[] }
 );
+
+export type OfficialWrappedPayload = {
+  kind: "official";
+  result: {
+    runnerId: string;
+    eventId: number;
+    bib: string;
+    name: string;
+    distance: "5K" | "10K";
+    status: "finished" | "dnf" | "dns" | "dq" | "unknown";
+    finishTimeMs: number | null;
+    netTimeMs: number | null;
+    overallRank: number | null;
+    division: string | null;
+    divisionRank: number | null;
+    gender: string | null;
+    genderRank: number | null;
+    checkpoints: Array<{
+      sequence: number;
+      label: string;
+      distanceMeters: number | null;
+      displayedTimeMs: number | null;
+      reportedSplitMs: number | null;
+      referenceLabel: string | null;
+    }>;
+    sourceUrl: string | null;
+  };
+  strava: StravaFirstWrappedPayload | { state: "unavailable" };
+  photos: Photo[];
+};

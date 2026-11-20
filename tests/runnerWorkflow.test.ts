@@ -190,4 +190,12 @@ describe("runner registration desk", () => {
     expect(form.querySelector("button")?.disabled).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it("offers existing accounts a link to the BIB recovery flow", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({ runners: [], events: [] }));
+    await renderDashboard();
+
+    const link = container.querySelector('main a[href="/register?link=1"]');
+    expect(link?.textContent).toBe("Link an official race result");
+  });
 });

@@ -32,7 +32,7 @@ begin
     insert into public.runners(category_id,bib_number,name,date_of_birth,gender,email,phone,id_type,id_number,jersey_size)
       values (category_key,fixture.bib,fixture.name,'1995-04-12',fixture.gender,
         lower(fixture.bib)||'@example.test','0000000000','Student ID','DEMO-'||fixture.bib,'M')
-      on conflict(bib_number) do update set name=excluded.name,gender=excluded.gender
+      on conflict(event_id,bib_number) do update set name=excluded.name,gender=excluded.gender
       returning id into runner_key;
     if fixture.bib='EDGE-NO-RESULT' then continue; end if;
     select sum(s)::int into seconds_total from unnest(fixture.splits) s;
@@ -57,8 +57,10 @@ begin
 end $$;
 -- This shared group photo is an explicit stock demo, not identification of
 -- Aina/Budi/Sari or a claim that they attended the pictured Prague race.
-insert into public.fotoyu_photos(bib_number,photo_url,photographer)
-  select r.bib_number,'/photos/demo-race.jpg','Martin Vorel (CC0; demo stock)'
-  from public.runners r where r.bib_number in ('HERO-5K-001','HERO-10K-001','HERO-10K-002')
-  and not exists(select 1 from public.fotoyu_photos p where p.bib_number=r.bib_number and p.photographer='Martin Vorel (CC0; demo stock)');
+insert into public.fotoyu_photos(runner_id,photo_url,photographer)
+  select r.id,'/photos/demo-race.jpg','Martin Vorel (CC0; demo stock)'
+  from public.runners r join public.events e on e.id=r.event_id
+  where e.name='Soekarno Run 2027' and e.event_date='2027-08-17'
+    and r.source_kind='legacy' and r.bib_number in ('HERO-5K-001','HERO-10K-001','HERO-10K-002')
+    and not exists(select 1 from public.fotoyu_photos p where p.runner_id=r.id and p.photographer='Martin Vorel (CC0; demo stock)');
 commit;
