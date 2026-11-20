@@ -53,7 +53,7 @@ describe("verified identity and event access", () => {
       data: { user: { id: "A", user_metadata: { role: "organizer" } } },
       error: null,
     });
-    expect(await requireUser()).toEqual({ id: "A" });
+    expect(await requireUser()).toEqual({ id: "A", email: null });
     from.mockReturnValue(query(null));
     await expect(requireRunnerAccess("A", "B")).rejects.toThrow(
       AccessDeniedError,

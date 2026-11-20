@@ -9,9 +9,16 @@ import { GET } from "@/app/api/organizer/events/[eventId]/results/route";
 import { GET as readConfig, PUT as writeConfig } from "@/app/api/organizer/events/[eventId]/strava-config/route";
 import { AccessDeniedError } from "@/lib/auth/access";
 const params = { params: Promise.resolve({ eventId: "1" }) };
+// The organizer payload carries the eligibility rule alongside the rows: the race date and each
+// category's minimum age, so the runner form can enforce what the database trigger enforces.
+const eventResults = {
+  event: { name: "Soekarno Run 2027", event_date: "2027-08-17" },
+  categories: [{ name: "5K", min_age: 13 }, { name: "10K", min_age: 17 }],
+  results: [{ status: "unavailable" }],
+};
 const request = (origin = "http://localhost") => new Request("http://localhost/api/organizer/events/1/runners", { method: "POST", headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify({ name: "Demo" }) });
 describe("organizer HTTP boundaries", () => {
-  beforeEach(() => { vi.clearAllMocks(); mocks.user.mockResolvedValue({ id: "organizer" }); mocks.save.mockResolvedValue({ runner_id: "saved" }); mocks.results.mockResolvedValue([{ status: "unavailable" }]); mocks.access.mockResolvedValue(undefined); });
+  beforeEach(() => { vi.clearAllMocks(); mocks.user.mockResolvedValue({ id: "organizer" }); mocks.save.mockResolvedValue({ runner_id: "saved" }); mocks.results.mockResolvedValue(eventResults); mocks.access.mockResolvedValue(undefined); });
   it("rejects cross-origin cookie-authenticated writes before queries", async () => {
     expect((await POST(request("https://attacker.example"), params)).status).toBe(403);
     expect(mocks.user).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
@@ -38,7 +45,13 @@ describe("organizer HTTP boundaries", () => {
   });
   it("preserves the unavailable lifecycle in organizer results", async () => {
     const response = await GET(new Request("http://localhost"), params);
-    expect(response.status).toBe(200); expect(await response.json()).toEqual({ results: [{ status: "unavailable" }] });
+    expect(response.status).toBe(200); expect(await response.json()).toEqual(eventResults);
+  });
+
+  it("carries the race date and category minimums the eligibility rule needs", async () => {
+    const body = await (await GET(new Request("http://localhost"), params)).json();
+    expect(body.event).toEqual({ name: "Soekarno Run 2027", event_date: "2027-08-17" });
+    expect(body.categories).toEqual([{ name: "5K", min_age: 13 }, { name: "10K", min_age: 17 }]);
   });
 });
 

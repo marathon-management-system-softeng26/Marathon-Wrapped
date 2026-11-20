@@ -1,5 +1,6 @@
 "use client";
 import type { OrganizerEnrichment } from "@/lib/organizerEnrichment";
+import { toRaceLocalInput, withRaceZone } from "@/lib/raceTime";
 const labels = {
   avg_heartrate: "Average heart rate (bpm)",
   max_heartrate: "Maximum heart rate (bpm)",
@@ -80,8 +81,9 @@ export default function OrganizerEnrichmentEditor({
       <h3>Photo mappings</h3>
       <p>
         Use a public image URL from this project&apos;s race-photos bucket. Leave
-        kilometer and capture time empty when unknown. Removing a mapping does
-        not delete its image from Storage.
+        kilometer and capture time empty when unknown. Capture times are read and
+        saved in the race&apos;s own time zone. Removing a mapping does not delete
+        its image from Storage.
       </p>
       {value.photos.map((photo, index) => (
         <div className="photo-mapping-editor" key={index}>
@@ -148,17 +150,22 @@ export default function OrganizerEnrichmentEditor({
               />
             </label>
             <label>
-              Capture timestamp with timezone (optional)
+              Capture time (WIB, optional)
               <input
-                maxLength={40}
-                placeholder="2027-08-17T06:20:00+07:00"
-                value={photo.captured_at ?? ""}
+                type="datetime-local"
+                step="1"
+                value={toRaceLocalInput(photo.captured_at, { seconds: true })}
                 onChange={(e) =>
                   onChange({
                     ...value,
                     photos: value.photos.map((p, i) =>
                       i === index
-                        ? { ...p, captured_at: e.target.value || null }
+                        ? {
+                            ...p,
+                            captured_at: e.target.value
+                              ? withRaceZone(e.target.value)
+                              : null,
+                          }
                         : p,
                     ),
                   })

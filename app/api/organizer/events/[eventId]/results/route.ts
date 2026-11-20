@@ -7,6 +7,6 @@ export async function GET(_request: Request, { params }: { params: Promise<{ eve
   if (!eventId) return organizerError("Invalid event identifier.", 400);
   try {
     const user = await requireUser();
-    return Response.json({ results: await getEventResults(user.id, eventId) }, { headers: privateHeaders });
+    return Response.json(await getEventResults(user.id, eventId), { headers: privateHeaders });
   } catch (cause) { return organizerFailure(cause); }
 }

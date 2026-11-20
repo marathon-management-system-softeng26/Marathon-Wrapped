@@ -104,6 +104,45 @@ Only the server `service_role` can read/write claims or execute these RPCs. Brow
 
 `tests/sql/runner-claims.sql` checks these outcomes and database catalogs for RLS, grants, function configuration and FK/index coverage. The native harness also checks competing consumption requests and the duplicate-owner preflight. PGlite serializes competing calls on one connection: this verifies outcomes and database uniqueness, but a dedicated non-production PostgreSQL integration run must still verify actual multi-connection scheduling before release. Run `supabase db advisors --type all` against the disposable local stack when available; catalog assertions do not replace the full advisor. No hosted migration is applied by the native suite.
 
+## Runner profiles and BIB linking
+
+`20261114120000_runner_profiles_and_bib_linking.sql` adds two server-only tables and two RPCs.
+
+`runner_profiles` holds one row per account: the display name a runner chooses for themselves,
+1 to 120 characters after trimming. It is deliberately separate from `runners.name`, which belongs
+to the organizer's registration record and feeds timing, results and the recap. A runner naming
+themselves never rewrites a timed registration.
+
+`bib_link_attempts` records one row per BIB-link attempt with its outcome. A partial index on
+`(user_id, attempted_at desc) where outcome = 'rejected'` serves the rate-limit lookup; successful
+links are recorded but never counted against the limit, so an account holding several
+registrations is not penalised for holding them. `runners_bib_upper` makes BIB entry
+case-insensitive against the organizer's stored casing.
+
+Both tables have RLS enabled, no policies, and no privileges for `PUBLIC`, `anon` or
+`authenticated`. Only `service_role` can read or write them or execute these RPCs, which use
+invoker rights and empty locked search paths and take an already-authenticated server-side user ID.
+
+| RPC | Contract |
+| --- | --- |
+| `upsert_runner_profile(p_user uuid, p_name text)` | Returns the stored trimmed name. Inserts or replaces the account's own row and refreshes `updated_at`. A blank, overlong or absent name, or an account that does not exist, raises `22023`. |
+| `link_runner_by_bib(p_user uuid, p_bib text)` | Returns `linked`, `already_yours`, `throttled`, or `unavailable`. Matches `upper(bib_number)`, locks the runner row, and inserts exclusive access only when the registration is unclaimed. An absent BIB, an unassigned BIB, a BIB owned by another account and a lost ownership race all return `unavailable`. Seven rejected attempts inside fifteen minutes return `throttled`. A malformed BIB returns `unavailable` without recording an attempt. |
+
+### Accepted exposure in BIB linking
+
+BIB linking is a deliberate product decision with a known consequence, recorded here so it is not
+mistaken for an oversight. `runner_access` gates a private recap, and BIBs are short and
+sequential, so a signed-in account can walk the BIB space. Two bounds are enforced: only an
+unclaimed registration can be taken, and rejected attempts are rate limited per account. These
+raise the cost of enumeration; they do not remove it, because a successful link still reveals that
+the BIB was valid. Every refusal returns one identical message so a *response* never confirms
+which BIBs exist. The one-time `runner_claims` code remains available and remains the safer route
+for an organizer to hand out.
+
+`tests/sql/runner-profiles.sql` checks these outcomes along with the catalogs for RLS, grants,
+function configuration and FK/index coverage. The native harness applies the migration on top of
+the full chain and runs those assertions inside a rolled-back transaction.
+
 ## Applying the Strava-first chain to the dedicated project
 
 The dedicated project's recorded history stops at `20261020020029_organizer_optional_aggregate`.
