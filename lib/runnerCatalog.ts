@@ -107,11 +107,16 @@ export async function getRunnerCatalog(userId: string): Promise<RunnerCatalog> {
   if (!owned.length) return { runners: [], events };
 
   const runnerIds = owned.map(({ id }) => id);
-  const [states, officialResult] = await Promise.all([
+  const [states, officialResult, legacyResult] = await Promise.all([
     loadWorkflows(db, userId, runnerIds),
     db.from("official_race_results").select("runner_id").in("runner_id", runnerIds),
+    db.from("runner_wrapped").select("runner_id").in("runner_id", runnerIds),
   ]);
-  const officialIds = new Set(read(officialResult).map(({ runner_id }) => runner_id));
+  // Both result stores are optional during the additive migration. A failure in one must not
+  // hide registrations or prevent the other source from opening Wrapped.
+  const officialRows = officialResult.error || !officialResult.data ? [] : officialResult.data;
+  const legacyRows = legacyResult.error || !legacyResult.data ? [] : legacyResult.data;
+  const officialIds = new Set([...officialRows, ...legacyRows].map(({ runner_id }) => runner_id));
   const runners = owned.map(({ id, name, bib_number, categories }): CatalogRunner => {
     const identity = { id, name, bib_number, event: categories.events.name, category: categories.name };
     const state = states.get(id) ?? "setup_required";

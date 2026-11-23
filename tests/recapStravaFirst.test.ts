@@ -58,6 +58,13 @@ afterEach(async () => {
 });
 
 describe("Strava-only showcase", () => {
+  it("does not call a Strava-only activity an official result", async () => {
+    fetcher.mockImplementationOnce(async () => Response.json(ready));
+    await renderRecap();
+    await openSlide(1);
+    expect(container.textContent).not.toMatch(/official result/i);
+    expect(container.textContent).toContain("recorded activity");
+  });
   it("shows the recorded distance with both moving and elapsed time", async () => {
     fetcher.mockImplementationOnce(async () => Response.json(ready));
     await renderRecap();

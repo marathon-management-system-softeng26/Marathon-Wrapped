@@ -46,6 +46,7 @@ function catalogDatabase() {
     categories: [{ id: 1, event_id: 1 }],
     runners,
     official_race_results: [{ runner_id: "official" }],
+    runner_wrapped: [{ runner_id: "import" }],
     strava_connections: [{ ...scope, status: "active", athlete_id: "987654321", credentials_uncertain: false,
       granted_scopes: ["activity:read_all"], access_token: "private-token" }],
     strava_oauth_attempts: [],
@@ -184,7 +185,7 @@ describe("session HTTP boundaries", () => {
     expect(runners).toContainEqual({ id: "attach", name: "Runner attach", bib_number: "BIB-attach", event: "Soekarno Run",
       category: "5K", workflowState: "setup_required", primaryAction: "attach", wrappedAvailable: false });
     expect(Object.fromEntries(runners.map((row: Record<string, string>) => [row.id, [row.workflowState, row.primaryAction]]))).toEqual({
-      attach: ["setup_required", "attach"], import: ["importing", "importing"], confirm: ["needs_confirmation", "confirm"],
+      attach: ["setup_required", "attach"], import: ["importing", "view"], confirm: ["needs_confirmation", "confirm"],
       "no-match": ["no_match", "review_import"], build: ["building", "building"], ready: ["ready", "view"],
       failed: ["failed", "failed"], invalid: ["failed", "failed"],
       official: ["setup_required", "view"],
@@ -211,7 +212,7 @@ describe("session HTTP boundaries", () => {
       primaryAction: "view",
       wrappedAvailable: true,
     });
-    expect(runners.find((row: { id: string }) => row.id === "import").wrappedAvailable).toBe(false);
+    expect(runners.find((row: { id: string }) => row.id === "import").wrappedAvailable).toBe(true);
   });
 
   it("returns organizer events without reading organizer-only runners or Strava state", async () => {

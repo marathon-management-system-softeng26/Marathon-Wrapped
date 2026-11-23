@@ -6,7 +6,7 @@ The runner-first journey now treats an official chip result as sufficient for a 
 
 Verification on 2026-11-23:
 
-- Automated: 48 Vitest files passed (787 tests), with 21 environment-gated integration tests skipped; 35 native tests passed, with 3 database-gated tests skipped.
+- Automated: 48 Vitest files passed (788 tests), with 21 environment-gated integration tests skipped; 35 native tests passed, with 3 database-gated tests skipped.
 - Quality gates: ESLint, TypeScript, and the Next.js production build passed.
 - Browser: authenticated login, runner menu, organizer results/claims/race-matching console, and an official DNF seven-scene Wrapped were exercised locally.
 - Responsive: login, registration, and Wrapped were inspected at 390, 768, and 1440 px with no horizontal overflow; the registration label issue found at 768 px was corrected and rechecked.
