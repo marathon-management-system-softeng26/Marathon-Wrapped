@@ -1128,13 +1128,14 @@ td {
   margin: 16px 0 0;
 }
 
-/* Figma Make v10 — login and recap experience */
-.login-layout {
+/* Figma runner identity shell */
+.auth-layout {
+  display: grid;
   min-height: 100svh;
   grid-template-columns: minmax(0, 1.08fr) minmax(420px, 0.92fr);
   background: var(--cream);
 }
-.login-story {
+.auth-masthead {
   position: relative;
   isolation: isolate;
   display: flex;
@@ -1145,7 +1146,7 @@ td {
   background: #6d0619 url("/photos/demo-race.jpg") center 24% / cover no-repeat;
   color: var(--cream);
 }
-.login-story::before {
+.auth-masthead::before {
   position: absolute;
   z-index: -1;
   inset: 0;
@@ -1154,62 +1155,71 @@ td {
     linear-gradient(180deg, rgba(126, 4, 30, 0.36) 0%, rgba(127, 3, 29, 0.74) 64%, rgba(122, 5, 29, 0.96) 100%),
     linear-gradient(90deg, rgba(191, 19, 48, 0.52), rgba(99, 0, 23, 0.08));
 }
-.login-story-content {
+.auth-masthead-content {
   width: min(100%, 760px);
 }
-.login-story h1 {
+.auth-masthead h1 {
   margin: 0 0 30px;
   font-size: clamp(4.5rem, 8vw, 8.5rem);
   line-height: 0.76;
   letter-spacing: -0.065em;
 }
-.login-story h1 span {
+.auth-masthead h1 span {
   color: #f41d45;
 }
-.login-story h1 b {
+.auth-masthead h1 b {
   color: var(--lime);
 }
-.login-story p {
+.auth-masthead h1 em {
+  color: var(--cream);
+  font-style: normal;
+}
+.auth-masthead p {
   margin: 0;
   max-width: 29ch;
   font-size: clamp(1.15rem, 2vw, 1.55rem);
   font-weight: 700;
   line-height: 1.28;
 }
-.login-form {
+.auth-panel-stage {
+  display: flex;
+  align-items: center;
   padding: clamp(38px, 7vw, 100px);
   background: #fffdf8;
 }
-.login-form form {
+.auth-panel {
+  width: min(100%, 520px);
+}
+.auth-panel form {
   max-width: 520px;
 }
-.login-form h2 {
+.auth-panel h2 {
   max-width: 8ch;
   margin-bottom: 40px;
   color: var(--red);
   font-size: clamp(3rem, 5vw, 5.25rem);
   line-height: 0.93;
 }
-.login-form label {
+.auth-panel label {
   margin-top: 24px;
   color: var(--deep);
 }
-.login-form input {
+.auth-panel input {
   min-height: 56px;
   border-color: #d2cbc5;
   border-radius: 999px;
   padding-inline: 22px;
   background: #f2f1ef;
 }
-.login-form button {
+.auth-panel button {
   min-height: 54px;
   margin-top: 30px;
   border-radius: 999px;
 }
-.login-form .help {
+.auth-panel .help {
   color: #7f5e61;
 }
-.login-form .auth-text-button {
+.auth-panel .auth-text-button {
   display: block;
   width: fit-content;
   min-height: auto;
@@ -1271,7 +1281,7 @@ td {
   background: var(--deep);
   content: "";
 }
-.login-form .google-auth-button {
+.auth-panel .google-auth-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1311,6 +1321,38 @@ td {
   color: var(--cream);
   font-weight: 800;
   text-decoration: none;
+}
+.auth-panel-footer {
+  margin-top: 26px;
+  color: #7f5e61;
+  font-size: 0.9rem;
+  text-align: center;
+}
+.auth-panel-footer a {
+  color: var(--red);
+  font-weight: 800;
+}
+.runner-feedback {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border: 1px solid #d2cbc5;
+  border-radius: 16px;
+  background: #fffdf8;
+  color: var(--deep);
+}
+.runner-feedback strong {
+  display: block;
+}
+.runner-feedback p {
+  margin: 6px 0 0;
+}
+.runner-feedback-error {
+  border-color: #d75b6f;
+  background: #fff1f3;
+  color: #7e061d;
+}
+.runner-feedback-empty {
+  border-style: dashed;
 }
 
 .story {
@@ -1687,29 +1729,29 @@ body:has(.story-state) {
 }
 
 @media (max-width: 800px) {
-  .login-layout {
+  .auth-layout {
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: minmax(330px, 43svh) auto;
   }
-  .login-story {
+  .auth-masthead {
     min-height: 0;
     padding: 28px 24px 24px;
     background-position: center 30%;
   }
-  .login-story h1 {
+  .auth-masthead h1 {
     margin-bottom: 18px;
     font-size: clamp(3.4rem, 15vw, 5rem);
     line-height: 0.78;
   }
-  .login-story p {
+  .auth-masthead p {
     font-size: 1rem;
   }
-  .login-form {
+  .auth-panel-stage {
     align-items: start;
     padding: 36px 24px 48px;
   }
-  .login-form h2 {
+  .auth-panel h2 {
     margin-bottom: 28px;
     font-size: 2.75rem;
   }

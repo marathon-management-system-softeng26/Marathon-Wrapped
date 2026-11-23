@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState, type FormEvent } from "react";
+import AuthMasthead from "@/app/components/AuthMasthead";
+import AuthPanel from "@/app/components/AuthPanel";
+import RunnerFeedback from "@/app/components/RunnerFeedback";
 
 type Match = { bib: string; name: string; distance: "5K" | "10K" };
 type Preview = { ticket: string; match: Match };
@@ -107,25 +110,26 @@ function RegisterForm() {
     });
   }
 
-  const alert = error && <p className="error" role="alert">{error}</p>;
+  const alert = error && <RunnerFeedback kind="error" title={error} />;
 
   if (step.kind === "done") {
     return (
-      <div className="register-confirmation" role="status">
-        <h2>{linking ? "Your result is linked." : "Check your inbox."}</h2>
+      <AuthPanel title={linking ? "Your result is linked." : "Check your inbox."}>
+        <div className="register-confirmation" role="status">
         {!linking && <p>Confirm your email, then log in to see your race result.</p>}
         <Link className="auth-primary-link" href={linking ? "/" : "/login"}>
           {linking ? "View my races" : "Back to login"}
         </Link>
-      </div>
+        </div>
+      </AuthPanel>
     );
   }
 
   if (step.kind === "review") {
     const { preview } = step;
     return (
-      <form onSubmit={(event) => { event.preventDefault(); void accept(preview); }}>
-        <h2>Confirm your result.</h2>
+      <AuthPanel title="Confirm your result.">
+       <form onSubmit={(event) => { event.preventDefault(); void accept(preview); }}>
         <p><strong>{preview.match.name}</strong></p>
         <p>BIB {preview.match.bib} · {preview.match.distance}</p>
         {alert}
@@ -133,14 +137,15 @@ function RegisterForm() {
         <button className="auth-text-button" disabled={busy} type="button" onClick={() => void reject(preview.ticket)}>
           Use a different BIB
         </button>
-      </form>
+       </form>
+      </AuthPanel>
     );
   }
 
   if (step.kind === "accepted") {
     return (
-      <form onSubmit={submit}>
-        <h2>{linking ? "Link your result." : "Create account."}</h2>
+      <AuthPanel title={linking ? "Link your result." : "Create account."}>
+       <form onSubmit={submit}>
         <p>{step.match.name} · BIB {step.match.bib} · {step.match.distance}</p>
         {!linking && (
           <>
@@ -162,13 +167,14 @@ function RegisterForm() {
           Use a different BIB
         </button>
         {!linking && <p className="auth-switch">Already have an account? <Link href="/login">Log in</Link></p>}
-      </form>
+       </form>
+      </AuthPanel>
     );
   }
 
   return (
-    <form onSubmit={lookup}>
-      <h2>Find your race result.</h2>
+    <AuthPanel title="Find your race result.">
+     <form onSubmit={lookup}>
       <label className="register-field">
         <span>Event edition</span>
         <input name="eventId" type="number" min={1} required value={eventId} onChange={(event) => {
@@ -188,28 +194,20 @@ function RegisterForm() {
       {linking
         ? <p className="auth-switch"><Link href="/">Back to my races</Link></p>
         : <p className="auth-switch">Already have an account? <Link href="/login">Log in</Link></p>}
-    </form>
+     </form>
+    </AuthPanel>
   );
 }
 
 export default function Register() {
   return (
-    <main className="login-layout">
-      <section className="login-story">
-        <div className="login-story-content">
-          <h1>
-            <span>Soekarno</span>
-            <br />
-            <b>Run</b>
-          </h1>
-          <p>Your race, in numbers, photos and one good memory.</p>
-        </div>
-      </section>
-      <section className="login-form register-form">
-        <Suspense fallback={<p role="status">Loading registration…</p>}>
+    <main className="auth-layout">
+      <AuthMasthead />
+      <div className="auth-panel-stage register-form">
+        <Suspense fallback={<RunnerFeedback kind="status" title="Loading registration…" />}>
           <RegisterForm />
         </Suspense>
-      </section>
+      </div>
     </main>
   );
 }

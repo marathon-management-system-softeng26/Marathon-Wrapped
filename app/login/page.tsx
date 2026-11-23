@@ -3,6 +3,9 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { startGoogleSignIn } from "@/lib/auth/google";
+import AuthMasthead from "@/app/components/AuthMasthead";
+import AuthPanel from "@/app/components/AuthPanel";
+import RunnerFeedback from "@/app/components/RunnerFeedback";
 export default function Login() {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -44,22 +47,11 @@ export default function Login() {
     }
   }
   return (
-    <main className="login-layout">
-      <section className="login-story">
-        <div className="login-story-content">
-          <h1>
-            <span>Soekarno</span>
-            <br />
-            <b>Run</b>
-            <br />
-            2027
-          </h1>
-          <p>Your race, in numbers, photos and one good memory.</p>
-        </div>
-      </section>
-      <section className="login-form">
+    <main className="auth-layout">
+      <AuthMasthead />
+      <div className="auth-panel-stage">
+        <AuthPanel title="Back to your race." footer={<>New here? <Link href="/register">Create account</Link></>}>
         <form onSubmit={submit}>
-          <h2>Back to your race.</h2>
           <label>
             Email
             <input
@@ -80,11 +72,7 @@ export default function Login() {
               maxLength={1024}
             />
           </label>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <RunnerFeedback kind="error" title={error} />}
           <button disabled={busy} type="submit">
             {busy ? "Signing in…" : "Find my race"}
           </button>
@@ -103,11 +91,9 @@ export default function Login() {
           >
             Forgot Password?
           </button>
-          <p className="auth-switch">
-            New here? <Link href="/register">Create account</Link>
-          </p>
         </form>
-      </section>
+        </AuthPanel>
+      </div>
     </main>
   );
 }

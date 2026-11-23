@@ -2,6 +2,7 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import AppHeader from "./AppHeader";
 import { useCatalog } from "./useCatalog";
+import RunnerFeedback from "./RunnerFeedback";
 
 /**
  * The runner's own account surface: the name they choose for themselves, and the BIBs they hold.
@@ -144,7 +145,7 @@ export default function RunnerProfile() {
 
         <section className="profile-panel" aria-labelledby={`${nameId}-heading`}>
           <h2 id={`${nameId}-heading`}>You</h2>
-          {profileError && <p role="alert" className="error">{profileError}</p>}
+          {profileError && <RunnerFeedback kind="error" title={profileError} />}
           <form onSubmit={saveName} aria-busy={savingName}>
             <label htmlFor={nameId}>
               Display name
@@ -164,8 +165,8 @@ export default function RunnerProfile() {
                 {savingName ? "Saving…" : "Save name"}
               </button>
             </div>
-            <p role="status">{nameNotice}</p>
-            {nameError && <p role="alert">{nameError}</p>}
+            {nameNotice && <RunnerFeedback kind="status" title={nameNotice} />}
+            {nameError && <RunnerFeedback kind="error" title={nameError} />}
           </form>
         </section>
 
@@ -198,8 +199,8 @@ export default function RunnerProfile() {
                 {addingBib ? "Adding…" : "Add BIB"}
               </button>
             </div>
-            <p role="status">{bibNotice}</p>
-            {bibError && <p role="alert">{bibError}</p>}
+            {bibNotice && <RunnerFeedback kind="status" title={bibNotice} />}
+            {bibError && <RunnerFeedback kind="error" title={bibError} />}
           </form>
         </section>
 
@@ -207,18 +208,17 @@ export default function RunnerProfile() {
           <h2 id="profile-bibs-heading">Your BIBs</h2>
           {catalogError && (
             <div className="dashboard-error">
-              <p role="alert">{catalogError}</p>
+              <RunnerFeedback kind="error" title={catalogError} />
               <button type="button" onClick={retry}>Try again</button>
             </div>
           )}
           {!data && !catalogError && (
-            <p role="status" className="loading-note">Finding your races…</p>
+            <RunnerFeedback kind="status" title="Finding your races…" />
           )}
           {data && data.runners.length === 0 && (
-            <p>
-              No BIBs yet. Add one above, or use a claim code from your
-              organizer.
-            </p>
+            <RunnerFeedback kind="empty" title="No BIBs yet.">
+              <p>Add one above, or use a claim code from your organizer.</p>
+            </RunnerFeedback>
           )}
           {data && data.runners.length > 0 && (
             <ul className="registration-grid" role="list">
