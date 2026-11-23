@@ -23,7 +23,11 @@ const defaultAction = {
 } as const satisfies Record<StravaFirstWrappedPayload["state"], string>;
 type WorkflowState = keyof typeof defaultAction;
 type PrimaryAction = (typeof defaultAction)[WorkflowState] | "attach";
-export type CatalogRunner = Registration & { workflowState: WorkflowState; primaryAction: PrimaryAction };
+export type CatalogRunner = Registration & {
+  workflowState: WorkflowState;
+  primaryAction: PrimaryAction;
+  wrappedAvailable: boolean;
+};
 export type RunnerCatalog = { runners: CatalogRunner[]; events: Event[] };
 
 function read<T>({ data, error }: { data: T | null; error: unknown }): T {
@@ -102,12 +106,30 @@ export async function getRunnerCatalog(userId: string): Promise<RunnerCatalog> {
   const events = read(organizer).map(({ events: { id, name } }) => ({ id, name }));
   if (!owned.length) return { runners: [], events };
 
-  const states = await loadWorkflows(db, userId, owned.map(({ id }) => id));
+  const runnerIds = owned.map(({ id }) => id);
+  const [states, officialResult] = await Promise.all([
+    loadWorkflows(db, userId, runnerIds),
+    db.from("official_race_results").select("runner_id").in("runner_id", runnerIds),
+  ]);
+  const officialIds = new Set(read(officialResult).map(({ runner_id }) => runner_id));
   const runners = owned.map(({ id, name, bib_number, categories }): CatalogRunner => {
     const identity = { id, name, bib_number, event: categories.events.name, category: categories.name };
     const state = states.get(id) ?? "setup_required";
-    if (state === "attach") return { ...identity, workflowState: "setup_required", primaryAction: "attach" };
-    return { ...identity, workflowState: state, primaryAction: defaultAction[state] };
+    const wrappedAvailable = officialIds.has(id) || state === "ready";
+    if (state === "attach") {
+      return {
+        ...identity,
+        workflowState: "setup_required",
+        primaryAction: wrappedAvailable ? "view" : "attach",
+        wrappedAvailable,
+      };
+    }
+    return {
+      ...identity,
+      workflowState: state,
+      primaryAction: wrappedAvailable ? "view" : defaultAction[state],
+      wrappedAvailable,
+    };
   });
   return { runners, events };
 }

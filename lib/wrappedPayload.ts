@@ -38,6 +38,7 @@ export type StravaFirstWrappedPayload = { registration: WrappedRegistration } & 
 
 export type OfficialWrappedPayload = {
   kind: "official";
+  registration: WrappedRegistration;
   result: {
     runnerId: string;
     eventId: number;
@@ -65,3 +66,5 @@ export type OfficialWrappedPayload = {
   strava: StravaFirstWrappedPayload | { state: "unavailable" };
   photos: Photo[];
 };
+
+export type RunnerWrappedPayload = OfficialWrappedPayload | StravaFirstWrappedPayload;

@@ -1,17 +1,10 @@
 import "server-only";
 import { AccessDeniedError } from "@/lib/auth/access";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import type { Photo, StravaFirstWrappedPayload } from "@/lib/wrappedPayload";
+import type { OfficialWrappedPayload, Photo, WrappedRegistration } from "@/lib/wrappedPayload";
 import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
 import type { OfficialRecap } from "@/lib/officialResults/types";
 export type { OfficialRecap } from "@/lib/officialResults/types";
-
-export type OfficialWrappedPayload = {
-  kind: "official";
-  result: OfficialRecap;
-  strava: StravaFirstWrappedPayload | { state: "unavailable" };
-  photos: Photo[];
-};
 
 type OfficialRow = {
   runner_id: string;
@@ -33,11 +26,12 @@ type OfficialRow = {
 };
 
 export function composeOfficialWrapped(
+  registration: WrappedRegistration,
   result: OfficialRecap,
   strava: OfficialWrappedPayload["strava"],
   photos: Photo[],
 ): OfficialWrappedPayload {
-  return { kind: "official", result, strava, photos };
+  return { kind: "official", registration, result, strava, photos };
 }
 
 function normalizeRow(row: OfficialRow): OfficialRecap {
@@ -67,6 +61,29 @@ function normalizeRow(row: OfficialRow): OfficialRecap {
   };
 }
 
+async function loadRegistration(runnerId: string): Promise<WrappedRegistration> {
+  const { data, error } = await getSupabaseAdmin()
+    .from("runners")
+    .select("id,name,bib_number,categories(name,events(name,event_date))")
+    .eq("id", runnerId)
+    .maybeSingle<{
+      id: string;
+      name: string;
+      bib_number: string | null;
+      categories: { name: string; events: { name: string; event_date: string } };
+    }>();
+  if (error) throw new Error("Official registration is temporarily unavailable.");
+  if (!data) throw new AccessDeniedError();
+  return {
+    runner: { id: data.id, name: data.name, bibNumber: data.bib_number },
+    event: {
+      name: data.categories.events.name,
+      date: data.categories.events.event_date,
+      category: data.categories.name,
+    },
+  };
+}
+
 export async function getOfficialWrappedForUser(
   userId: string,
   runnerId: string,
@@ -86,10 +103,13 @@ export async function getOfficialWrappedForUser(
   if (error) throw new Error("Official results are temporarily unavailable.");
   if (!data) return null;
   const result = normalizeRow(data as OfficialRow);
-  const { data: photos, error: photoError } = await db
-    .from("fotoyu_photos")
-    .select("id,bib_number,photo_url,photographer,captured_km,captured_at")
-    .eq("bib_number", result.bib);
+  const [registration, photoResult] = await Promise.all([
+    loadRegistration(runnerId),
+    db.from("fotoyu_photos")
+      .select("id,bib_number,photo_url,photographer,captured_km,captured_at")
+      .eq("bib_number", result.bib),
+  ]);
+  const { data: photos, error: photoError } = photoResult;
   if (photoError) throw new Error("Official photos are temporarily unavailable.");
   let strava: OfficialWrappedPayload["strava"] = { state: "unavailable" };
   try {
@@ -97,5 +117,5 @@ export async function getOfficialWrappedForUser(
   } catch {
     // Official results are the source of truth; optional enrichment must not hide them.
   }
-  return composeOfficialWrapped(result, strava, (photos ?? []) as Photo[]);
+  return composeOfficialWrapped(registration, result, strava, (photos ?? []) as Photo[]);
 }
