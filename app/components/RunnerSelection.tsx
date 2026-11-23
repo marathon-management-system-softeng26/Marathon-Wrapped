@@ -3,6 +3,7 @@ import Link from "next/link";
 import AppHeader from "./AppHeader";
 import RunnerClaimForm from "./RunnerClaimForm";
 import RunnerWorkflowCard from "./RunnerWorkflowCard";
+import RunnerFeedback from "./RunnerFeedback";
 import { useCatalog } from "./useCatalog";
 export default function RunnerSelection() {
   const { data, error, retry } = useCatalog();
@@ -19,15 +20,13 @@ export default function RunnerSelection() {
         </p>
         {error && (
           <div className="dashboard-error">
-            <p role="alert">{error}</p>
+            <RunnerFeedback kind="error" title={error} />
             <button type="button" onClick={retry}>Try again</button>
           </div>
         )}
         {!data && !error && (
           <>
-            <p role="status" className="loading-note">
-              Finding your races…
-            </p>
+            <RunnerFeedback kind="status" title="Finding your races…" />
             {/* Placeholders only, so the page keeps its shape while the catalog loads. They are
                 not list items: the registrations themselves are the only entries in that list. */}
             <div className="registration-grid" aria-hidden="true">
@@ -47,8 +46,11 @@ export default function RunnerSelection() {
                 </ul>
               </section>
             )}
-            <p><Link className="auth-primary-link" href="/register?link=1">Link an official race result</Link></p>
-            <RunnerClaimForm onClaimed={retry} />
+            <details className="runner-recovery" open={data.runners.length === 0}>
+              <summary>{data.runners.length === 0 ? "Add your first race" : "Missing a race?"}</summary>
+              <p><Link className="auth-primary-link" href="/register?link=1">Link an official race result</Link></p>
+              <RunnerClaimForm onClaimed={retry} />
+            </details>
           </>
         )}
       </main>

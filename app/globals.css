@@ -1354,6 +1354,44 @@ td {
 .runner-feedback-empty {
   border-style: dashed;
 }
+.race-pass-card {
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+  border-top: 8px solid var(--red);
+}
+.race-pass-event {
+  margin: 0 0 10px;
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.race-pass-card h3,
+.race-pass-card span {
+  overflow-wrap: anywhere;
+}
+.race-pass-enrichment {
+  display: inline-block;
+  margin-top: 14px;
+  color: var(--deep);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+.runner-recovery {
+  margin-top: 40px;
+  padding: 22px;
+  border: 1px solid #d2cbc5;
+  border-radius: 20px;
+  background: #fffdf8;
+}
+.runner-recovery summary {
+  cursor: pointer;
+  color: var(--red);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
 
 .story {
   min-height: 100svh;

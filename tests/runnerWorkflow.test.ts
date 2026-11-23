@@ -54,6 +54,20 @@ describe("runner registration desk", () => {
     expect(form?.querySelector("label")?.control).toBe(form?.querySelector("input"));
     expect(form?.querySelector("button[type=submit]")?.textContent).toBe("Claim my registration");
     expect(container.textContent).not.toContain("Ask the organizer to link");
+    expect(container.querySelector("details[open] form")).toBe(form);
+  });
+
+  it("opens an official Wrapped first and keeps Strava as optional enrichment", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({
+      runners: [{ ...runner, workflowState: "setup_required", primaryAction: "view", wrappedAvailable: true }],
+      events: [],
+    }));
+    await renderDashboard();
+
+    const card = container.querySelector("main li")!;
+    expect(card.querySelector('a[href="/wrapped/runner-a"]')?.textContent).toBe("View Wrapped");
+    expect(card.querySelector('a[href="/runners/runner-a/strava"]')?.textContent).toMatch(/Strava/i);
+    expect(card.querySelectorAll("a")).toHaveLength(2);
   });
 
   it("presents exactly one next step in each runner's entry", async () => {

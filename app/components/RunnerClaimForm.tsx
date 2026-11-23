@@ -5,6 +5,7 @@ import {
   serverClaimTokenSnapshot,
   subscribeClaimToken,
 } from "./claimHandoff";
+import RunnerFeedback from "./RunnerFeedback";
 
 export default function RunnerClaimForm({ onClaimed }: { onClaimed: () => void }) {
   const inputId = useId();
@@ -90,8 +91,8 @@ export default function RunnerClaimForm({ onClaimed }: { onClaimed: () => void }
         </label>
         <button type="submit" disabled={pending}>Claim my registration</button>
       </div>
-      <p role="status">{pending ? "Claiming registration…" : notice}</p>
-      {error && <p role="alert">{error}</p>}
+      {(pending || notice) && <RunnerFeedback kind="status" title={pending ? "Claiming registration…" : notice} />}
+      {error && <RunnerFeedback kind="error" title={error} />}
     </form>
   );
 }
