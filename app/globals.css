@@ -810,6 +810,10 @@ td small {
   display: block;
   margin-top: 4px;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.organizer-access-list strong {
+  overflow-wrap: anywhere;
 }
 .organizer-access-code {
   display: grid;
@@ -1404,6 +1408,9 @@ td {
   background: #fffdf8;
 }
 .runner-recovery summary {
+  display: list-item;
+  min-height: 44px;
+  padding-block: 10px;
   cursor: pointer;
   color: var(--red);
   font-size: 1.1rem;
@@ -1539,7 +1546,7 @@ body:has(.story-state) {
   margin-top: 12px;
 }
 .story-tabs button {
-  min-height: 22px;
+  min-height: 44px;
   padding: 5px 0;
 }
 .story-tabs span {
@@ -1567,6 +1574,12 @@ body:has(.story-state) {
   position: relative;
   z-index: 1;
   min-height: calc(100svh - 220px);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.story-state,
+.story-header {
+  overflow-wrap: anywhere;
 }
 .scene-label {
   position: relative;
@@ -1587,6 +1600,7 @@ body:has(.story-state) {
   font-size: clamp(3.65rem, 13vw, 5rem);
   line-height: 0.88;
   letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
 }
 .story-content h2 {
   position: relative;
@@ -1596,6 +1610,7 @@ body:has(.story-state) {
   font-size: clamp(2.8rem, 10vw, 4rem);
   font-weight: 800;
   line-height: 0.92;
+  overflow-wrap: anywhere;
 }
 .story-intro {
   position: relative;
@@ -2099,6 +2114,8 @@ body:has(.story-state) {
     min-height: 44px;
   }
   .app-nav ul {
+    margin: -8px;
+    padding: 8px;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scrollbar-width: none;
@@ -2180,9 +2197,40 @@ body:has(.story-state) {
 
 @media (min-width: 1440px) {
   .content {
+    width: min(100%, 1180px);
     max-width: 1180px;
   }
   .app-header {
     padding-inline: max(32px, calc((100vw - 1180px) / 2));
+  }
+}
+
+@media (max-height: 450px) and (orientation: landscape) {
+  .story-header {
+    padding-top: 8px;
+  }
+  .story-tabs {
+    margin-top: 2px;
+  }
+  .story-content {
+    min-height: calc(100svh - 76px);
+    padding-top: 8px;
+    padding-bottom: 76px;
+  }
+  .story-scene {
+    min-height: calc(100svh - 152px);
+  }
+  .story-content h1,
+  .scene-finisher h1 {
+    margin-top: 8px;
+    font-size: clamp(1.9rem, 5vw, 2.5rem);
+  }
+  .story-content h2 {
+    margin-top: 8px;
+    font-size: clamp(1.9rem, 5vw, 2.5rem);
+  }
+  .story-controls {
+    padding-top: 8px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   }
 }

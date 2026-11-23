@@ -1,5 +1,18 @@
 # SRS V4 acceptance matrix
 
+## November 24, 2026 flexible UI breakpoints
+
+The Figma-aligned runner and organizer experience now contracts from 1920 px to 320 px without changing routes or workflow behavior. Intrinsic media and form containment, flexible card/configuration grids, compact auth spacing, wrapping organizer actions, stacked claim rows, wide-screen alignment, and touch-friendly interactive targets cover the shared shell, authentication, dashboard, profile, Strava setup, Wrapped, and organizer views.
+
+Verification on 2026-11-24:
+
+- Browser matrix: `/login`, `/register`, `/`, `/profile`, runner Strava setup, Wrapped, and `/organizer` were measured at 320, 390, 768, 1024, 1440, and 1920 px (42 combinations). Every document reported no horizontal overflow and no clipped interactive control.
+- Touch and focus: primary interactive controls and the seven Wrapped progress targets are at least 44 px high; compact progress segments remain deliberately narrow enough to keep all seven visible. The horizontally scrollable compact navigation includes clearance for its 3 px outline plus 4 px offset, and the existing reduced-motion override remains active.
+- Automated: 48 Vitest files passed (788 tests), with 21 environment-gated tests skipped. ESLint, TypeScript, and the Next.js production build passed.
+- Visual evidence: the authenticated 390 × 844 runner dashboard and 1440 × 900 organizer console were inspected after the final CSS changes; Wrapped progress and controls were also measured in a short 667 × 375 landscape viewport.
+
+The browser matrix is Chromium acceptance, not separate Safari/Firefox/mobile-device certification. Real Google/Strava provider round trips and database-gated suites remain external gates.
+
 ## November 23, 2026 runner journey and Figma alignment
 
 The runner-first journey now treats an official chip result as sufficient for a seven-scene Wrapped and PNG export; Strava is optional enrichment. Login, BIB registration, race passes, every Strava workflow state, Wrapped, profile, and organizer tools share the red/cream/lime Figma language.
