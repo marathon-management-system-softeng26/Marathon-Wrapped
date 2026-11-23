@@ -91,7 +91,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
 
   async function save() {
     if (!payload || !model?.exportable) return; const controller = new AbortController(); exportRequest.current = controller; setSaving(true); setNotice("");
-    try { await exportWrapped(payload as StravaFirstWrappedPayload, controller.signal); setNotice("PNG ready. Check your browser downloads."); }
+    try { await exportWrapped(payload, controller.signal); setNotice("PNG ready. Check your browser downloads."); }
     catch (cause) { if (!controller.signal.aborted) setNotice(cause instanceof Error ? cause.message : "Image could not be saved. Please retry."); }
     finally { exportRequest.current = null; setSaving(false); }
   }
@@ -120,7 +120,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       {slide===3&&<div className="story-scene scene-splits"><p className="scene-label">Splits</p><h2 ref={heading} tabIndex={-1}>Race splits</h2><StravaSplitChart splits={chartSplits} fastestKilometer={readySnapshot?.fastestKilometer??null} paceTrend={readySnapshot?.paceTrend??null} /></div>}
       {slide===4&&<div className="story-scene scene-context"><p className="scene-label">Race context</p><h2 ref={heading} tabIndex={-1}>{strava?"Your Strava activity":"Official race context"}</h2>{strava?<StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />:<RunnerFeedback kind="empty" title="No Strava activity added."><p>Your official result already powers this Wrapped.</p></RunnerFeedback>}</div>}
       {slide===5&&<div className="story-scene scene-photos"><h2 ref={heading} tabIndex={-1}>Caught<br /><span>in the moment.</span></h2>{model.photos.length?<><div className="photo-grid">{model.photos.map((photo)=><RacePhoto key={photo.id} photo={photo} onOpen={()=>setSelected(photo)} />)}</div><p className="subtle">{model.photos.length} {model.photos.length===1?"photo":"photos"} mapped to BIB {registration.runner.bibNumber}.</p></>:<RunnerFeedback kind="empty" title="No photos are available for this BIB yet."><p>Your race statistics are still here.</p></RunnerFeedback>}</div>}
-      {slide===6&&<div className="story-scene scene-share"><p className="scene-label">Share</p><span className="share-year" aria-hidden="true">{registration.event.date.slice(0,4)}</span>{isOfficial(payload)?<div className="share-card"><b>{registration.runner.name}</b><strong>{(performance.distanceMeters/1000).toFixed(1)} km</strong><span>{time}</span></div>:<SharePreview payload={payload} />}<button className="save-button" onClick={save} disabled={saving}>{saving?"Preparing image…":"Save image"}</button><Link className="share-back" href="/">Back to my races</Link><p className="subtle">1080 × 1350 PNG</p></div>}
+      {slide===6&&<div className="story-scene scene-share"><p className="scene-label">Share</p><span className="share-year" aria-hidden="true">{registration.event.date.slice(0,4)}</span><SharePreview payload={payload} /><button className="save-button" onClick={save} disabled={saving}>{saving?"Preparing image…":"Save image"}</button><Link className="share-back" href="/">Back to my races</Link><p className="subtle">1080 × 1350 PNG</p></div>}
     </section>
     <StoryControls current={slide} count={pages.length} onPrevious={()=>setSlide((s)=>s-1)} onNext={()=>setSlide((s)=>s+1)} />
     <p className="export-notice" role="status">{notice}</p>{model.source==="strava"&&<p className="strava-attribution">Powered by Strava</p>}

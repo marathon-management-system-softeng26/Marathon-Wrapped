@@ -1,9 +1,9 @@
 import { shareModel } from "./shareModel";
-import type { StravaFirstWrappedPayload } from "./wrappedPayload";
+import type { RunnerWrappedPayload } from "./wrappedPayload";
 
 export async function renderWrapped(
   canvas: HTMLCanvasElement,
-  payload: StravaFirstWrappedPayload,
+  payload: RunnerWrappedPayload,
 ) {
   await renderShareModel(canvas, shareModel(payload));
 }
@@ -37,8 +37,8 @@ async function renderShareModel(
   ctx.font = '800 112px "Bricolage", sans-serif';
   ctx.fillText(distanceUnit, 540, 645, 650);
   ctx.font = '700 31px "Bricolage", sans-serif';
-  ctx.fillText(`${model.time} moving time`, 540, 725, 650);
-  ctx.fillText(model.pace === "Average pace unavailable" ? model.pace : `${model.pace} average pace`, 540, 775, 650);
+  ctx.fillText(`${model.time}${model.source === "official" ? " official time" : " moving time"}`, 540, 725, 650);
+  ctx.fillText(model.pace.includes("unavailable") ? model.pace : `${model.pace} average pace`, 540, 775, 650);
   ctx.fillText(model.bib ? `${model.name} · BIB ${model.bib}` : model.name, 540, 1025, 650);
   ctx.font = '700 24px "Bricolage", sans-serif';
   if (model.splitNote) ctx.fillText(model.splitNote, 540, 885, 650);
@@ -55,10 +55,10 @@ async function renderShareModel(
   ctx.font = '700 28px "Bricolage", sans-serif';
   ctx.fillText(model.event, 540, 1220, 936);
   ctx.font = '700 22px "Bricolage", sans-serif';
-  ctx.fillText("Powered by Strava", 540, 1275, 936);
+  ctx.fillText(model.attribution, 540, 1275, 936);
   ctx.textAlign = "start";
 }
-export async function exportWrapped(payload: StravaFirstWrappedPayload, signal?: AbortSignal) {
+export async function exportWrapped(payload: RunnerWrappedPayload, signal?: AbortSignal) {
   signal?.throwIfAborted();
   const model = shareModel(payload);
   const canvas = document.createElement("canvas");
