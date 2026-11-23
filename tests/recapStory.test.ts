@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RecapStory from "@/app/components/RecapStory";
 import { ready, registration, runnerId } from "./fixtures/stravaWrapped";
+import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
 vi.mock("next/image", () => ({ default: () => null }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
@@ -43,6 +44,35 @@ afterEach(async () => {
 });
 
 describe("Strava-first recap controls", () => {
+  it("renders all seven scenes from an official-only result", async () => {
+    const official: OfficialWrappedPayload = {
+      kind: "official", registration, photos: [], strava: { state: "unavailable" },
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
+        finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
+        gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null },
+    };
+    fetcher.mockResolvedValueOnce(Response.json(official));
+    await renderRecap();
+
+    expect(container.querySelectorAll("nav[aria-label='Recap pages'] button")).toHaveLength(7);
+    expect(container.textContent).toContain("Hi Aina");
+    await click("Distance");
+    expect(container.textContent).toContain("5.0");
+    expect(container.textContent).toContain("33:10");
+  });
+
+  it("uses outcome-aware copy for an official DNF", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({
+      kind: "official", registration, photos: [], strava: { state: "unavailable" },
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "dnf",
+        finishTimeMs: null, netTimeMs: null, overallRank: null, division: null, divisionRank: null,
+        gender: null, genderRank: null, checkpoints: [], sourceUrl: null },
+    }));
+    await renderRecap();
+    await click("Your race");
+    expect(container.textContent).toContain("did not finish");
+    expect(container.textContent).not.toMatch(/finisher|average pace/i);
+  });
   it.each([
     ["disconnected", 200, "failed"],
     ["disconnecting", 202, "timeout"],

@@ -4,12 +4,24 @@ import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import StravaCard from "@/app/components/StravaCard";
+import ActivityCandidateCard from "@/app/components/ActivityCandidateCard";
+import RunnerJourneyState from "@/app/components/RunnerJourneyState";
 
 const runner = "11111111-1111-1111-1111-111111111111";
 const candidate = { activityId: "10", startTimeLocal: "2027-08-17T07:15:00+07:00", distanceMeters: 5000, sportType: "Run", gpsAvailable: false, matchReason: "missing_start_location" };
 const state = (value: WrappedPayloadStrava["state"]): WrappedPayloadStrava => ({ state: value, metrics: null, candidates: [candidate] });
 
 describe("Strava controls and readable state", () => {
+  it("renders reusable journey and candidate surfaces without invented duration or location", () => {
+    const model = stravaViewModel(state("needs_confirmation"), runner);
+    const html = renderToStaticMarkup(createElement(RunnerJourneyState, {
+      state: "confirmation", title: "Choose your race activity", body: "Confirm the run.",
+      action: createElement(ActivityCandidateCard, { candidate: model.candidates[0], selected: false, onSelect: () => {} }),
+    }));
+    expect(html).toContain("Run");
+    expect(html).toContain("GPS is unavailable");
+    expect(html).not.toMatch(/duration|Jl\.|street|venue/i);
+  });
   it("renders a real POST connect form and preserves baseline guidance", () => {
     const html = renderToStaticMarkup(createElement(StravaCard, { input: state("demo"), runnerId: runner, onRefresh: () => {} }));
     expect(html).toContain('action="/api/strava/connect"'); expect(html).toContain('method="post"');
@@ -96,7 +108,7 @@ describe("Strava controls and readable state", () => {
   });
   it("names confirmation date and distance without route details", () => {
     const model = stravaViewModel(state("needs_confirmation"), runner);
-    expect(model.candidates).toEqual([{ activityId: "10", label: "17 Aug 2027, 07:15 WIB · 5.00 km", note: "GPS is unavailable. Confirm this is your race activity." }]);
+    expect(model.candidates).toEqual([{ activityId: "10", label: "17 Aug 2027, 07:15 WIB · 5.00 km", note: "GPS is unavailable. Confirm this is your race activity.", sportType: "Run", matchReason: "Start location was unavailable" }]);
     expect(stravaViewModel(state("connected"), runner).candidates).toEqual([]);
   });
   it("preserves partial live measurements and provider cadence units", () => {

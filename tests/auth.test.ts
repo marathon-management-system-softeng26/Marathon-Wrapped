@@ -7,7 +7,12 @@ vi.mock("@/lib/supabaseServer", () => ({ getSupabaseAdmin: () => ({ from }) }));
 vi.mock("@/lib/supabaseSession", () => ({
   createSupabaseSession: async () => ({ auth: { getUser } }),
 }));
-import { requireUser, AuthenticationError } from "@/lib/auth/session";
+import {
+  requireUser,
+  requireConfirmedUser,
+  AuthenticationError,
+  UnconfirmedEmailError,
+} from "@/lib/auth/session";
 import {
   requireRunnerAccess,
   requireOrganizerAccess,
@@ -48,12 +53,34 @@ describe("verified identity and event access", () => {
     await expect(requireUser()).rejects.toThrow(AuthenticationError);
     expect(from).not.toHaveBeenCalled();
   });
+  it("separates an unconfirmed address from an invalid session", async () => {
+    getUser.mockResolvedValue({
+      data: { user: { id: "A", email: "a@example.invalid", email_confirmed_at: null } },
+      error: null,
+    });
+    // Signed in, so this must not be an AuthenticationError: the page would loop to /login.
+    await expect(requireConfirmedUser()).rejects.toThrow(UnconfirmedEmailError);
+    await expect(requireConfirmedUser()).rejects.not.toThrow(AuthenticationError);
+    expect(from).not.toHaveBeenCalled();
+
+    getUser.mockResolvedValue({
+      data: {
+        user: { id: "A", email: "a@example.invalid", email_confirmed_at: "2026-11-20T00:00:00Z" },
+      },
+      error: null,
+    });
+    expect(await requireConfirmedUser()).toEqual({
+      id: "A",
+      email: "a@example.invalid",
+      emailConfirmedAt: "2026-11-20T00:00:00Z",
+    });
+  });
   it("uses verified identity, never user metadata roles", async () => {
     getUser.mockResolvedValue({
       data: { user: { id: "A", user_metadata: { role: "organizer" } } },
       error: null,
     });
-    expect(await requireUser()).toEqual({ id: "A" });
+    expect(await requireUser()).toEqual({ id: "A", email: null, emailConfirmedAt: null });
     from.mockReturnValue(query(null));
     await expect(requireRunnerAccess("A", "B")).rejects.toThrow(
       AccessDeniedError,

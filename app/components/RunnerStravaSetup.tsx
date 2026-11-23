@@ -5,6 +5,7 @@ import AppHeader from "./AppHeader";
 import StravaCard from "./StravaCard";
 import { callbackFeedback, callbackNotice, routeToStrava } from "@/lib/strava/viewModel";
 import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
+import RunnerFeedback from "./RunnerFeedback";
 
 type RouteBody = Parameters<typeof routeToStrava>[0];
 
@@ -63,14 +64,14 @@ export default function RunnerStravaSetup({ runnerId, feedbackCode = null }: { r
           Choose the activity you ran so your Wrapped uses your own race data. This race is set up on its own, and
           your other races stay as they are.
         </p>
-        {notice && <p role="status" className="runner-strava-notice">{notice}</p>}
+        {notice && <RunnerFeedback kind="status" title={notice} />}
         {error && (
           <div className="runner-strava-error">
-            <p role="alert">{error}</p>
+            <RunnerFeedback kind="error" title={error} />
             <button type="button" onClick={refresh}>Try again</button>
           </div>
         )}
-        {!data && !error && <p role="status" className="loading">Loading your Strava setup…</p>}
+        {!data && !error && <RunnerFeedback kind="status" title="Loading your Strava setup…" />}
         {data && !error && <StravaCard input={data} runnerId={runnerId} onRefresh={refresh} stravaFirst ownsState />}
         <div className="runner-strava-links">
           {data?.state === "connected" && (

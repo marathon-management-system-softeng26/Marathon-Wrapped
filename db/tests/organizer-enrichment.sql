@@ -7,7 +7,7 @@ begin
  runner_key:=public.save_hero_runner(event_key,null,draft);
  assert (select avg_heartrate from public.strava_metrics where runner_id=runner_key)=150,'Full create saves demo metrics';
  assert (select data_source from public.strava_metrics where runner_id=runner_key)='demo','Must label demo metrics';
- assert (select count(*) from public.fotoyu_photos where bib_number='QA-ENRICHMENT')=1,'Full create saves exact BIB photos';
+ assert (select count(*) from public.fotoyu_photos where runner_id=runner_key)=1,'Full create saves photos for the runner UUID';
  rejected:=false;
  begin
   perform public.save_hero_runner(event_key,runner_key,jsonb_set(jsonb_set(draft,'{name}','"Should roll back"'),'{enrichment,photos,0,captured_km}','6'));
@@ -15,12 +15,12 @@ begin
  assert rejected,'Invalid optional photo must reject';
  assert (select name from public.runners where id=runner_key)='QA full aggregate','Late optional rejection rolls back identity';
  assert (select avg_heartrate from public.strava_metrics where runner_id=runner_key)=150,'Late rejection restores metrics';
- assert (select count(*) from public.fotoyu_photos where bib_number='QA-ENRICHMENT')=1,'Late rejection restores photos';
+ assert (select count(*) from public.fotoyu_photos where runner_id=runner_key)=1,'Late rejection restores photos';
  perform public.save_hero_runner(event_key,runner_key,draft-'enrichment');
- assert (select count(*) from public.fotoyu_photos where bib_number='QA-ENRICHMENT')=1,'Absent enrichment preserves old callers';
+ assert (select count(*) from public.fotoyu_photos where runner_id=runner_key)=1,'Absent enrichment preserves old callers';
  perform public.save_hero_runner(event_key,runner_key,jsonb_set(draft,'{enrichment}','{"metrics":null,"photos":[]}'));
  assert not exists(select 1 from public.strava_metrics where runner_id=runner_key),'Explicit removal clears metrics';
- assert not exists(select 1 from public.fotoyu_photos where bib_number='QA-ENRICHMENT'),'Explicit removal clears photo mappings';
+ assert not exists(select 1 from public.fotoyu_photos where runner_id=runner_key),'Explicit removal clears photo mappings';
  assert not has_function_privilege('authenticated','public.save_hero_runner(bigint,uuid,jsonb)','execute'),'Full RPC remains service-only';
 end $$;
 rollback;

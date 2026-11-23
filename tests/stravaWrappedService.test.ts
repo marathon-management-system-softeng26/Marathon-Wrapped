@@ -25,6 +25,12 @@ describe("stored Strava Wrapped service", () => {
     expect(db.requests.map((url) => url.href).join("\n")).not.toMatch(/access_token|refresh_token/);
   });
 
+  it("keeps race photos scoped to a runner when editions reuse a BIB", async () => {
+    const db = wrappedDatabase("ready", { anotherRunnerWithSameBib: true });
+    mocks.db.mockReturnValue(db.client);
+    expect(await getWrapped(ownerId, runnerId)).toStrictEqual(ready);
+  });
+
   it("rejects organizer access before reading any Strava or photo data", async () => {
     const db = wrappedDatabase();
     mocks.db.mockReturnValue(db.client);

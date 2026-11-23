@@ -1,14 +1,25 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useCatalog } from "./useCatalog";
 import AppHeader from "./AppHeader";
 import type { HeroRunnerDraft } from "@/lib/heroValidation";
+import type { CategoryName } from "@/lib/types";
 import { formatMmSs } from "@/lib/format";
 import { changeDraftCategory } from "@/lib/organizerDraft";
+import { toRaceLocalInput, withRaceZone } from "@/lib/raceTime";
+import {
+  DEFAULT_MIN_AGE,
+  describeAgeRule,
+  describeEligibilityProblem,
+  latestEligibleBirthDate,
+} from "@/lib/eligibility";
 import OrganizerEnrichmentEditor from "./OrganizerEnrichmentEditor";
 import OrganizerRunnerAccess from "./OrganizerRunnerAccess";
 import OrganizerStravaRaceConfig from "./OrganizerStravaRaceConfig";
+import RunnerFeedback from "./RunnerFeedback";
+type EventSummary = { name: string; event_date: string } | null;
+type CategoryRule = { name: string; min_age: number };
 type Row = {
   runner_id: string;
   name: string;
@@ -32,8 +43,11 @@ const empty: HeroRunnerDraft = {
 };
 export default function OrganizerPanel() {
   const { data, error: catalogError, retry } = useCatalog();
+  const dobProblemId = useId();
   const [eventId, setEventId] = useState(""),
     [rows, setRows] = useState<Row[]>([]),
+    [event, setEvent] = useState<EventSummary>(null),
+    [rules, setRules] = useState<CategoryRule[]>([]),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
     [version, setVersion] = useState(0),
@@ -58,6 +72,8 @@ export default function OrganizerPanel() {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error);
         setRows(body.results ?? body);
+        setEvent(body.event ?? null);
+        setRules(body.categories ?? []);
         setError("");
       })
       .catch((cause) => {
@@ -90,9 +106,32 @@ export default function OrganizerPanel() {
       setBusy(false);
     }
   }
-  async function save(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  // The database decides eligibility from the race date and the category's own minimum. Both
+  // travel with the results, so the form can apply the same rule instead of letting a knowable
+  // mistake come back as a generic save rejection.
+  const raceDate = event?.event_date ?? null;
+  const minAgeFor = (category: CategoryName) =>
+    rules.find((rule) => rule.name === category)?.min_age ?? DEFAULT_MIN_AGE[category];
+  const minAge = draft ? minAgeFor(draft.category) : DEFAULT_MIN_AGE["5K"];
+  const ageRule = draft ? describeAgeRule(draft.category, minAge, raceDate) : "";
+  const eligibilityProblem = draft
+    ? describeEligibilityProblem(
+        draft.date_of_birth,
+        raceDate,
+        draft.category,
+        minAge,
+        draft.parental_consent,
+      )
+    : "";
+
+  async function save(submitEvent: FormEvent<HTMLFormElement>) {
+    submitEvent.preventDefault();
     if (!draft) return;
+    if (eligibilityProblem) {
+      setMessageError(true);
+      setMessage(eligibilityProblem);
+      return;
+    }
     setBusy(true);
     setMessage("");
     setMessageError(false);
@@ -155,22 +194,23 @@ export default function OrganizerPanel() {
   }
   return (
     <div className="workspace">
-      <AppHeader />
-      <main className="content organizer">
+      <AppHeader showOrganizerLink />
+      <main className="content organizer organizer-shell">
         <Link href="/">← Your races</Link>
+        <header className="organizer-hero">
+        <p className="organizer-kicker">Organizer console</p>
         <h1>Race control.</h1>
         <p>
           Manage synthetic runners and chip results. Saves replace timing and
           splits together.
         </p>
+        </header>
         {catalogError ? (
-          <p role="alert">
-            {catalogError} <button onClick={retry}>Try again</button>
-          </p>
+          <RunnerFeedback kind="error" title={catalogError}><button onClick={retry}>Try again</button></RunnerFeedback>
         ) : !data ? (
-          <p role="status">Checking event access…</p>
+          <RunnerFeedback kind="status" title="Checking event access…" />
         ) : !data.events.length ? (
-          <p>You do not have organizer access to an event.</p>
+          <RunnerFeedback kind="empty" title="No organizer access"><p>You do not have organizer access to an event.</p></RunnerFeedback>
         ) : (
           <>
             <div className="toolbar">
@@ -179,15 +219,15 @@ export default function OrganizerPanel() {
                 <select
                   value={selected}
                   disabled={busy || !!draft}
-                  onChange={(event) => {
-                    setEventId(event.target.value);
+                  onChange={(change) => {
+                    setEventId(change.target.value);
                     setRows([]);
                     setLoading(true);
                   }}
                 >
-                  {data.events.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.name}
+                  {data.events.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
                     </option>
                   ))}
                 </select>
@@ -204,27 +244,21 @@ export default function OrganizerPanel() {
               </button>
             </div>
             {error && (
-              <p role="alert">
-                {error}{" "}
+              <RunnerFeedback kind="error" title={error}>
                 <button onClick={() => setVersion((v) => v + 1)}>
                   Retry results
                 </button>
-              </p>
+              </RunnerFeedback>
             )}
             {message && (
-              <p
-                role={messageError ? "alert" : "status"}
-                className={messageError ? "error" : "save-message"}
-              >
-                {message}
-              </p>
+              <RunnerFeedback kind={messageError ? "error" : "status"} title={message} />
             )}
             {draft && (
               <form className="runner-editor" onSubmit={save}>
                 <h2>{editing ? "Edit runner" : "Add a hero runner"}</h2>
                 <p>
-                  5K minimum age 13; 10K minimum age 17. Under 17 needs parental
-                  consent. BIB cannot change after assignment.
+                  {ageRule} Under 17 needs parental consent. BIB cannot change
+                  after assignment.
                 </p>
                 <fieldset disabled={busy}>
                   <div className="form-grid">
@@ -253,9 +287,16 @@ export default function OrganizerPanel() {
                       <input
                         required
                         type="date"
+                        max={latestEligibleBirthDate(raceDate, minAge) || undefined}
+                        aria-describedby={eligibilityProblem ? dobProblemId : undefined}
                         value={draft.date_of_birth}
                         onChange={(e) => field("date_of_birth", e.target.value)}
                       />
+                      {eligibilityProblem && (
+                        <small className="field-problem" id={dobProblemId} role="alert">
+                          {eligibilityProblem}
+                        </small>
+                      )}
                     </label>
                     <label>
                       Gender
@@ -327,30 +368,40 @@ export default function OrganizerPanel() {
                           </select>
                         </label>
                         <label>
-                          Start timestamp (include timezone)
+                          Start time (WIB)
                           <input
                             required
-                            placeholder="2027-08-17T06:00:00+07:00"
-                            value={draft.result.start_time ?? ""}
+                            type="datetime-local"
+                            step="1"
+                            value={toRaceLocalInput(draft.result.start_time, {
+                              seconds: true,
+                            })}
                             onChange={(e) =>
                               field("result", {
                                 ...draft.result!,
-                                start_time: e.target.value,
+                                start_time: e.target.value
+                                  ? withRaceZone(e.target.value)
+                                  : null,
                               })
                             }
                           />
                         </label>
                         {status === "finisher" && (
                           <label>
-                            Finish timestamp (include timezone)
+                            Finish time (WIB)
                             <input
                               required
-                              placeholder="2027-08-17T06:25:23+07:00"
-                              value={draft.result.finish_time ?? ""}
+                              type="datetime-local"
+                              step="1"
+                              value={toRaceLocalInput(draft.result.finish_time, {
+                                seconds: true,
+                              })}
                               onChange={(e) =>
                                 field("result", {
                                   ...draft.result!,
-                                  finish_time: e.target.value,
+                                  finish_time: e.target.value
+                                    ? withRaceZone(e.target.value)
+                                    : null,
                                 })
                               }
                             />
@@ -425,7 +476,7 @@ export default function OrganizerPanel() {
               </form>
             )}
             {loading ? (
-              <p role="status">Refreshing results…</p>
+              <RunnerFeedback kind="status" title="Refreshing results…" />
             ) : (
               <div className="table-scroll">
                 <table>

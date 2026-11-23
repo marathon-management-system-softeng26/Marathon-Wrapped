@@ -1,6 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
+import { startGoogleSignIn } from "@/lib/auth/google";
+import AuthMasthead from "@/app/components/AuthMasthead";
+import AuthPanel from "@/app/components/AuthPanel";
+import RunnerFeedback from "@/app/components/RunnerFeedback";
 export default function Login() {
   const [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -30,23 +35,23 @@ export default function Login() {
       setBusy(false);
     }
   }
+  async function googleSignIn() {
+    setBusy(true);
+    setError("");
+    try {
+      const error = await startGoogleSignIn();
+      if (error) throw error;
+    } catch {
+      setError("Google sign-in is unavailable. Please retry.");
+      setBusy(false);
+    }
+  }
   return (
-    <main className="login-layout">
-      <section className="login-story">
-        <div className="login-story-content">
-          <h1>
-            <span>Soekarno</span>
-            <br />
-            <b>Run</b>
-            <br />
-            2027
-          </h1>
-          <p>Your race, in numbers, photos and one good memory.</p>
-        </div>
-      </section>
-      <section className="login-form">
+    <main className="auth-layout">
+      <AuthMasthead />
+      <div className="auth-panel-stage">
+        <AuthPanel title="Back to your race." footer={<>New here? <Link href="/register">Create account</Link></>}>
         <form onSubmit={submit}>
-          <h2>Back to your race.</h2>
           <label>
             Email
             <input
@@ -67,13 +72,16 @@ export default function Login() {
               maxLength={1024}
             />
           </label>
-          {error && (
-            <p className="error" role="alert">
-              {error}
-            </p>
-          )}
+          {error && <RunnerFeedback kind="error" title={error} />}
           <button disabled={busy} type="submit">
             {busy ? "Signing in…" : "Find my race"}
+          </button>
+          <div className="auth-divider" aria-hidden="true">
+            <span>or</span>
+          </div>
+          <button className="google-auth-button" disabled={busy} onClick={googleSignIn} type="button">
+            <Image alt="" aria-hidden="true" height={20} src="/auth/google-g.svg" width={20} />
+            Continue with Google
           </button>
           <button
             className="auth-text-button"
@@ -83,11 +91,9 @@ export default function Login() {
           >
             Forgot Password?
           </button>
-          <p className="auth-switch">
-            New here? <Link href="/register">Create account</Link>
-          </p>
         </form>
-      </section>
+        </AuthPanel>
+      </div>
     </main>
   );
 }

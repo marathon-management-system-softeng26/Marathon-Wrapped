@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { renderWrapped } from "@/lib/exportWrapped";
 import { shareModel } from "@/lib/shareModel";
-import type { StravaFirstWrappedPayload } from "@/lib/wrappedPayload";
-export default function SharePreview({ payload }: { payload: Extract<StravaFirstWrappedPayload, { state: "ready" }> }) {
+import type { RunnerWrappedPayload } from "@/lib/wrappedPayload";
+export default function SharePreview({ payload }: { payload: RunnerWrappedPayload }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [error, setError] = useState("");
   const model = shareModel(payload);
@@ -29,7 +29,7 @@ export default function SharePreview({ payload }: { payload: Extract<StravaFirst
         width={1080}
         height={1350}
         role="img"
-        aria-label={`${model.name}, ${model.distance}, moving time ${model.time}, ${payload.snapshot.averagePaceSecondsPerKm === null ? model.pace : `average pace ${model.pace}`}.`}
+        aria-label={`${model.name}, ${model.distance}, ${model.source === "official" ? "official time" : "moving time"} ${model.time}, ${model.pace.includes("unavailable") ? model.pace : `average pace ${model.pace}`}.`}
       />
     </>
   );

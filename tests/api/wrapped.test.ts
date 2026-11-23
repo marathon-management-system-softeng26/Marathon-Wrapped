@@ -19,7 +19,7 @@ describe("private Wrapped HTTP boundary", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.user.mockResolvedValue({ id: ownerId });
-    mocks.wrapped.mockResolvedValue({ status: "finisher", stats: { elapsed_seconds: 1523 } });
+    mocks.wrapped.mockResolvedValue(null);
   });
 
   it.each<TestState>(["setup_required", "authorizing", "importing", "needs_confirmation", "no_match", "building", "ready", "failed", "reauth_required"])(
@@ -33,7 +33,7 @@ describe("private Wrapped HTTP boundary", () => {
       const body = await response.json();
       const expected = state === "ready" ? ready : state === "needs_confirmation" ? { state, registration, candidates: [candidate] } : { state, registration };
       expect(body).toStrictEqual(expected);
-      expect(mocks.wrapped).not.toHaveBeenCalled();
+      expect(mocks.wrapped).toHaveBeenCalledWith(ownerId, runnerId);
       expect(mocks.chip).not.toHaveBeenCalled();
       expect(mocks.runnerSummary).not.toHaveBeenCalled();
     },

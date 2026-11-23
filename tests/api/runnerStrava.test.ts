@@ -233,7 +233,7 @@ describe("runner Strava access and safe states", () => {
   it("uses selected live metrics ahead of demo without changing photo data", async () => {
     candidate(); selected();
     tables.strava_metrics = [{ runner_id: runnerId, data_source: "demo", avg_heartrate: 999, avg_cadence: 180 }];
-    tables.fotoyu_photos = [{ id: "photo", bib_number: "A1001", photo_url: "/photos/demo-race.jpg" }];
+    tables.fotoyu_photos = [{ id: "photo", runner_id: runnerId, bib_number: "A1001", photo_url: "/photos/demo-race.jpg" }];
     const result = await getRunnerEnrichment(runnerId, "A1001", new AbortController().signal, "user");
     expect(result.strava).toMatchObject({ state: "connected", metrics: { avg_heartrate: 145.5, max_heartrate: null, elevation_gain_m: 0, calories: null, avg_cadence: 80.5 } });
     expect(result.photos).toHaveLength(1);
@@ -431,6 +431,7 @@ describe("runner Strava access and safe states", () => {
     expect(stravaViewModel(routeToStrava(body), runnerId).candidates).toEqual([{
       activityId: "10", label: "17 Aug 2027, 08:05 WIB · 5.24 km",
       note: "GPS is unavailable. Confirm this is your race activity.",
+      sportType: "Run", matchReason: "Start location was unavailable",
     }]);
     expect(tables.strava_activity_candidates[0].summary).toEqual({
       startDate: "2027-08-17T01:05:00.000Z", distanceMeters: 5240, gpsAvailable: false,

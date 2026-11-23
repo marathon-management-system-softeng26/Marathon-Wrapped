@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { exportWrapped } from "@/lib/exportWrapped";
 import { privateFields, ready, snapshot } from "./fixtures/stravaWrapped";
+import { registration, runnerId } from "./fixtures/stravaWrapped";
+import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
 function mockCanvas(blob: Blob | null = null) {
   const ctx = { fillRect: vi.fn(), fillText: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fill: vi.fn() };
@@ -18,6 +20,17 @@ afterEach(() => {
 });
 
 describe("Wrapped PNG export", () => {
+  it("draws an official result without Strava attribution", async () => {
+    const { ctx } = mockCanvas();
+    const official: OfficialWrappedPayload = { kind: "official", registration, photos: [], strava: { state: "unavailable" }, result: {
+      runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished", finishTimeMs: 2_000_000,
+      netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4, gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null,
+    } };
+    await expect(exportWrapped(official)).rejects.toThrow("Could not create image. Retry");
+    const drawn = ctx.fillText.mock.calls.map(([value]) => String(value));
+    expect(drawn).toEqual(expect.arrayContaining(["33:10 official time", "Official race result"]));
+    expect(drawn).not.toContain("Powered by Strava");
+  });
   it("draws Strava moving time, pace and splits without chip, provider identity, location or health data", async () => {
     const { ctx, canvas, anchor } = mockCanvas(new Blob(["png"], { type: "image/png" }));
     vi.stubGlobal("window", { setTimeout: vi.fn() });

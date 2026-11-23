@@ -1,36 +1,43 @@
-import { privateHeaders, sameOrigin } from "@/lib/authHttp";
+import {
+  allowBibRequest,
+  beginBibSignup,
+  bibResponse,
+  readAcceptedBibTicket,
+  readBibJson,
+} from "@/lib/auth/bibRegistration";
+import { sameOrigin } from "@/lib/authHttp";
 import { createSupabaseSession } from "@/lib/supabaseSession";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 
 export async function POST(request: Request) {
-  if (!sameOrigin(request)) {
-    return Response.json(
-      { error: "Open registration from this application." },
-      { status: 403, headers: privateHeaders },
-    );
+  if (!sameOrigin(request)) return bibResponse({ error: "Open registration from this application." }, 403);
+
+  const body = await readBibJson(request, 8192);
+  const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = body?.password;
+  if (
+    email.length > 254 ||
+    !/^[^\s@]+@[^\s@]+$/.test(email) ||
+    typeof password !== "string" ||
+    password.length < 8 ||
+    password.length > 1024
+  ) {
+    return bibResponse({ error: "Enter a valid email and a password of at least 8 characters." }, 400);
   }
 
+  const ticket = readAcceptedBibTicket(request);
+  if (!ticket) return bibResponse({ error: "Look up and confirm your BIB first." }, 409);
+
   try {
-    const { email, password } = await request.json();
-    if (
-      typeof email !== "string" ||
-      typeof password !== "string" ||
-      email.length > 254 ||
-      password.length > 1024 ||
-      !email.trim() ||
-      password.length < 8
-    ) {
-      return Response.json(
-        { error: "Enter a valid email and a password of at least 8 characters." },
-        { status: 400, headers: privateHeaders },
-      );
+    if (!(await allowBibRequest(request, "submission"))) {
+      return bibResponse({ error: "Too many attempts. Wait a few minutes and try again." }, 429);
+    }
+    if (await beginBibSignup(ticket, email) !== "reserved") {
+      return bibResponse({ error: "This BIB could not be reserved. Look it up again and retry." }, 409);
     }
 
     const client = await createSupabaseSession();
-    const { data, error } = await client.auth.signUp({
-      email: email.trim(),
-      password,
-    });
+    const { data, error } = await client.auth.signUp({ email, password });
 
     if (
       error &&
@@ -41,26 +48,17 @@ export async function POST(request: Request) {
     ) {
       throw new Error("Authentication unavailable");
     }
-
-    if (error) {
-      return Response.json(
-        { error: "Account creation failed. Check your details and try again." },
-        { status: 400, headers: privateHeaders },
-      );
+    if (error && error.code !== "user_already_exists" && error.code !== "email_exists") {
+      return bibResponse({ error: "Account creation failed. Check your details and try again." }, 400);
+    }
+    if (data.session) {
+      // Email confirmation must be enabled in Supabase Auth.
+      await client.auth.signOut({ scope: "local" });
+      throw new Error("Email confirmation is unavailable");
     }
 
-    const requiresEmailConfirmation = !data.session;
-    return Response.json(
-      { ok: true, requiresEmailConfirmation },
-      {
-        status: requiresEmailConfirmation ? 201 : 200,
-        headers: privateHeaders,
-      },
-    );
+    return bibResponse({ ok: true, requiresEmailConfirmation: true }, 201);
   } catch {
-    return Response.json(
-      { error: "Account creation is unavailable. Please retry." },
-      { status: 503, headers: privateHeaders },
-    );
+    return bibResponse({ error: "Account creation is unavailable. Please retry." }, 503);
   }
 }

@@ -13,7 +13,7 @@ import {
   subscribeClaimToken,
 } from "@/app/components/claimHandoff";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({}) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({}), usePathname: () => "/" }));
 
 const fetcher = vi.fn<typeof fetch>();
 const token = "z".repeat(43);

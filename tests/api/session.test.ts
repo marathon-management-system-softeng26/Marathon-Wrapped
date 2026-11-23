@@ -25,7 +25,7 @@ import { snapshot } from "../fixtures/stravaWrapped";
 function catalogDatabase() {
   const userId = "verified";
   const generation = "generation-current";
-  const ownedIds = ["attach", "import", "confirm", "no-match", "build", "ready", "failed", "invalid"];
+  const ownedIds = ["attach", "import", "confirm", "no-match", "build", "ready", "failed", "invalid", "official"];
   const event = { id: 1, name: "Soekarno Run" };
   const runners = [...ownedIds, "event-only"].map((id) => ({
     id, category_id: 1, name: `Runner ${id}`, bib_number: `BIB-${id}`,
@@ -45,10 +45,12 @@ function catalogDatabase() {
     events: [event],
     categories: [{ id: 1, event_id: 1 }],
     runners,
+    official_race_results: [{ runner_id: "official" }],
+    runner_wrapped: [{ runner_id: "import" }],
     strava_connections: [{ ...scope, status: "active", athlete_id: "987654321", credentials_uncertain: false,
       granted_scopes: ["activity:read_all"], access_token: "private-token" }],
     strava_oauth_attempts: [],
-    strava_runner_attachments: [...ownedIds.slice(1).map(attach), { ...attach("attach"), generation: "old" }],
+    strava_runner_attachments: [...ownedIds.slice(1, -1).map(attach), { ...attach("attach"), generation: "old" }],
     strava_runner_activities: ["build", "ready", "failed", "invalid"].map((runner_id) => ({
       ...scope, runner_id, activity_id: "123456789", strava_wrapped_snapshots: {
         build: [], ready: [{ status: "ready", payload: ready }], failed: [{ status: "failed", payload: null }],
@@ -149,6 +151,9 @@ describe("session HTTP boundaries", () => {
     });
   });
   it("signs in through the cookie-aware client", async () => {
+    const user = { id: "00000000-0000-4000-8000-000000000001", email_confirmed_at: "2026-11-20T00:00:00Z" };
+    mocks.login.mockResolvedValue({ data: { session: { user }, user }, error: null });
+    mocks.database.mockReturnValue({ rpc: vi.fn().mockResolvedValue({ data: [], error: null }) });
     const response = await login(
       request({ email: " a@example.test ", password: "test" }),
     );
@@ -178,11 +183,12 @@ describe("session HTTP boundaries", () => {
     const { runners, events } = JSON.parse(body);
     expect(events).toEqual([{ id: 1, name: "Soekarno Run" }]);
     expect(runners).toContainEqual({ id: "attach", name: "Runner attach", bib_number: "BIB-attach", event: "Soekarno Run",
-      category: "5K", workflowState: "setup_required", primaryAction: "attach" });
+      category: "5K", workflowState: "setup_required", primaryAction: "attach", wrappedAvailable: false });
     expect(Object.fromEntries(runners.map((row: Record<string, string>) => [row.id, [row.workflowState, row.primaryAction]]))).toEqual({
-      attach: ["setup_required", "attach"], import: ["importing", "importing"], confirm: ["needs_confirmation", "confirm"],
+      attach: ["setup_required", "attach"], import: ["importing", "view"], confirm: ["needs_confirmation", "confirm"],
       "no-match": ["no_match", "review_import"], build: ["building", "building"], ready: ["ready", "view"],
       failed: ["failed", "failed"], invalid: ["failed", "failed"],
+      official: ["setup_required", "view"],
     });
     expect(body).not.toMatch(/987654321|123456789|private-token|activity_id|athlete_id|payload|candidate|fence/);
     const tables = requests.map((url) => url.pathname.split("/").at(-1));
@@ -192,6 +198,21 @@ describe("session HTTP boundaries", () => {
       expect(url.searchParams.get("select")).not.toMatch(/access_token|refresh_token|\*/);
       expect(url.href).not.toContain("event-only");
     }
+  });
+
+  it("opens an official result immediately while preserving its Strava workflow", async () => {
+    catalogDatabase();
+
+    const response = await GET();
+    const { runners } = await response.json();
+    const official = runners.find((row: { id: string }) => row.id === "official");
+
+    expect(official).toMatchObject({
+      workflowState: "setup_required",
+      primaryAction: "view",
+      wrappedAvailable: true,
+    });
+    expect(runners.find((row: { id: string }) => row.id === "import").wrappedAvailable).toBe(true);
   });
 
   it("returns organizer events without reading organizer-only runners or Strava state", async () => {
@@ -221,5 +242,53 @@ describe("session HTTP boundaries", () => {
     expect(await status()).toMatchObject({ workflowState: "authorizing", primaryAction: "check_authorization" });
     tables.strava_oauth_attempts[0].expires_at = "2000-01-01T00:00:00Z";
     expect(await status()).toMatchObject({ workflowState: "reauth_required", primaryAction: "reauthorize" });
+  });
+});
+
+describe("BIB signup login finalization", () => {
+  const verified = "00000000-0000-4000-8000-000000000001";
+  const confirmedLogin = {
+    data: {
+      session: { access_token: "test", user: { id: verified } },
+      user: { id: verified, email_confirmed_at: "2026-11-20T00:00:00.000Z" },
+    },
+    error: null,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.login.mockResolvedValue(confirmedLogin);
+  });
+
+  it("finalizes an active reservation after a confirmed password login without a BIB cookie", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+    mocks.database.mockReturnValue({ rpc });
+    const response = await login(request({ email: "a@example.test", password: "test" }));
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith("finalize_bib_signup", { p_user_id: verified });
+    expect(rpc.mock.invocationCallOrder[0]).toBeGreaterThan(mocks.login.mock.invocationCallOrder[0]);
+  });
+
+  it("lets the next confirmed login retry after a temporary database failure", async () => {
+    const rpc = vi.fn()
+      .mockResolvedValueOnce({ data: null, error: { message: "private detail" } })
+      .mockResolvedValueOnce({ data: [], error: null });
+    mocks.database.mockReturnValue({ rpc });
+    const credentials = { email: "a@example.test", password: "test" };
+    const failed = await login(request(credentials));
+    expect(failed.status).toBe(503);
+    expect(await failed.text()).not.toContain("private detail");
+    expect((await login(request(credentials))).status).toBe(200);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not finalize when Auth reports an unconfirmed identity", async () => {
+    mocks.login.mockResolvedValue({
+      ...confirmedLogin,
+      data: { ...confirmedLogin.data, user: { id: verified, email_confirmed_at: null } },
+    });
+    const response = await login(request({ email: "a@example.test", password: "test" }));
+    expect(response.status).toBe(403);
+    expect(mocks.database).not.toHaveBeenCalled();
   });
 });

@@ -47,7 +47,7 @@ export async function getHeroDraft(
     db
       .from("fotoyu_photos")
       .select("photo_url,photographer,captured_km,captured_at")
-      .eq("bib_number", row.data.bib_number),
+      .eq("runner_id", runnerId),
   ]);
   if (chip.error || splits.error || metrics.error || photos.error)
     throw new Error("Result unavailable");
@@ -90,7 +90,7 @@ export class OrganizerSaveError extends Error {
     super(
       conflict
         ? "That BIB is already assigned. Use a different BIB."
-        : "The save was rejected. Check the BIB, eligibility, category, timing and splits.",
+        : "The save was rejected. Check the BIB, the race-day minimum age for this category, parental consent under 17, the category, timing and splits.",
     );
     this.name = "OrganizerSaveError";
     this.status = conflict ? 409 : 422;
@@ -123,15 +123,31 @@ export async function saveHeroRunner(
   return { runner_id: data };
 }
 
+/**
+ * Event results, plus the eligibility rule the `runners_eligibility` trigger enforces.
+ *
+ * The race date and each category's `min_age` travel with the results so the organizer form can
+ * state and apply the same rule where a date of birth is actually typed. Neither value is private:
+ * a race day and a category minimum are published entry requirements.
+ */
 export async function getEventResults(userId: string, eventId: number) {
   await requireOrganizerAccess(userId, eventId);
   const db = getSupabaseAdmin();
-  const categories = await db
-    .from("categories")
-    .select("id,name,distance_km")
-    .eq("event_id", eventId);
-  if (categories.error) throw new Error("Event results are unavailable.");
-  if (!categories.data.length) return [];
+  const [eventRow, categories] = await Promise.all([
+    db.from("events").select("name,event_date").eq("id", eventId).maybeSingle(),
+    db.from("categories").select("id,name,distance_km,min_age").eq("event_id", eventId),
+  ]);
+  if (eventRow.error || categories.error)
+    throw new Error("Event results are unavailable.");
+  const event = eventRow.data
+    ? { name: eventRow.data.name, event_date: eventRow.data.event_date }
+    : null;
+  const eligibility = categories.data.map((category) => ({
+    name: category.name,
+    min_age: category.min_age,
+  }));
+  const empty = { event, categories: eligibility, results: [] };
+  if (!categories.data.length) return empty;
   const runners = await db
     .from("runners")
     .select("id,bib_number,name,category_id")
@@ -141,7 +157,7 @@ export async function getEventResults(userId: string, eventId: number) {
     )
     .order("bib_number");
   if (runners.error) throw new Error("Event results are unavailable.");
-  if (!runners.data.length) return [];
+  if (!runners.data.length) return empty;
   const results = await db
     .from("runner_wrapped")
     .select(
@@ -163,7 +179,7 @@ export async function getEventResults(userId: string, eventId: number) {
     );
   if (access.error) throw new Error("Event results are unavailable.");
   const linked = new Set((access.data ?? []).map((row) => row.runner_id));
-  return runners.data.map((runner) => {
+  const rows = runners.data.map((runner) => {
     const category = categories.data.find((c) => c.id === runner.category_id)!;
     const result = results.data.find((r) => r.runner_id === runner.id);
     return {
@@ -186,4 +202,5 @@ export async function getEventResults(userId: string, eventId: number) {
       linked: linked.has(runner.id),
     };
   });
+  return { event, categories: eligibility, results: rows };
 }

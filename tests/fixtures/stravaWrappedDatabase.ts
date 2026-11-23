@@ -14,6 +14,7 @@ export type TestState = "setup_required" | "authorizing" | "importing" | "needs_
 export function wrappedDatabase(state: TestState = "ready", options: {
   photoError?: boolean;
   noPhotos?: boolean;
+  anotherRunnerWithSameBib?: boolean;
   noBib?: boolean;
   snapshotPayload?: unknown;
   snapshotVersion?: number;
@@ -53,6 +54,7 @@ export function wrappedDatabase(state: TestState = "ready", options: {
   };
   const tables: Record<string, Record<string, unknown>[]> = {
     runner_access: [{ user_id: ownerId, runner_id: runnerId, runners: registrationRow }],
+    official_race_results: [],
     organizer_access: [{ user_id: organizerId, event_id: 1 }],
     strava_connections: [connection],
     strava_oauth_attempts: state === "authorizing" ? [
@@ -76,7 +78,12 @@ export function wrappedDatabase(state: TestState = "ready", options: {
         { user_id: ownerId, generation, kind: "backfill", status: "failed", attachment_fences: { [runnerId]: attachmentId } },
       ] : []),
     ],
-    fotoyu_photos: options.noPhotos ? [] : [{ ...photo, coordinates: [-6.1, 106.5] }],
+    fotoyu_photos: options.noPhotos ? [] : [
+      { ...photo, runner_id: runnerId, coordinates: [-6.1, 106.5] },
+      ...(options.anotherRunnerWithSameBib
+        ? [{ ...photo, id: "another-photo", runner_id: organizerId, photo_url: "/photos/other-edition.jpg" }]
+        : []),
+    ],
   };
   const requests: URL[] = [];
   let attachmentReads = 0;

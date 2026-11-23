@@ -1,5 +1,32 @@
 # SRS V4 acceptance matrix
 
+## November 24, 2026 flexible UI breakpoints
+
+The Figma-aligned runner and organizer experience now contracts from 1920 px to 320 px without changing routes or workflow behavior. Intrinsic media and form containment, flexible card/configuration grids, compact auth spacing, wrapping organizer actions, stacked claim rows, wide-screen alignment, and touch-friendly interactive targets cover the shared shell, authentication, dashboard, profile, Strava setup, Wrapped, and organizer views.
+
+Verification on 2026-11-24:
+
+- Browser matrix: `/login`, `/register`, `/`, `/profile`, runner Strava setup, Wrapped, and `/organizer` were measured at 320, 390, 768, 1024, 1440, and 1920 px (42 combinations). Every document reported no horizontal overflow and no clipped interactive control.
+- Touch and focus: primary interactive controls and the seven Wrapped progress targets are at least 44 px high; compact progress segments remain deliberately narrow enough to keep all seven visible. The horizontally scrollable compact navigation includes clearance for its 3 px outline plus 4 px offset, and the existing reduced-motion override remains active.
+- Automated: 48 Vitest files passed (788 tests), with 21 environment-gated tests skipped. ESLint, TypeScript, and the Next.js production build passed.
+- Visual evidence: the authenticated 390 × 844 runner dashboard and 1440 × 900 organizer console were inspected after the final CSS changes; Wrapped progress and controls were also measured in a short 667 × 375 landscape viewport.
+
+The browser matrix is Chromium acceptance, not separate Safari/Firefox/mobile-device certification. Real Google/Strava provider round trips and database-gated suites remain external gates.
+
+## November 23, 2026 runner journey and Figma alignment
+
+The runner-first journey now treats an official chip result as sufficient for a seven-scene Wrapped and PNG export; Strava is optional enrichment. Login, BIB registration, race passes, every Strava workflow state, Wrapped, profile, and organizer tools share the red/cream/lime Figma language.
+
+Verification on 2026-11-23:
+
+- Automated: 48 Vitest files passed (788 tests), with 21 environment-gated integration tests skipped; 35 native tests passed, with 3 database-gated tests skipped.
+- Quality gates: ESLint, TypeScript, and the Next.js production build passed.
+- Browser: authenticated login, runner menu, organizer results/claims/race-matching console, and an official DNF seven-scene Wrapped were exercised locally.
+- Responsive: login, registration, and Wrapped were inspected at 390, 768, and 1440 px with no horizontal overflow; the registration label issue found at 768 px was corrected and rechecked.
+- Official fallback: the wrapped endpoint now adapts the existing chip-result store when the additive official-publication tables are not installed, so deployed demo results still unlock Wrapped without Strava.
+
+Remaining external gates are real Google/Strava provider round trips, email delivery, and the database-gated integration suites.
+
 ## November 11, 2026 Strava-first contract
 
 The November 11 decision supersedes the chip-first runner flow. Every row below requires verification against the approved Strava-first workflow. The [implementation plan](../superpowers/plans/2026-11-11-strava-first-runner-claims.md) defines the staged checks.
@@ -10,7 +37,8 @@ are named per row. Run evidence: [Strava-first runner claims](strava-first-runne
 
 | Requirements | Acceptance check | Status |
 | --- | --- | --- |
-| FR-01–FR-03 | Complete signup and confirmation, reject an unconfirmed sign-in, claim two registrations, and test expiry, revocation, replay, concurrent redemption, and cross-event denial. Verify the server-owned mapping and one direct owner. | Automated: unconfirmed sign-in message, claim issue/redeem/revoke/replay routes, hashed one-time tokens, single-owner SQL. Written and database-gated: HTTP claim race, catalog visibility, organizer isolation. Pending: confirmation email delivery, user-level run |
+| FR-01–FR-03 | Complete signup and confirmation, reject an unconfirmed sign-in, claim two registrations, and test expiry, revocation, replay, concurrent redemption, and cross-event denial. Verify the server-owned mapping and one direct owner, and that the only other route to a mapping is FR-20. | Automated: unconfirmed sign-in message, claim issue/redeem/revoke/replay routes, hashed one-time tokens, single-owner SQL. Written and database-gated: HTTP claim race, catalog visibility, organizer isolation. Pending: confirmation email delivery, user-level run |
+| FR-20 | Link an unclaimed BIB and repeat it, attempt a held and an absent BIB as another account, exhaust the refusal limit, then release a held BIB and confirm the registration is free and its Strava rows are gone. | Automated: HTTP route tests for the confirmed-account gate, cross-origin refusal, the single non-enumerating message on both link and release, and the release under the verified account id. Database-verified against the dedicated project: case-folded BIB uniqueness, attempt-log pruning, throttle window, release ownership and cascade, server-only grants. Pending: user-level run in a browser |
 | FR-04, FR-08 | Check a Strava action on every claimed runner card. Exercise explicit consent, denial, insufficient scope, athlete mismatch, reconnect, and reuse of one athlete connection for a second registration. | Automated: one primary action per runner across all ten workflow states, `attachable` vs `setup_required`, consent copy for private activities, insufficient-scope and reauthorize states, second-registration attach. Pending: real consent/denial round trip |
 | FR-05, FR-19 | Configure a category within the organizer's event. Test sole, ambiguous, missing-location, and no-match cases, plus a conflict when one activity is chosen twice in a connection generation. | Automated: event-scoped config route, window/tolerance/location validation, Run-only sport type, cross-event category denial. Written and database-gated: duplicate-activity conflict in one generation. Pending: real activity import |
 | FR-06–FR-07 | Verify building, ready, and failed projection states. Compare stored output with the selected activity while legacy chip values disagree. Inspect dashboard and Wrapped reads for provider traffic. | Automated: `building`/`ready`/`failed` route and showcase states, ready-only rendering, snapshot contract rejection, no provider call on any read. Pending: measured read traffic against the hosted project |

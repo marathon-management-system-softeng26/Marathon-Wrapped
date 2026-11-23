@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RunnerStravaSetup from "@/app/components/RunnerStravaSetup";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: () => {}, refresh: () => {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: () => {}, refresh: () => {} }), usePathname: () => "/" }));
 
 const runnerId = "11111111-1111-1111-1111-111111111111";
 const fetcher = vi.fn<typeof fetch>();
