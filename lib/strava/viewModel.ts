@@ -3,6 +3,7 @@ import type { RunnerStravaRoute } from "./processing";
 
 export type StravaActionId = "connect" | "attach" | "check" | "detach" | "disconnect" | "cancel";
 type Action = { id: StravaActionId; label: string; method: "GET" | "POST" | "DELETE"; path: string; disabled: boolean };
+export type StravaCandidateView = { activityId: string; label: string; note: string; sportType: string; matchReason: string };
 const titles: Record<WrappedPayloadStrava["state"], string> = {
   disconnected: "Connect Strava", attachable: "Use Strava for this race", demo: "Sample activity metrics", authorizing: "Authorize Strava",
   importing: "Importing your activity", needs_confirmation: "Choose your race activity", no_match: "No race activity found",
@@ -58,8 +59,14 @@ export function stravaViewModel(input: WrappedPayloadStrava, runnerId: string, p
     if (!Number.isFinite(date.getTime()) || !Number.isFinite(candidate.distanceMeters) || candidate.distanceMeters < 0) return [];
     const day = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" }).format(date);
     const time = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "Asia/Jakarta" }).format(date);
+    const reasons: Record<string, string> = {
+      missing_start_location: "Start location was unavailable",
+      date_distance_match: "Date and distance match",
+      manual_review: "Needs your confirmation",
+    };
     return [{ activityId: candidate.activityId, label: `${day}, ${time} WIB · ${(candidate.distanceMeters / 1000).toFixed(2)} km`,
-      note: candidate.gpsAvailable ? "Confirm this is your race activity." : "GPS is unavailable. Confirm this is your race activity." }];
+      note: candidate.gpsAvailable ? "GPS is available. Confirm this is your race activity." : "GPS is unavailable. Confirm this is your race activity.",
+      sportType: candidate.sportType || "Activity", matchReason: reasons[candidate.matchReason] ?? "Matches the race date and distance" }];
   }) : [];
   return { title: titles[input.state], description: input.reauthorizeToDisconnect ? "Imports are disabled. Authorize Strava to finish removing access, then disconnect again." : descriptions[input.state],
     baselineCopy: "Your chip result, splits and photos remain available independently.", actions, metrics, candidates };

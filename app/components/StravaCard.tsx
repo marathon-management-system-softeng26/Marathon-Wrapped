@@ -2,6 +2,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
 import { runStravaAction, stravaViewModel, type StravaActionId } from "@/lib/strava/viewModel";
+import ActivityCandidateCard from "./ActivityCandidateCard";
+import RunnerJourneyState from "./RunnerJourneyState";
 
 type Props = {
   input: WrappedPayloadStrava;
@@ -78,9 +80,12 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
   }, [data.state, act, ownsState]);
 
   const model = stravaViewModel(data, runnerId, pending);
+  const tone = ["importing", "building", "disconnecting", "authorizing"].includes(data.state) ? "waiting"
+    : ["no_match", "unavailable", "reauthorize_required"].includes(data.state) ? "recovery"
+    : data.state === "connected" ? "success" : "default";
   return (
-    <section className="enrichment strava-card" aria-label="Strava activity" aria-busy={pending}>
-      <h3>{model.title}</h3>
+    <div className="enrichment strava-card" aria-label="Strava activity" aria-busy={pending}>
+      <RunnerJourneyState state={data.state} title={model.title} tone={tone} body={<>
       <p>{stravaFirst && data.state === "importing" ? "Check back for your Strava recap." : model.description}</p>
       {!stravaFirst && <p className="strava-baseline">{model.baselineCopy}</p>}
       {model.metrics.length > 0 && <dl className="metric-list">{model.metrics.map((metric) => <div key={metric.label}><dt>{metric.label}</dt><dd>{metric.value}</dd></div>)}</dl>}
@@ -88,8 +93,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
       {data.state === "connected" && data.metrics?.avg_cadence != null && <p className="strava-baseline">Cadence is shown as supplied by Strava, without converting it to steps per minute.</p>}
       {model.candidates.length > 0 && <ul className="strava-candidates" aria-label="Activities to confirm">{model.candidates.map((candidate) => (
         <li key={candidate.activityId}>
-          <p><strong>{candidate.label}</strong></p><p>{candidate.note}</p>
-          <button type="button" disabled={pending} aria-label={`Use activity ${candidate.label}`} onClick={() => void act("confirm", candidate.activityId)}>Use this activity</button>
+          <ActivityCandidateCard candidate={candidate} selected={false} disabled={pending} onSelect={() => void act("confirm", candidate.activityId)} />
         </li>
       ))}</ul>}
       <div className="strava-actions">{model.actions.map((action) => action.id === "connect" ? (
@@ -102,6 +106,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
         </form>
       ) : <button type="button" className={action.id === "disconnect" ? "secondary" : undefined} disabled={action.disabled} key={action.id} onClick={() => void act(action.id as Exclude<StravaActionId, "connect">)}>{action.label}</button>)}</div>
       <p ref={status} className="strava-feedback" role={failed ? "alert" : "status"} aria-atomic="true" tabIndex={-1}>{feedback}</p>
-    </section>
+      </>} />
+    </div>
   );
 }

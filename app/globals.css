@@ -1392,6 +1392,48 @@ td {
   font-size: 1.1rem;
   font-weight: 900;
 }
+.runner-journey-state {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid #d2cbc5;
+  border-radius: 28px;
+  background: #fffdf8;
+}
+.runner-journey-state h3 {
+  position: relative;
+  max-width: 14ch;
+  margin: 0 0 18px;
+  color: var(--red);
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 0.96;
+}
+.runner-journey-body,
+.runner-journey-action {
+  position: relative;
+}
+.runner-journey-route {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  right: -80px;
+  top: -75px;
+  border: 14px solid var(--lime);
+  border-radius: 48% 52% 42% 58%;
+  opacity: 0.38;
+  transform: rotate(18deg);
+}
+.runner-journey-recovery { background: #fff1f3; }
+.runner-journey-success { border-color: #8da710; }
+.activity-candidate {
+  padding: 18px;
+  border: 2px solid var(--deep);
+  border-radius: 18px;
+  background: var(--cream);
+}
+.activity-candidate h4 { margin: 4px 0 10px; overflow-wrap: anywhere; }
+.activity-candidate-sport,
+.activity-candidate-reason { font-size: 0.78rem; font-weight: 900; text-transform: uppercase; }
 
 .story {
   min-height: 100svh;
