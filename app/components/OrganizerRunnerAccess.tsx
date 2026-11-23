@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import RunnerFeedback from "./RunnerFeedback";
 
 export type AccessRow = {
   runner_id: string;
@@ -77,7 +78,7 @@ export default function OrganizerRunnerAccess({ eventId, rows }: { eventId: stri
         Creating a code sends it to the runner&apos;s registered address. The code also appears here once and is not
         stored in a readable form, so issue a new one if it is lost.
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && <RunnerFeedback kind="error" title={error} />}
       <ul className="organizer-access-list" role="list">
         {rows.map((row) => {
           const claim = issued?.runnerId === row.runner_id ? issued : null;
@@ -94,11 +95,9 @@ export default function OrganizerRunnerAccess({ eventId, rows }: { eventId: stri
               {claim ? (
                 <div className="organizer-access-code">
                   <code>{claim.token}</code>
-                  <p role="status">
-                    {claim.mailed
+                  <RunnerFeedback kind="status" title={claim.mailed
                       ? "Sent to the registered address."
-                      : "Could not send it — give this code to the runner yourself."}
-                  </p>
+                      : "Could not send it — give this code to the runner yourself."} />
                   <p>Copy this code now — it is shown once{when ? `, and expires ${when} WIB` : ""}.</p>
                   <button type="button" disabled={busy === row.runner_id} onClick={() => void revoke(claim)}>
                     Revoke claim code

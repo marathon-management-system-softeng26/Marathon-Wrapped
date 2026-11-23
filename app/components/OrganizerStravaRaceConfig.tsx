@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { StravaRaceConfig } from "@/lib/strava/raceConfig";
 import { toRaceLocalInput, withRaceZone } from "@/lib/raceTime";
+import RunnerFeedback from "./RunnerFeedback";
 
 type CategoryConfig = { id: number; name: string; config: StravaRaceConfig | null };
 
@@ -80,13 +81,15 @@ export default function OrganizerStravaRaceConfig({ eventId }: { eventId: string
         These settings decide which saved Strava activity can belong to a race. Only Run activities are matched.
         The start location is optional and is never shown to runners.
       </p>
-      {error && <p role="alert">{error}</p>}
-      <p role="status">{notice}</p>
-      {!categories && !error && <p className="loading">Loading race settings…</p>}
-      {categories?.length === 0 && <p>Add a category to this event before configuring race matching.</p>}
+      {error && <RunnerFeedback kind="error" title={error} />}
+      {notice && <RunnerFeedback kind="status" title={notice} />}
+      {!notice && <span className="visually-hidden" role="status" />}
+      {!categories && !error && <RunnerFeedback kind="status" title="Loading race settings…" />}
+      {categories?.length === 0 && <RunnerFeedback kind="empty" title="No event categories"><p>Add a category to this event before configuring race matching.</p></RunnerFeedback>}
       {categories?.map((category) => (
         <form key={category.id} onSubmit={save} aria-busy={saving} aria-label={`Race matching for ${category.name}`}>
-          <h4>{category.name}</h4>
+          <fieldset disabled={saving}>
+          <legend>{category.name}</legend>
           <input type="hidden" name="categoryId" value={category.id} />
           <div className="organizer-config-fields">
             <label>
@@ -116,6 +119,7 @@ export default function OrganizerStravaRaceConfig({ eventId }: { eventId: string
             </label>
           </div>
           <button type="submit" disabled={saving}>{saving ? "Saving…" : "Save race settings"}</button>
+          </fieldset>
         </form>
       ))}
     </section>

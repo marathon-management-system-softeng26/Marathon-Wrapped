@@ -1434,6 +1434,43 @@ td {
 .activity-candidate h4 { margin: 4px 0 10px; overflow-wrap: anywhere; }
 .activity-candidate-sport,
 .activity-candidate-reason { font-size: 0.78rem; font-weight: 900; text-transform: uppercase; }
+.organizer-shell {
+  --organizer-panel: #fffdf8;
+}
+.organizer-hero {
+  margin: 22px 0 34px;
+  padding: clamp(24px, 5vw, 52px);
+  border-radius: 28px;
+  background: var(--red);
+  color: var(--cream);
+}
+.organizer-hero h1 { margin: 0; color: var(--lime); }
+.organizer-hero > p:last-child { max-width: 62ch; }
+.organizer-kicker {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.organizer-shell .toolbar,
+.organizer-shell .runner-editor,
+.organizer-shell .organizer-access,
+.organizer-shell .organizer-race-config {
+  border-radius: 22px;
+  background: var(--organizer-panel);
+}
+.organizer-shell fieldset { min-width: 0; }
+.organizer-shell legend { color: var(--red); font-size: 1.1rem; font-weight: 900; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 
 .story {
   min-height: 100svh;

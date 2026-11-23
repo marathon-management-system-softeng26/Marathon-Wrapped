@@ -65,6 +65,11 @@ async function openEditor() {
 }
 
 describe("organizer runner editor", () => {
+  it("uses the shared organizer shell and grouped editing controls", async () => {
+    await openEditor();
+    expect(container.querySelector("main.organizer-shell")).not.toBeNull();
+    expect(container.querySelector(".runner-editor fieldset")).not.toBeNull();
+  });
   it("bounds date of birth by the category's own race-day minimum", async () => {
     await openEditor();
 

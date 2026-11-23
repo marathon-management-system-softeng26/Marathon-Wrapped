@@ -17,6 +17,7 @@ import {
 import OrganizerEnrichmentEditor from "./OrganizerEnrichmentEditor";
 import OrganizerRunnerAccess from "./OrganizerRunnerAccess";
 import OrganizerStravaRaceConfig from "./OrganizerStravaRaceConfig";
+import RunnerFeedback from "./RunnerFeedback";
 type EventSummary = { name: string; event_date: string } | null;
 type CategoryRule = { name: string; min_age: number };
 type Row = {
@@ -194,21 +195,22 @@ export default function OrganizerPanel() {
   return (
     <div className="workspace">
       <AppHeader showOrganizerLink />
-      <main className="content organizer">
+      <main className="content organizer organizer-shell">
         <Link href="/">← Your races</Link>
+        <header className="organizer-hero">
+        <p className="organizer-kicker">Organizer console</p>
         <h1>Race control.</h1>
         <p>
           Manage synthetic runners and chip results. Saves replace timing and
           splits together.
         </p>
+        </header>
         {catalogError ? (
-          <p role="alert">
-            {catalogError} <button onClick={retry}>Try again</button>
-          </p>
+          <RunnerFeedback kind="error" title={catalogError}><button onClick={retry}>Try again</button></RunnerFeedback>
         ) : !data ? (
-          <p role="status">Checking event access…</p>
+          <RunnerFeedback kind="status" title="Checking event access…" />
         ) : !data.events.length ? (
-          <p>You do not have organizer access to an event.</p>
+          <RunnerFeedback kind="empty" title="No organizer access"><p>You do not have organizer access to an event.</p></RunnerFeedback>
         ) : (
           <>
             <div className="toolbar">
@@ -242,20 +244,14 @@ export default function OrganizerPanel() {
               </button>
             </div>
             {error && (
-              <p role="alert">
-                {error}{" "}
+              <RunnerFeedback kind="error" title={error}>
                 <button onClick={() => setVersion((v) => v + 1)}>
                   Retry results
                 </button>
-              </p>
+              </RunnerFeedback>
             )}
             {message && (
-              <p
-                role={messageError ? "alert" : "status"}
-                className={messageError ? "error" : "save-message"}
-              >
-                {message}
-              </p>
+              <RunnerFeedback kind={messageError ? "error" : "status"} title={message} />
             )}
             {draft && (
               <form className="runner-editor" onSubmit={save}>
@@ -480,7 +476,7 @@ export default function OrganizerPanel() {
               </form>
             )}
             {loading ? (
-              <p role="status">Refreshing results…</p>
+              <RunnerFeedback kind="status" title="Refreshing results…" />
             ) : (
               <div className="table-scroll">
                 <table>
