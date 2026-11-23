@@ -431,6 +431,7 @@ describe("runner Strava access and safe states", () => {
     expect(stravaViewModel(routeToStrava(body), runnerId).candidates).toEqual([{
       activityId: "10", label: "17 Aug 2027, 08:05 WIB · 5.24 km",
       note: "GPS is unavailable. Confirm this is your race activity.",
+      sportType: "Run", matchReason: "Start location was unavailable",
     }]);
     expect(tables.strava_activity_candidates[0].summary).toEqual({
       startDate: "2027-08-17T01:05:00.000Z", distanceMeters: 5240, gpsAvailable: false,

@@ -1247,13 +1247,11 @@ td {
   max-width: none;
 }
 .register-field span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
+  display: block;
+  margin-bottom: 8px;
+  color: var(--deep);
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 .register-form .register-field {
   margin-top: 20px;

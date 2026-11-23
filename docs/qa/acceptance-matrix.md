@@ -1,5 +1,19 @@
 # SRS V4 acceptance matrix
 
+## November 23, 2026 runner journey and Figma alignment
+
+The runner-first journey now treats an official chip result as sufficient for a seven-scene Wrapped and PNG export; Strava is optional enrichment. Login, BIB registration, race passes, every Strava workflow state, Wrapped, profile, and organizer tools share the red/cream/lime Figma language.
+
+Verification on 2026-11-23:
+
+- Automated: 48 Vitest files passed (787 tests), with 21 environment-gated integration tests skipped; 35 native tests passed, with 3 database-gated tests skipped.
+- Quality gates: ESLint, TypeScript, and the Next.js production build passed.
+- Browser: authenticated login, runner menu, organizer results/claims/race-matching console, and an official DNF seven-scene Wrapped were exercised locally.
+- Responsive: login, registration, and Wrapped were inspected at 390, 768, and 1440 px with no horizontal overflow; the registration label issue found at 768 px was corrected and rechecked.
+- Official fallback: the wrapped endpoint now adapts the existing chip-result store when the additive official-publication tables are not installed, so deployed demo results still unlock Wrapped without Strava.
+
+Remaining external gates are real Google/Strava provider round trips, email delivery, and the database-gated integration suites.
+
 ## November 11, 2026 Strava-first contract
 
 The November 11 decision supersedes the chip-first runner flow. Every row below requires verification against the approved Strava-first workflow. The [implementation plan](../superpowers/plans/2026-11-11-strava-first-runner-claims.md) defines the staged checks.

@@ -3,6 +3,7 @@ import { AccessDeniedError } from "@/lib/auth/access";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import type { OfficialWrappedPayload, Photo, WrappedRegistration } from "@/lib/wrappedPayload";
 import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
+import { getWrappedForUser } from "@/lib/wrappedService";
 import type { OfficialRecap } from "@/lib/officialResults/types";
 export type { OfficialRecap } from "@/lib/officialResults/types";
 
@@ -61,6 +62,31 @@ function normalizeRow(row: OfficialRow): OfficialRecap {
   };
 }
 
+async function loadLegacyOfficial(userId: string, runnerId: string): Promise<OfficialWrappedPayload | null> {
+  const legacy = await getWrappedForUser(userId, runnerId);
+  if (!legacy || legacy.status === "unavailable") return null;
+  const { stats } = legacy;
+  const registration = await loadRegistration(runnerId);
+  let elapsedMs = 0;
+  const checkpoints = stats.splits.map((split, index) => {
+    const splitMs = split.split_seconds * 1_000;
+    elapsedMs += splitMs;
+    return { sequence: index + 1, label: `${split.km_marker}K`, distanceMeters: split.km_marker * 1_000, displayedTimeMs: elapsedMs, reportedSplitMs: splitMs, referenceLabel: null };
+  });
+  const finished = legacy.status === "finisher";
+  const result: OfficialRecap = {
+    runnerId, eventId: 0, bib: stats.bib_number ?? "", name: stats.name, distance: stats.category,
+    status: ({ finisher: "finished", dnf: "dnf", dns: "dns" } as const)[legacy.status], finishTimeMs: finished && stats.elapsed_seconds !== null ? stats.elapsed_seconds * 1_000 : null,
+    netTimeMs: finished && stats.elapsed_seconds !== null ? stats.elapsed_seconds * 1_000 : null,
+    overallRank: finished ? stats.overall_rank : null, division: stats.category,
+    divisionRank: finished ? stats.category_rank : null, gender: stats.gender, genderRank: null,
+    checkpoints: finished ? checkpoints : [], sourceUrl: null,
+  };
+  let strava: OfficialWrappedPayload["strava"] = { state: "unavailable" };
+  try { strava = await getStravaWrappedForUser(userId, runnerId); } catch { /* optional */ }
+  return composeOfficialWrapped(registration, result, strava, legacy.photos);
+}
+
 async function loadRegistration(runnerId: string): Promise<WrappedRegistration> {
   const { data, error } = await getSupabaseAdmin()
     .from("runners")
@@ -100,8 +126,7 @@ export async function getOfficialWrappedForUser(
     .select("runner_id,event_id,bib,name,distance,status,finish_time_ms,net_time_ms,overall_rank,division,division_rank,gender,gender_rank,source_url,official_race_checkpoints(sequence,label,distance_meters,displayed_time_ms,reported_split_ms,reference_label)")
     .eq("runner_id", runnerId)
     .maybeSingle();
-  if (error) throw new Error("Official results are temporarily unavailable.");
-  if (!data) return null;
+  if (error || !data) return loadLegacyOfficial(userId, runnerId);
   const result = normalizeRow(data as OfficialRow);
   const [registration, photoResult] = await Promise.all([
     loadRegistration(runnerId),

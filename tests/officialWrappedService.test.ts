@@ -4,6 +4,7 @@ import { composeOfficialWrapped, getOfficialWrappedForUser, type OfficialRecap }
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   getStravaWrappedForUser: vi.fn(),
+  getWrappedForUser: vi.fn(),
 }));
 
 vi.mock("@/lib/supabaseServer", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/supabaseServer", () => ({
 vi.mock("@/lib/stravaWrappedService", () => ({
   getStravaWrappedForUser: mocks.getStravaWrappedForUser,
 }));
+vi.mock("@/lib/wrappedService", () => ({ getWrappedForUser: mocks.getWrappedForUser }));
 
 const registration = {
   runner: { id: "00000000-0000-4000-8000-000000000001", name: "Runner One", bibNumber: "00123" },
@@ -41,6 +43,7 @@ describe("composeOfficialWrapped", () => {
   beforeEach(() => {
     mocks.from.mockReset();
     mocks.getStravaWrappedForUser.mockReset();
+    mocks.getWrappedForUser.mockReset();
   });
 
   it("keeps official timing and provenance independent of Strava", () => {
@@ -123,5 +126,23 @@ describe("composeOfficialWrapped", () => {
 
     expect(payload?.registration).toEqual(registration);
     expect(payload?.strava).toEqual({ state: "unavailable" });
+  });
+
+  it("adapts a legacy chip result when official publication tables are unavailable", async () => {
+    mocks.getWrappedForUser.mockResolvedValue({ status: "dnf", stats: {
+      runner_id: result.runnerId, bib_number: "00123", name: "Runner One", gender: "M", age: 30,
+      event: "Soekarno Run", category: "5K", distance_km: 5, start_status: "on-time", elapsed_seconds: null,
+      avg_pace_sec_km: null, category_rank: null, overall_rank: null, category_percentile: null, finisher: false,
+      splits: [], fastest_km: null, split_type: null, first_half_seconds: null, second_half_seconds: null, slowed_after_km: null, insights: [],
+    }, strava: { state: "unavailable", metrics: null }, photos: [], warnings: [] });
+    mocks.getStravaWrappedForUser.mockRejectedValue(new Error("not configured"));
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "official_race_results") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: "missing relation" } }) }) }) };
+      if (table === "runners") return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { id: registration.runner.id, name: registration.runner.name, bib_number: registration.runner.bibNumber, categories: { name: registration.event.category, events: { name: registration.event.name, event_date: registration.event.date } } }, error: null }) }) }) };
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const payload = await getOfficialWrappedForUser("user-1", result.runnerId, true);
+    expect(payload).toMatchObject({ kind: "official", result: { status: "dnf", finishTimeMs: null }, registration });
   });
 });

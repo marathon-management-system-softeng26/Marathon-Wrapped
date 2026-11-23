@@ -70,14 +70,29 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     setSelected(null); setNotice("Strava is disconnected from your Wrapped.");
   }, []);
 
-  useEffect(() => { const feedback = callbackFeedback(window.location.href); if (feedback) { setStravaFeedback(feedback); setSlide(4); window.history.replaceState(window.history.state, "", feedback.path); } }, []);
+  useEffect(() => {
+    const feedback = callbackFeedback(window.location.href);
+    let cancelled = false;
+    if (feedback) queueMicrotask(() => {
+      if (!cancelled) { setStravaFeedback(feedback); setSlide(4); }
+    });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (stravaFeedback) window.history.replaceState(window.history.state, "", stravaFeedback.path);
+  }, [stravaFeedback]);
   useEffect(() => {
     const controller = new AbortController(); wrappedRequest.current = controller;
     fetch(`/api/runners/${encodeURIComponent(runnerId)}/wrapped`, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]) }).then(async (response) => {
       if (controller.signal.aborted) return; if (response.status === 401) { window.location.replace("/login"); return; }
       const body = await response.json(); if (controller.signal.aborted) return; if (!response.ok) throw new Error(body.error || "Your recap could not load.");
       loaded.current = runnerId; setPayload(body); setError("");
-    }).catch((cause) => { if (!controller.signal.aborted) loaded.current === runnerId ? setNotice("Recap could not refresh. Try again in a moment.") : setError(cause.message); });
+    }).catch((cause) => {
+      if (!controller.signal.aborted) {
+        if (loaded.current === runnerId) setNotice("Recap could not refresh. Try again in a moment.");
+        else setError(cause.message);
+      }
+    });
     return () => controller.abort();
   }, [runnerId, version]);
   useEffect(() => () => exportRequest.current?.abort(), []);
