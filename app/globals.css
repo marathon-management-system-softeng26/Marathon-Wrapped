@@ -25,8 +25,18 @@
 * {
   box-sizing: border-box;
 }
+html,
+body {
+  min-width: 0;
+}
 body {
   margin: 0;
+}
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
 }
 a {
   color: inherit;
@@ -37,6 +47,7 @@ input,
 select,
 textarea {
   font: inherit;
+  max-width: 100%;
 }
 button,
 .button {
@@ -148,6 +159,10 @@ small {
   background: #e5cdc0;
 }
 .wordmark {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 44px;
   font-family: Bricolage, Arial, sans-serif;
   line-height: 0.95;
   font-size: 1.4rem;
@@ -158,6 +173,7 @@ small {
 }
 .workspace {
   min-height: 100dvh;
+  min-width: 0;
 }
 .app-header {
   display: flex;
@@ -166,10 +182,13 @@ small {
   padding: 25px max(24px, calc((100vw - 1100px) / 2));
   border-bottom: 1px solid #d9c0b7;
 }
+.app-header > * {
+  min-width: 0;
+}
 .content {
-  max-width: 1100px;
+  width: min(100%, 1100px);
   margin: auto;
-  padding: 24px 24px 80px;
+  padding: 24px clamp(20px, 4vw, 32px) 80px;
 }
 .content h1 span {
   color: var(--red);
@@ -211,7 +230,7 @@ small {
 }
 .registration-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -347,7 +366,7 @@ small {
 .app-nav a {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 10px;
   font-family: Arial, Helvetica, sans-serif;
@@ -819,7 +838,7 @@ td small {
 }
 .organizer-config-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -2051,4 +2070,119 @@ body:has(.story-state) {
   .scene-context .strava-card { padding: 22px; }
   .strava-actions { flex-direction: column; align-items: stretch; }
   .strava-actions button { width: 100%; }
+}
+
+/* Flexible layout repairs: preserve the Figma identity while letting every shell
+   contract cleanly from compact phones through wide desktop canvases. */
+.auth-switch a,
+.auth-panel-footer a,
+.story-header a,
+.story-state > a:first-child,
+.organizer-shell > a:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.auth-panel .auth-text-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 4px;
+}
+
+@media (max-width: 700px) {
+  .app-header .wordmark,
+  .app-header .quiet,
+  .app-nav a {
+    min-height: 44px;
+  }
+  .app-nav ul {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+  .app-nav ul::-webkit-scrollbar {
+    display: none;
+  }
+  .app-nav a {
+    white-space: nowrap;
+  }
+  .organizer-access-list > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .organizer-access-code {
+    width: 100%;
+    max-width: none;
+    justify-items: start;
+  }
+  .organizer-access-code code {
+    max-width: 100%;
+  }
+  .split-inputs {
+    grid-template-columns: repeat(auto-fit, minmax(min(8rem, 100%), 1fr));
+  }
+  .form-actions,
+  .row-actions {
+    flex-wrap: wrap;
+  }
+  .form-actions > *,
+  .row-actions > * {
+    flex: 1 1 10rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .content {
+    padding-inline: 20px;
+  }
+  .page-title {
+    font-size: clamp(2.1rem, 12vw, 2.75rem);
+  }
+  .registration-card,
+  .profile-panel,
+  .runner-editor,
+  .organizer-hero {
+    padding: 20px;
+  }
+  .organizer-hero {
+    border-radius: 22px;
+  }
+  .metric-list div {
+    align-items: start;
+    gap: 12px;
+  }
+  .metric-list dd {
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .auth-layout {
+    grid-template-rows: minmax(286px, 39svh) auto;
+  }
+  .auth-masthead {
+    padding: 24px 20px;
+  }
+  .auth-masthead h1 {
+    font-size: clamp(3rem, 16vw, 4rem);
+  }
+  .auth-panel-stage,
+  .register-form {
+    padding-inline: 20px;
+  }
+  .auth-panel .auth-text-button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: 4px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .content {
+    max-width: 1180px;
+  }
+  .app-header {
+    padding-inline: max(32px, calc((100vw - 1180px) / 2));
+  }
 }
