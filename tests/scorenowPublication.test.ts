@@ -190,7 +190,8 @@ class MemoryPublicationAdapter implements ScoreNowPublicationAdapter {
     this.writes.push("ensure-pages");
   }
 
-  async stageRows(_runId: string, _digest: string, rows: ScoreNowPublicationPlan["rows"]) {
+  async stageRows(runId: string, _digest: string, rows: ScoreNowPublicationPlan["rows"]) {
+    if (this.runs.get(runId)?.publishedAt) throw new Error("run already published");
     this.writes.push("stage");
     this.stagedBatchSizes.push(rows.length);
     return rows.length;
@@ -303,6 +304,23 @@ describe("executeScoreNowPublication", () => {
       await gate;
       return [...adapter.runs.values()].find((run) => run.digest === digest) ?? null;
     };
+    const stageRows = adapter.stageRows.bind(adapter);
+    const publishRun = adapter.publishRun.bind(adapter);
+    let delayFirstStage = true;
+    let releaseFirstStage!: () => void;
+    const firstStageGate = new Promise<void>((resolve) => { releaseFirstStage = resolve; });
+    adapter.stageRows = async (...args) => {
+      if (delayFirstStage) {
+        delayFirstStage = false;
+        await firstStageGate;
+      }
+      return stageRows(...args);
+    };
+    adapter.publishRun = async (runId) => {
+      const result = await publishRun(runId);
+      releaseFirstStage();
+      return result;
+    };
     const options = { projectRef: "anbnuegocddoowagqmxw", publish: true } as const;
 
     const results = await Promise.all([
@@ -311,6 +329,7 @@ describe("executeScoreNowPublication", () => {
     ]);
 
     expect(results.every((result) => result.runId === "run-1")).toBe(true);
+    expect(results.map((result) => result.mode).sort()).toEqual(["already-published", "published"]);
     expect(adapter.runs.size).toBe(1);
     expect(adapter.runners.size).toBe(9_982);
     expect(adapter.writes.filter((write) => write === "acquire-run")).toHaveLength(1);

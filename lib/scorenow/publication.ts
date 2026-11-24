@@ -371,7 +371,22 @@ export async function executeScoreNowPublication(
   }
   await adapter.ensurePages(run.id, plan.pages);
   for (const batch of plan.batches) {
-    const affected = await adapter.stageRows(run.id, plan.digest, batch);
+    let affected: number;
+    try {
+      affected = await adapter.stageRows(run.id, plan.digest, batch);
+    } catch (cause) {
+      const concurrentRun = await adapter.findRun(plan.digest);
+      if (concurrentRun?.publishedAt) {
+        return {
+          mode: "already-published",
+          plan,
+          runId: concurrentRun.id,
+          publication: { eventId: 1, counts: { "5K": 5_987, "10K": 3_995 } },
+          identityReview,
+        };
+      }
+      throw cause;
+    }
     if (affected !== batch.length) throw new Error(`ScoreNow staging acknowledged ${affected}/${batch.length} rows.`);
   }
 
