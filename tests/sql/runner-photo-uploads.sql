@@ -108,10 +108,16 @@ begin
   assert public.ack_runner_photo_cleanup(job.job_id,job.lease_id);
   assert public.delete_runner_photo(f.u,f.r,b.photo_id);
   assert exists (select from public.runner_photo_cleanup where object_path=b.staging_object_path and not_before>deadline);
+  -- Refill both deleted slots. Expiring the last row must admit exactly one replacement.
+  perform public.reserve_runner_photo_upload(f.u,f.r,'image/png',5,deadline);
+  perform public.reserve_runner_photo_upload(f.u,f.r,'image/png',5,deadline);
+  assert not exists (select from public.reserve_runner_photo_upload(f.u,f.r,'image/png',5,deadline));
   update public.runner_uploaded_photos set reservation_expires_at=now()-interval '1s' where id=c.photo_id;
   assert not public.activate_runner_photo_upload(f.u,f.r,c.photo_id,token_end);
   assert public.sweep_runner_photo_uploads(now())=1;
   select * into strict a from public.reserve_runner_photo_upload(f.u,f.r,'image/jpeg',5,deadline);
+  assert not exists (select from public.reserve_runner_photo_upload(f.u,f.r,'image/png',5,deadline));
+  delete from public.runner_uploaded_photos where user_id=f.u and runner_id=f.r and id<>a.photo_id;
   assert public.activate_runner_photo_upload(f.u,f.r,a.photo_id,token_end);
   select * into strict writer from public.prepare_runner_photo_ready(f.u,f.r,a.photo_id,now()+interval '2m');
   update public.runner_uploaded_photos set upload_expires_at=now()-interval '1s' where id=a.photo_id;

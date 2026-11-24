@@ -80,6 +80,19 @@ test("competing connections cannot reserve a fourth slot", { skip: !process.env.
       }
     } finally { await a.query("commit"); }
     assert.equal((await fourth).rowCount, 0);
+
+    const { rows: [other] } = await a.query("select * from pg_temp.make_photo_owner()");
+    const pair = [other.u, other.r];
+    const count = "select count(*)::int as n from public.runner_uploaded_photos where user_id=$1 and runner_id=$2";
+    await a.query(reserve, pair);
+    await a.query(reserve, pair);
+    await b.query("begin isolation level repeatable read");
+    assert.equal((await b.query(count, pair)).rows[0].n, 2);
+    assert.equal((await a.query(reserve, pair)).rowCount, 1);
+    assert.equal((await b.query(count, pair)).rows[0].n, 2);
+    assert.equal((await b.query(reserve, pair)).rowCount, 0, "a stale snapshot cannot allocate a fourth slot");
+    await b.query("commit");
+    assert.equal((await a.query(count, pair)).rows[0].n, 3);
   } finally {
     await Promise.all([a.end(), b.end()]);
     await cluster.stop();

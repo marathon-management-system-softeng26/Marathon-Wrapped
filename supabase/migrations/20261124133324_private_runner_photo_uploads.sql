@@ -14,6 +14,8 @@ create table public.runner_uploaded_photos (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   runner_id uuid not null,
+  slot_number smallint not null check (slot_number between 1 and 3),
+  constraint runner_photo_owner_slot unique (user_id, runner_id, slot_number),
   foreign key (user_id,runner_id) references public.runner_access(user_id,runner_id) on delete cascade,
   staging_object_path text not null unique,
   ready_object_path text unique,
@@ -119,6 +121,7 @@ end $$;
 create function public.reserve_runner_photo_upload(p_user_id uuid,p_runner_id uuid,p_input_mime_type text,
   p_input_size_bytes bigint,p_reservation_expires_at timestamptz)
 returns table(photo_id uuid,staging_object_path text) language plpgsql security invoker set search_path='' as $$
+declare candidate smallint; conflicting_constraint text;
 begin
   if not runner_photo_private.lock_owner(p_user_id,p_runner_id) then return; end if;
   if p_reservation_expires_at is null or not isfinite(p_reservation_expires_at)
@@ -127,11 +130,26 @@ begin
     raise exception 'Invalid reservation deadline' using errcode='22023';
   end if;
   perform runner_photo_private.recover(p_runner_id,clock_timestamp());
-  if (select count(*) from public.runner_uploaded_photos where user_id=p_user_id and runner_id=p_runner_id)>=3 then return; end if;
-  return query insert into public.runner_uploaded_photos as p(user_id,runner_id,input_mime_type,input_size_bytes,staging_object_path,reservation_expires_at)
-    values(p_user_id,p_runner_id,p_input_mime_type,p_input_size_bytes,
-      'staging/'||gen_random_uuid()||'/'||gen_random_uuid()||'.upload',p_reservation_expires_at)
-    returning p.id,p.staging_object_path;
+  for candidate in
+    select slot from generate_series(1,3) as slots(slot)
+    where not exists (select from public.runner_uploaded_photos p
+      where p.user_id=p_user_id and p.runner_id=p_runner_id and p.slot_number=slot)
+    order by slot
+  loop
+    begin
+      return query insert into public.runner_uploaded_photos as p
+        (user_id,runner_id,slot_number,input_mime_type,input_size_bytes,staging_object_path,reservation_expires_at)
+        values(p_user_id,p_runner_id,candidate,p_input_mime_type,p_input_size_bytes,
+          'staging/'||gen_random_uuid()||'/'||gen_random_uuid()||'.upload',p_reservation_expires_at)
+        returning p.id,p.staging_object_path;
+      return;
+    exception when unique_violation then
+      -- A committed reservation can be invisible to a REPEATABLE READ snapshot.
+      -- The unique index still sees it. Try the next available slot in that case.
+      get stacked diagnostics conflicting_constraint = constraint_name;
+      if conflicting_constraint <> 'runner_photo_owner_slot' then raise; end if;
+    end;
+  end loop;
 end $$;
 
 create function public.activate_runner_photo_upload(p_user_id uuid,p_runner_id uuid,p_photo_id uuid,p_upload_expires_at timestamptz)
