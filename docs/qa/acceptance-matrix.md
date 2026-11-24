@@ -10,7 +10,7 @@ Verification on 2026-11-24:
 - Integrity: no duplicate case-folded BIBs or source UIDs were found. Event 1 now uses ScoreNow competition/race `19723/308`.
 - Preservation: both claimed `HERO-*` demo results and their two access mappings remain. Global `runner_access` stayed at 3 and Auth users stayed at 9, confirming publication created neither ownership nor accounts.
 - Registration: the actual local `POST /api/auth/bib/lookup` path returned HTTP 200 for event 1 / BIB `14279`, matching RIKKI MARTHIN LUTHER SIMBOLON in 10K. The temporary ticket was revoked through `DELETE /api/auth/bib/accept`; the database reports zero active tickets for that BIB.
-- Operations: the existing atomic publication function required a function-scoped 10-minute statement timeout for the full 9,982-row identity-preserving transaction. Its execute grant remains restricted to `service_role`.
+- Operations: the existing atomic publication function required a function-scoped 10-minute statement timeout for the full 9,982-row identity-preserving transaction. Its execute grant remains restricted to `service_role`. Dry-run identity comparison reports the two intentional `HERO-*` omissions and no changed/conflicting identities; any future omission or identity change requires the explicit `--review-identity-changes` publication flag. Run acquisition is atomic for concurrent identical invocations.
 - Automated: 49 Vitest files passed (794 tests), with 21 environment-gated tests skipped; 35 native tests passed, with 3 database-gated tests skipped. ESLint, TypeScript, and the Next.js production build passed. A second live `--publish` invocation returned `already-published` for the same run and digest without duplicating data.
 
 ## November 24, 2026 flexible UI breakpoints

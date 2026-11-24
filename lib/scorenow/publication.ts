@@ -87,12 +87,27 @@ export type ScoreNowPublicationRun = {
   publishedAt: string | null;
 };
 
+export type ScoreNowPublishedIdentity = {
+  bib: string;
+  name: string;
+  distance: "5K" | "10K";
+  sourceUid: string | null;
+};
+
+export type ScoreNowIdentityReview = {
+  existing: number;
+  omitted: number;
+  changed: number;
+  conflicts: number;
+};
+
 export type ScoreNowPublicationAdapter = {
   getEvent(): Promise<{ id: number; competitionId: number | null; raceId: number | null }>;
   countSourceRows(): Promise<number>;
   fetchSourceRows(offset: number, limit: number): Promise<LegacyScoreNowRow[]>;
   findRun(digest: string): Promise<ScoreNowPublicationRun | null>;
-  createRun(plan: ScoreNowPublicationPlan): Promise<ScoreNowPublicationRun>;
+  listPublishedIdentities(): Promise<ScoreNowPublishedIdentity[]>;
+  acquireRun(plan: ScoreNowPublicationPlan, identityChangesReviewed: boolean): Promise<ScoreNowPublicationRun>;
   ensurePages(runId: string, pages: ScoreNowPublicationPlan["pages"]): Promise<void>;
   stageRows(runId: string, digest: string, rows: ScoreNowPublicationRow[]): Promise<number>;
   configureRealEventSource(): Promise<boolean>;
@@ -103,6 +118,7 @@ export type ExecuteScoreNowPublicationOptions = {
   projectRef: string;
   publish: boolean;
   pageSize?: number;
+  reviewIdentityChanges?: boolean;
 };
 
 export type ExecuteScoreNowPublicationResult = {
@@ -110,6 +126,7 @@ export type ExecuteScoreNowPublicationResult = {
   plan: ScoreNowPublicationPlan;
   runId: string | null;
   publication: { eventId: number; counts: { "5K": number; "10K": number } } | null;
+  identityReview: ScoreNowIdentityReview | null;
 };
 
 const EXPECTED_COUNTS = { "5K": 5_987, "10K": 3_995 } as const;
@@ -264,6 +281,37 @@ function isKnownMockEventSource(event: { id: number; competitionId: number | nul
   return event.id === 1 && event.competitionId === 999001 && event.raceId === 999002;
 }
 
+export function compareScoreNowPublishedIdentities(
+  plan: ScoreNowPublicationPlan,
+  existing: ScoreNowPublishedIdentity[],
+): ScoreNowIdentityReview {
+  const byBib = new Map(plan.rows.map((row) => [row.bib.toUpperCase(), row]));
+  const bySourceUid = new Map(plan.rows.map((row) => [row.source_uid, row]));
+  const review: ScoreNowIdentityReview = { existing: existing.length, omitted: 0, changed: 0, conflicts: 0 };
+  for (const identity of existing) {
+    const bibMatch = byBib.get(identity.bib.toUpperCase());
+    const uidMatch = identity.sourceUid ? bySourceUid.get(identity.sourceUid) : undefined;
+    if (bibMatch && uidMatch && bibMatch !== uidMatch) {
+      review.conflicts += 1;
+      continue;
+    }
+    const incoming = uidMatch ?? bibMatch;
+    if (!incoming) {
+      review.omitted += 1;
+      continue;
+    }
+    if (
+      incoming.bib !== identity.bib
+      || incoming.name !== identity.name
+      || incoming.distance !== identity.distance
+      || incoming.source_uid !== identity.sourceUid
+    ) {
+      review.changed += 1;
+    }
+  }
+  return review;
+}
+
 export async function executeScoreNowPublication(
   adapter: ScoreNowPublicationAdapter,
   options: ExecuteScoreNowPublicationOptions,
@@ -292,19 +340,35 @@ export async function executeScoreNowPublication(
   if (finalCount !== initialCount) throw new Error(`ScoreNow source count changed during pagination: ${initialCount}/${finalCount}.`);
   const plan = buildScoreNowPublication(sourceRows);
 
-  if (!options.publish) return { mode: "dry-run", plan, runId: null, publication: null };
-
-  const existingRun = await adapter.findRun(plan.digest);
+  const existingRun = options.publish ? await adapter.findRun(plan.digest) : null;
   if (existingRun?.publishedAt) {
     return {
       mode: "already-published",
       plan,
       runId: existingRun.id,
       publication: { eventId: 1, counts: { "5K": 5_987, "10K": 3_995 } },
+      identityReview: null,
     };
   }
 
-  const run = existingRun ?? await adapter.createRun(plan);
+  const identityReview = compareScoreNowPublishedIdentities(plan, await adapter.listPublishedIdentities());
+  if (identityReview.conflicts > 0) throw new Error("ScoreNow identity review found conflicting BIB/source matches.");
+  const needsIdentityReview = identityReview.omitted > 0 || identityReview.changed > 0;
+  if (!options.publish) return { mode: "dry-run", plan, runId: null, publication: null, identityReview };
+  if (needsIdentityReview && !options.reviewIdentityChanges) {
+    throw new Error(`ScoreNow identity review required: ${identityReview.omitted} omitted, ${identityReview.changed} changed.`);
+  }
+
+  const run = await adapter.acquireRun(plan, needsIdentityReview && options.reviewIdentityChanges === true);
+  if (run.publishedAt) {
+    return {
+      mode: "already-published",
+      plan,
+      runId: run.id,
+      publication: { eventId: 1, counts: { "5K": 5_987, "10K": 3_995 } },
+      identityReview,
+    };
+  }
   await adapter.ensurePages(run.id, plan.pages);
   for (const batch of plan.batches) {
     const affected = await adapter.stageRows(run.id, plan.digest, batch);
@@ -319,5 +383,5 @@ export async function executeScoreNowPublication(
   if (publication.eventId !== 1 || publication.counts["5K"] !== 5_987 || publication.counts["10K"] !== 3_995) {
     throw new Error("ScoreNow publication returned unexpected counts.");
   }
-  return { mode: "published", plan, runId: run.id, publication };
+  return { mode: "published", plan, runId: run.id, publication, identityReview };
 }

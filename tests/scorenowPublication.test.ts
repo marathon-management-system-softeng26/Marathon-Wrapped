@@ -4,6 +4,7 @@ import {
   executeScoreNowPublication,
   type LegacyScoreNowRow,
   type ScoreNowPublicationAdapter,
+  type ScoreNowPublishedIdentity,
   type ScoreNowPublicationPlan,
 } from "@/lib/scorenow/publication";
 
@@ -147,6 +148,8 @@ class MemoryPublicationAdapter implements ScoreNowPublicationAdapter {
   runners = new Set<string>();
   runs = new Map<string, { id: string; digest: string; publishedAt: string | null; plan: ScoreNowPublicationPlan }>();
   counts: number[] = [];
+  publishedIdentities: ScoreNowPublishedIdentity[] = [];
+  acquiredReviews: boolean[] = [];
 
   constructor(rows = completeRows()) {
     this.sourceRows = rows;
@@ -169,8 +172,15 @@ class MemoryPublicationAdapter implements ScoreNowPublicationAdapter {
     return [...this.runs.values()].find((run) => run.digest === digest) ?? null;
   }
 
-  async createRun(plan: ScoreNowPublicationPlan) {
-    this.writes.push("create-run");
+  async listPublishedIdentities() {
+    return this.publishedIdentities;
+  }
+
+  async acquireRun(plan: ScoreNowPublicationPlan, identityChangesReviewed: boolean) {
+    const existing = [...this.runs.values()].find((run) => run.digest === plan.digest);
+    if (existing) return existing;
+    this.writes.push("acquire-run");
+    this.acquiredReviews.push(identityChangesReviewed);
     const run = { id: `run-${this.runs.size + 1}`, digest: plan.digest, publishedAt: null, plan };
     this.runs.set(run.id, run);
     return run;
@@ -188,6 +198,7 @@ class MemoryPublicationAdapter implements ScoreNowPublicationAdapter {
 
   async configureRealEventSource() {
     this.writes.push("configure-event");
+    if (this.event.competitionId === 19723 && this.event.raceId === 308) return true;
     if (this.event.competitionId !== 999001 || this.event.raceId !== 999002) return false;
     this.event = { ...this.event, competitionId: 19723, raceId: 308 };
     return true;
@@ -213,11 +224,31 @@ describe("executeScoreNowPublication", () => {
 
     expect(result.mode).toBe("dry-run");
     expect(result.plan.rows).toHaveLength(9_982);
+    expect(result.identityReview).toEqual({ existing: 0, omitted: 0, changed: 0, conflicts: 0 });
     expect(adapter.fetches).toEqual(Array.from({ length: 10 }, (_, index) => ({
       offset: index * 1_000,
       limit: index === 9 ? 982 : 1_000,
     })));
     expect(adapter.writes).toEqual([]);
+  });
+
+  it("reports existing identity changes and requires explicit review before writing", async () => {
+    const adapter = new MemoryPublicationAdapter();
+    adapter.publishedIdentities = [{ bib: "HERO-10K-001", name: "Budi Santoso", distance: "10K", sourceUid: "mock-budi" }];
+
+    await expect(executeScoreNowPublication(adapter, {
+      projectRef: "anbnuegocddoowagqmxw",
+      publish: true,
+    })).rejects.toThrow("identity review");
+    expect(adapter.writes).toEqual([]);
+
+    const result = await executeScoreNowPublication(adapter, {
+      projectRef: "anbnuegocddoowagqmxw",
+      publish: true,
+      reviewIdentityChanges: true,
+    });
+    expect(result.identityReview).toEqual({ existing: 1, omitted: 1, changed: 0, conflicts: 0 });
+    expect(adapter.acquiredReviews).toEqual([true]);
   });
 
   it("refuses the wrong project, a short page, a changed count, or an unknown event configuration", async () => {
@@ -259,5 +290,29 @@ describe("executeScoreNowPublication", () => {
     expect(adapter.writes).toHaveLength(writesAfterFirst);
     expect(adapter.runners.size).toBe(9_982);
     expect(adapter.runs.size).toBe(1);
+  });
+
+  it("atomically reuses one run across concurrent identical publications", async () => {
+    const adapter = new MemoryPublicationAdapter();
+    let arrivals = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    adapter.findRun = async (digest) => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await gate;
+      return [...adapter.runs.values()].find((run) => run.digest === digest) ?? null;
+    };
+    const options = { projectRef: "anbnuegocddoowagqmxw", publish: true } as const;
+
+    const results = await Promise.all([
+      executeScoreNowPublication(adapter, options),
+      executeScoreNowPublication(adapter, options),
+    ]);
+
+    expect(results.every((result) => result.runId === "run-1")).toBe(true);
+    expect(adapter.runs.size).toBe(1);
+    expect(adapter.runners.size).toBe(9_982);
+    expect(adapter.writes.filter((write) => write === "acquire-run")).toHaveLength(1);
   });
 });
