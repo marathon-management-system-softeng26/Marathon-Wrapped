@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildScoreNowPublication,
+  executeScoreNowPublication,
   type LegacyScoreNowRow,
+  type ScoreNowPublicationAdapter,
+  type ScoreNowPublicationPlan,
 } from "@/lib/scorenow/publication";
 
 function sourceRow(index: number, category: "5K" | "10K"): LegacyScoreNowRow {
@@ -132,5 +135,129 @@ describe("buildScoreNowPublication", () => {
     expect(() => buildScoreNowPublication([{ ...rows[0], competition_id: 1 }, ...rows.slice(1)])).toThrow("provenance");
     expect(() => buildScoreNowPublication([{ ...rows[0], official_time_ms: null }, ...rows.slice(1)])).toThrow("timing");
     expect(() => buildScoreNowPublication([{ ...rows[0], result_status: "DNS", official_time: "00:40:00.000", official_time_ms: 2_400_000 }, ...rows.slice(1)])).toThrow("timing");
+  });
+});
+
+class MemoryPublicationAdapter implements ScoreNowPublicationAdapter {
+  readonly sourceRows: LegacyScoreNowRow[];
+  event = { id: 1, competitionId: 999001, raceId: 999002 };
+  fetches: Array<{ offset: number; limit: number }> = [];
+  writes: string[] = [];
+  stagedBatchSizes: number[] = [];
+  runners = new Set<string>();
+  runs = new Map<string, { id: string; digest: string; publishedAt: string | null; plan: ScoreNowPublicationPlan }>();
+  counts: number[] = [];
+
+  constructor(rows = completeRows()) {
+    this.sourceRows = rows;
+  }
+
+  async getEvent() {
+    return this.event;
+  }
+
+  async countSourceRows() {
+    return this.counts.shift() ?? this.sourceRows.length;
+  }
+
+  async fetchSourceRows(offset: number, limit: number) {
+    this.fetches.push({ offset, limit });
+    return this.sourceRows.slice(offset, offset + limit);
+  }
+
+  async findRun(digest: string) {
+    return [...this.runs.values()].find((run) => run.digest === digest) ?? null;
+  }
+
+  async createRun(plan: ScoreNowPublicationPlan) {
+    this.writes.push("create-run");
+    const run = { id: `run-${this.runs.size + 1}`, digest: plan.digest, publishedAt: null, plan };
+    this.runs.set(run.id, run);
+    return run;
+  }
+
+  async ensurePages() {
+    this.writes.push("ensure-pages");
+  }
+
+  async stageRows(_runId: string, _digest: string, rows: ScoreNowPublicationPlan["rows"]) {
+    this.writes.push("stage");
+    this.stagedBatchSizes.push(rows.length);
+    return rows.length;
+  }
+
+  async configureRealEventSource() {
+    this.writes.push("configure-event");
+    if (this.event.competitionId !== 999001 || this.event.raceId !== 999002) return false;
+    this.event = { ...this.event, competitionId: 19723, raceId: 308 };
+    return true;
+  }
+
+  async publishRun(runId: string) {
+    this.writes.push("publish");
+    const run = this.runs.get(runId)!;
+    run.publishedAt = "2026-11-24T00:00:00.000Z";
+    for (const row of run.plan.rows) this.runners.add(row.source_uid);
+    return { eventId: 1, counts: { "5K": 5_987, "10K": 3_995 } } as const;
+  }
+}
+
+describe("executeScoreNowPublication", () => {
+  it("paginates a complete source snapshot and performs a zero-write dry-run", async () => {
+    const adapter = new MemoryPublicationAdapter();
+    const result = await executeScoreNowPublication(adapter, {
+      projectRef: "anbnuegocddoowagqmxw",
+      publish: false,
+      pageSize: 1_000,
+    });
+
+    expect(result.mode).toBe("dry-run");
+    expect(result.plan.rows).toHaveLength(9_982);
+    expect(adapter.fetches).toEqual(Array.from({ length: 10 }, (_, index) => ({
+      offset: index * 1_000,
+      limit: index === 9 ? 982 : 1_000,
+    })));
+    expect(adapter.writes).toEqual([]);
+  });
+
+  it("refuses the wrong project, a short page, a changed count, or an unknown event configuration", async () => {
+    await expect(executeScoreNowPublication(new MemoryPublicationAdapter(), {
+      projectRef: "wrong-project",
+      publish: false,
+    })).rejects.toThrow("project");
+
+    const short = new MemoryPublicationAdapter();
+    short.fetchSourceRows = async (offset, limit) => short.sourceRows.slice(offset, offset + Math.max(0, limit - 1));
+    await expect(executeScoreNowPublication(short, { projectRef: "anbnuegocddoowagqmxw", publish: false })).rejects.toThrow("short page");
+
+    const changed = new MemoryPublicationAdapter();
+    changed.counts = [9_982, 9_981];
+    await expect(executeScoreNowPublication(changed, { projectRef: "anbnuegocddoowagqmxw", publish: false })).rejects.toThrow("changed");
+
+    const unknownEvent = new MemoryPublicationAdapter();
+    unknownEvent.event = { id: 1, competitionId: 123, raceId: 456 };
+    await expect(executeScoreNowPublication(unknownEvent, { projectRef: "anbnuegocddoowagqmxw", publish: true })).rejects.toThrow("event configuration");
+    expect(unknownEvent.writes).toEqual([]);
+  });
+
+  it("publishes in bounded batches and reuses an already-published digest idempotently", async () => {
+    const adapter = new MemoryPublicationAdapter();
+    const options = { projectRef: "anbnuegocddoowagqmxw", publish: true } as const;
+    const first = await executeScoreNowPublication(adapter, options);
+
+    expect(first.mode).toBe("published");
+    expect(adapter.event).toEqual({ id: 1, competitionId: 19723, raceId: 308 });
+    expect(adapter.stagedBatchSizes).toHaveLength(100);
+    expect(Math.max(...adapter.stagedBatchSizes)).toBe(100);
+    expect(adapter.runners.size).toBe(9_982);
+    expect(adapter.runs.size).toBe(1);
+
+    const writesAfterFirst = adapter.writes.length;
+    const second = await executeScoreNowPublication(adapter, options);
+    expect(second.mode).toBe("already-published");
+    expect(second.runId).toBe(first.runId);
+    expect(adapter.writes).toHaveLength(writesAfterFirst);
+    expect(adapter.runners.size).toBe(9_982);
+    expect(adapter.runs.size).toBe(1);
   });
 });

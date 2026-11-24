@@ -81,6 +81,37 @@ export type ScoreNowPublicationPlan = {
   batches: ScoreNowPublicationRow[][];
 };
 
+export type ScoreNowPublicationRun = {
+  id: string;
+  digest: string;
+  publishedAt: string | null;
+};
+
+export type ScoreNowPublicationAdapter = {
+  getEvent(): Promise<{ id: number; competitionId: number | null; raceId: number | null }>;
+  countSourceRows(): Promise<number>;
+  fetchSourceRows(offset: number, limit: number): Promise<LegacyScoreNowRow[]>;
+  findRun(digest: string): Promise<ScoreNowPublicationRun | null>;
+  createRun(plan: ScoreNowPublicationPlan): Promise<ScoreNowPublicationRun>;
+  ensurePages(runId: string, pages: ScoreNowPublicationPlan["pages"]): Promise<void>;
+  stageRows(runId: string, digest: string, rows: ScoreNowPublicationRow[]): Promise<number>;
+  configureRealEventSource(): Promise<boolean>;
+  publishRun(runId: string): Promise<{ eventId: number; counts: { "5K": number; "10K": number } }>;
+};
+
+export type ExecuteScoreNowPublicationOptions = {
+  projectRef: string;
+  publish: boolean;
+  pageSize?: number;
+};
+
+export type ExecuteScoreNowPublicationResult = {
+  mode: "dry-run" | "published" | "already-published";
+  plan: ScoreNowPublicationPlan;
+  runId: string | null;
+  publication: { eventId: number; counts: { "5K": number; "10K": number } } | null;
+};
+
 const EXPECTED_COUNTS = { "5K": 5_987, "10K": 3_995 } as const;
 
 function parseDurationMilliseconds(value: string): number | null {
@@ -223,4 +254,70 @@ export function buildScoreNowPublication(rows: LegacyScoreNowRow[]): ScoreNowPub
     rows: publicationRows,
     batches,
   };
+}
+
+function isRealEventSource(event: { id: number; competitionId: number | null; raceId: number | null }) {
+  return event.id === 1 && event.competitionId === 19723 && event.raceId === 308;
+}
+
+function isKnownMockEventSource(event: { id: number; competitionId: number | null; raceId: number | null }) {
+  return event.id === 1 && event.competitionId === 999001 && event.raceId === 999002;
+}
+
+export async function executeScoreNowPublication(
+  adapter: ScoreNowPublicationAdapter,
+  options: ExecuteScoreNowPublicationOptions,
+): Promise<ExecuteScoreNowPublicationResult> {
+  if (options.projectRef !== "anbnuegocddoowagqmxw") {
+    throw new Error("Refusing ScoreNow publication for an unexpected project.");
+  }
+  const pageSize = options.pageSize ?? 1_000;
+  if (!Number.isSafeInteger(pageSize) || pageSize <= 0 || pageSize > 1_000) throw new Error(`Invalid source page size: ${pageSize}`);
+
+  const event = await adapter.getEvent();
+  if (!isRealEventSource(event) && !isKnownMockEventSource(event)) {
+    throw new Error("Refusing ScoreNow publication for an unexpected event configuration.");
+  }
+
+  const initialCount = await adapter.countSourceRows();
+  if (initialCount !== 9_982) throw new Error(`Refusing incomplete ScoreNow source count: ${initialCount}/9982.`);
+  const sourceRows: LegacyScoreNowRow[] = [];
+  for (let offset = 0; offset < initialCount; offset += pageSize) {
+    const expected = Math.min(pageSize, initialCount - offset);
+    const page = await adapter.fetchSourceRows(offset, expected);
+    if (page.length !== expected) throw new Error(`ScoreNow source returned a short page at offset ${offset}: ${page.length}/${expected}.`);
+    sourceRows.push(...page);
+  }
+  const finalCount = await adapter.countSourceRows();
+  if (finalCount !== initialCount) throw new Error(`ScoreNow source count changed during pagination: ${initialCount}/${finalCount}.`);
+  const plan = buildScoreNowPublication(sourceRows);
+
+  if (!options.publish) return { mode: "dry-run", plan, runId: null, publication: null };
+
+  const existingRun = await adapter.findRun(plan.digest);
+  if (existingRun?.publishedAt) {
+    return {
+      mode: "already-published",
+      plan,
+      runId: existingRun.id,
+      publication: { eventId: 1, counts: { "5K": 5_987, "10K": 3_995 } },
+    };
+  }
+
+  const run = existingRun ?? await adapter.createRun(plan);
+  await adapter.ensurePages(run.id, plan.pages);
+  for (const batch of plan.batches) {
+    const affected = await adapter.stageRows(run.id, plan.digest, batch);
+    if (affected !== batch.length) throw new Error(`ScoreNow staging acknowledged ${affected}/${batch.length} rows.`);
+  }
+
+  if (isKnownMockEventSource(event)) {
+    const configured = await adapter.configureRealEventSource();
+    if (!configured) throw new Error("ScoreNow event configuration changed before publication.");
+  }
+  const publication = await adapter.publishRun(run.id);
+  if (publication.eventId !== 1 || publication.counts["5K"] !== 5_987 || publication.counts["10K"] !== 3_995) {
+    throw new Error("ScoreNow publication returned unexpected counts.");
+  }
+  return { mode: "published", plan, runId: run.id, publication };
 }

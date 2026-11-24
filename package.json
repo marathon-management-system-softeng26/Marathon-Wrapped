@@ -15,6 +15,7 @@
     "seed:photos": "node --env-file=.env.local --experimental-strip-types scripts/seed-demo-photos.mts",
     "scrape:scorenow": "node --experimental-strip-types scripts/scrape-scorenow.mts",
     "import:scorenow": "node --experimental-strip-types scripts/import-scorenow.mts",
+    "publish:scorenow": "node --env-file=.env.local --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/publish-scorenow.mts",
     "grant:organizer": "node --conditions=react-server --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/grant-organizer.mts",
     "mail:test": "node --conditions=react-server --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types scripts/send-test-mail.mts"
   },
