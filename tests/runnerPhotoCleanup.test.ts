@@ -85,6 +85,59 @@ it("waits for a due claim before accepting Storage object-not-found on a reclaim
   expect(store.ackCleanup).toHaveBeenCalledWith(first.job_id, reclaimed.lease_id);
 });
 
+it("ACKs another claimed job while the first removal is still pending", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(store.claimCleanup).mockResolvedValue([first, second]);
+    let finish!: (value: unknown) => void;
+    remove.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const processing = processRunnerPhotoCleanup();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.ackCleanup).toHaveBeenCalledTimes(1);
+    expect(store.ackCleanup).toHaveBeenCalledWith(second.job_id, second.lease_id);
+    finish(ok([]));
+    expect(await processing).toEqual({ swept: 3, processed: 2 });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it.each(["success", "rejection"])("schedules a retry for a stalled removal and ignores its late %s", async outcome => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(store.claimCleanup).mockResolvedValue([first]);
+    let finish!: () => void;
+    remove.mockReturnValueOnce(new Promise((resolve, reject) => {
+      finish = () => outcome === "success" ? resolve(ok([])) : reject(new Error("private transport detail"));
+    }));
+    const processing = processRunnerPhotoCleanup();
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(store.failCleanup).toHaveBeenCalledWith(first.job_id, first.lease_id, "storage_unavailable", 30);
+    expect(await processing).toEqual({ swept: 3, processed: 0 });
+    finish();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(store.ackCleanup).not.toHaveBeenCalled();
+    expect(store.failCleanup).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("returns a safe error before the route deadline if a settlement stalls", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.mocked(store.claimCleanup).mockResolvedValue([first, second]);
+    vi.mocked(store.ackCleanup).mockReturnValueOnce(new Promise(() => {}));
+    const result = processRunnerPhotoCleanup().catch(error => error);
+    await vi.advanceTimersByTimeAsync(59_000);
+    expect(store.ackCleanup).toHaveBeenCalledWith(second.job_id, second.lease_id);
+    expect(await result).toMatchObject({ code: "unavailable", message: "Photo service unavailable." });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it.each([[1, 30], [2, 60], [3, 120], [1000, 86400]])(
   "records a bounded retry after persisted attempt %i and continues with other jobs", async (attempts, delay) => {
     vi.mocked(store.claimCleanup).mockResolvedValue([first, second]);
