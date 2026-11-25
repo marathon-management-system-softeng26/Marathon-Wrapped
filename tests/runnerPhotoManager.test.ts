@@ -144,9 +144,10 @@ describe("runner photo contact sheet", () => {
     fetcher.mockReturnValueOnce(saving.promise);
     await act(async () => toggle.click());
     expect(toggle.checked).toBe(false);
-    expect(toggle.disabled).toBe(true);
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
     expect(slots()[1].querySelector<HTMLInputElement>("input")?.disabled).toBe(false);
     expect(fetcher.mock.calls[1]).toEqual([item, expect.objectContaining({ method: "PATCH", body: '{"included":false}' })]);
+    fetcher.mockResolvedValueOnce(list([ready]));
     await act(async () => saving.resolve(Response.json({ error: "private/path" }, { status: 503 })));
     expect(toggle.checked).toBe(true);
     expect(slots()[0].querySelector("[role=alert]")?.textContent).toMatch(/try again/i);
@@ -160,6 +161,44 @@ describe("runner photo contact sheet", () => {
     expect(fetcher.mock.calls.some(([path, init]) => path === item && init?.method === "DELETE" && init.body === "{}")).toBe(true);
     expect(slots()[0].querySelector("img")).toBeNull();
     expect(slots()[0].querySelector('input[type="file"]')).not.toBeNull();
+  });
+
+  it("rolls back a failed PATCH, then shows the saved selection if the server committed it", async () => {
+    await render([ready]);
+    const toggle = slots()[0].querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const latest = deferred<Response>();
+    fetcher.mockRejectedValueOnce(new TypeError("connection lost")).mockReturnValueOnce(latest.promise);
+    await act(async () => toggle.click());
+    expect(toggle.checked).toBe(true);
+    expect(slots()[0].querySelector("[role=alert]")).not.toBeNull();
+    expect(fetcher.mock.calls.at(-1)).toEqual([collection, expect.objectContaining({ method: "GET", cache: "no-store" })]);
+    await act(async () => latest.resolve(list([{ ...ready, included: false }])));
+    expect(toggle.checked).toBe(false);
+    expect(slots()[0].querySelector("[role=alert]")).toBeNull();
+  });
+
+  it("keeps keyboard focus on the inclusion checkbox and ignores repeated activation while saving", async () => {
+    await render([ready]);
+    const toggle = slots()[0].querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const saving = deferred<Response>();
+    fetcher.mockReturnValueOnce(saving.promise);
+    toggle.focus();
+    function pressSpace() {
+      toggle.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true }));
+      toggle.dispatchEvent(new KeyboardEvent("keyup", { key: " ", code: "Space", bubbles: true }));
+      // jsdom omits the native checkbox's keyboard-generated click (detail zero).
+      toggle.dispatchEvent(new MouseEvent("click", { detail: 0, bubbles: true, cancelable: true }));
+    }
+    await act(async () => pressSpace());
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => pressSpace());
+    expect(toggle.checked).toBe(false);
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PATCH")).toHaveLength(1);
+    await act(async () => saving.resolve(Response.json({ ...ready, included: false })));
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.getAttribute("aria-disabled")).not.toBe("true");
   });
 
   it("keeps a failed staged upload recoverable without exposing the storage error", async () => {
@@ -194,7 +233,7 @@ describe("runner photo contact sheet", () => {
     await act(async () => toggle.click());
     await act(async () => staleList.resolve(list([ready])));
     expect(toggle.checked).toBe(false);
-    expect(toggle.disabled).toBe(true);
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
     await act(async () => save.resolve(Response.json(excluded)));
     expect(toggle.checked).toBe(false);
     expect(toggle.disabled).toBe(false);

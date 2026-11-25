@@ -7,7 +7,12 @@ import { createSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { PHOTO_MIME_TYPES, type RunnerPhotoSlot, type RunnerPhotoUploadCapability } from "@/lib/runnerPhotos/types";
 import { parseUploadDeclaration } from "@/lib/runnerPhotos/validation";
 
-type Position = { photo: RunnerPhotoSlot | null; progress: string; error: string; preview: string | null };
+type Position = {
+  photo: RunnerPhotoSlot | null;
+  progress: string;
+  error: string | { requestedInclusion: boolean };
+  preview: string | null;
+};
 type Action =
   | { kind: "upload"; file: File }
   | { kind: "include" | "complete" | "delete"; photo: RunnerPhotoSlot };
@@ -24,7 +29,9 @@ function reconcile(current: Position[], photos: RunnerPhotoSlot[]): Position[] {
     const photo = incoming.get(position.photo.id);
     if (!photo) return emptyPosition();
     incoming.delete(photo.id);
-    return { ...position, photo };
+    const { error } = position;
+    const selectionConfirmed = typeof error === "object" && photo.included === error.requestedInclusion;
+    return { ...position, photo, error: selectionConfirmed ? "" : error };
   });
   const newPhotos = incoming.values();
   return positions.map(position => {
@@ -167,8 +174,15 @@ function PhotoSheet({ collection }: { collection: string }) {
         }
       }
     } catch {
-      if (!signal.aborted) update(index, action.kind === "include"
-        ? { error: failure, photo: action.photo } : { error: failure });
+      if (!signal.aborted) {
+        if (action.kind === "include") {
+          // The server may have saved the selection before the response failed.
+          refresh = true;
+          update(index, { photo: action.photo, error: { requestedInclusion: !action.photo.included } });
+        } else {
+          update(index, { error: failure });
+        }
+      }
     } finally {
       if (!signal.aborted) {
         const preview = active.current.get(index);
@@ -219,14 +233,16 @@ function PhotoSheet({ collection }: { collection: string }) {
                       }} />
                   </label>}
                   {photo && (ready ? <label className="photo-include">
-                    <input type="checkbox" checked={photo.included} disabled={!!progress}
+                    <input type="checkbox" checked={photo.included} aria-disabled={!!progress}
                       onChange={() => void run(index, { kind: "include", photo })} /> Include in Wrapped
                   </label> : <button type="button" className="secondary" disabled={!!progress}
                     onClick={() => void run(index, { kind: "complete", photo })}>Retry completion</button>)}
                   {photo && <button type="button" className="quiet" disabled={!!progress}
                     onClick={() => void run(index, { kind: "delete", photo })}>{ready ? "Delete" : "Cancel"}</button>}
                 </div>
-                {error && <p className="photo-issue" role="alert">{error}</p>}
+                {error && <p className="photo-issue" role="alert">
+                  {typeof error === "string" ? error : "Could not confirm your selection. Review it and try again if needed."}
+                </p>}
               </section>
             </li>;
           })}
