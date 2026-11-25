@@ -83,6 +83,15 @@ describe("real image decoding", () => {
     polyglot.writeUInt32LE(polyglot.length - 8, 4);
     await expect(normalizeRunnerPhoto(polyglot)).rejects.toMatchObject(invalid);
   });
+  it("rejects a one-frame animated WebP", async () => {
+    // A 1 × 1 WebP with an ANIM container and a single 200 ms ANMF frame.
+    const animated = Buffer.from(
+      "UklGRlQAAABXRUJQVlA4WAoAAAACAAAAAAAAAAAAQU5JTQYAAAD/////AABBTk1GKAAAAAAAAAAAAAAAAAAAAMgAAAJWUDhMEAAAAC8AAAAABxAlK1n/AxHR/wA=",
+      "base64",
+    );
+    expect(await sharp(animated).metadata()).toMatchObject({ format: "webp", pages: 1, loop: 0, delay: [200] });
+    await expect(normalizeRunnerPhoto(animated)).rejects.toMatchObject(invalid);
+  });
   it("rejects multiframe WebP and APNG", async () => {
     const frames = randomBytes(8 * 4 * 3);
     const animated = await sharp(frames, { raw: { width: 4, height: 8, channels: 3, pageHeight: 4 } }).webp().toBuffer();
@@ -114,12 +123,13 @@ function network() {
     ready_object_path: null as string | null, ready_size_bytes: null as number | null,
     lease_expires_at: null as string | null, upload_expires_at: iso(120), reservation_expires_at: iso(180),
   };
+  const token = "header." + Buffer.from(JSON.stringify({ exp: now / 1000 + 7200 })).toString("base64url") + ".signature";
   const state = {
     owned: true, present: true, row, full: false, staged: Buffer.alloc(0) as Buffer,
     stored: Buffer.alloc(0) as Buffer, infoMime: "image/png", infoSize: undefined as number | undefined,
     bucket: { id: "runner-photos", name: "runner-photos", public: false, file_size_limit: max,
       allowed_mime_types: ["image/webp", "image/png", "image/jpeg"] },
-    failAt: "", refuse: "", competing: false, removeCode: "", token: "opaque-token", calls: [] as string[],
+    failAt: "", refuse: "", competing: false, removeCode: "", token, calls: [] as string[],
     args: {} as Record<string, Record<string, unknown>>,
   };
   const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status });
@@ -209,19 +219,21 @@ describe("private photo service", () => {
   const complete = () => completeRunnerPhotoUpload(owner, runner, id);
   const read = () => readRunnerPhoto(owner, runner, id);
   it("reserves then signs then activates from actual mint time", async () => {
-    await expect(begin()).resolves.toEqual({ photoId: id, path: staging, token: "opaque-token", expiresAt: iso(121) });
+    await expect(begin()).resolves.toEqual({ photoId: id, path: staging, token: net.token, expiresAt: iso(120) });
     expect(net.args.reserve_runner_photo_upload).toEqual({ p_user_id: owner, p_runner_id: runner,
       p_input_size_bytes: 42, p_input_mime_type: "image/png", p_reservation_expires_at: iso(180) });
-    expect(net.args.activate_runner_photo_upload.p_upload_expires_at).toBe(iso(121));
+    expect(net.args.activate_runner_photo_upload.p_upload_expires_at).toBe(iso(120));
     expect(net.calls.filter(c => c === "sign" || c.endsWith("_upload"))).toEqual([
       "reserve_runner_photo_upload", "sign", "activate_runner_photo_upload"]);
   });
-  it("uses the expiry from Storage when minting preceded receipt", async () => {
-    const exp = now / 1000 + 7200;
-    net.token = "header." + Buffer.from(JSON.stringify({ exp })).toString("base64url") + ".signature";
-    expect((await begin()).expiresAt).toBe(iso(120));
-    expect(net.args.activate_runner_photo_upload.p_upload_expires_at).toBe(iso(120));
-  });
+  it.each(["opaque-token", "header.invalid.signature", "header.e30.signature"])(
+    "cancels before activation when Storage returns an unreadable expiry %#", async token => {
+      net.token = token;
+      await expect(begin()).rejects.toMatchObject(unavailable);
+      expect(net.args.delete_runner_photo).toEqual({ p_user_id: owner, p_runner_id: runner, p_photo_id: id });
+      expect(net.calls).not.toContain("activate_runner_photo_upload");
+      expect(net.calls).not.toContain("remove");
+    });
   it.each(["sign", "activate_runner_photo_upload"])("cancels through the durable trigger on %s failure", async boundary => {
     net.failAt = boundary;
     await expect(begin()).rejects.toMatchObject(unavailable);

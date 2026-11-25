@@ -25,18 +25,14 @@ export async function signStaging(bucket: Bucket, stagingPath: string) {
   // Read only the expiry from the authenticated Storage response. No client
   // supplies this token and its contents never authorize application operations.
   const parts = data.token.split(".");
-  let expiry = Date.now() + 2 * 60 * 60_000;
-  if (parts.length === 3) {
-    try {
-      const { exp } = JSON.parse(Buffer.from(parts[1], "base64url").toString());
-      if (!Number.isSafeInteger(exp) || exp * 1000 <= Date.now()) throw new Error();
-      expiry = exp * 1000;
-    } catch {
-      throw new RunnerPhotoError("unavailable");
-    }
+  if (parts.length !== 3) throw new RunnerPhotoError("unavailable");
+  try {
+    const { exp } = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    if (!Number.isSafeInteger(exp) || exp * 1000 <= Date.now()) throw new Error();
+    return { token: data.token, expiresAt: new Date(exp * 1000).toISOString() };
+  } catch {
+    throw new RunnerPhotoError("unavailable");
   }
-  if (!Number.isFinite(new Date(expiry).getTime())) throw new RunnerPhotoError("unavailable");
-  return { token: data.token, expiresAt: new Date(expiry).toISOString() };
 }
 
 export async function checkStagingInfo(bucket: Bucket, path: string, expected: UploadDeclaration) {

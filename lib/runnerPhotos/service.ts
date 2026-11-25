@@ -72,6 +72,7 @@ export async function normalizeRunnerPhoto(input: Uint8Array, expectedMime?: Upl
     if (expectedMime && expectedMime !== "image/" + format) invalid();
     const decoder = sharp(bytes, { failOn: "warning", limitInputPixels: maxEdge * maxEdge });
     const metadata = await decoder.metadata();
+    if (format === "webp" && (metadata.loop !== undefined || metadata.delay !== undefined)) invalid();
     if (metadata.format !== format || (metadata.pages ?? 1) !== 1 ||
         metadata.width * metadata.height > maxEdge * maxEdge) invalid();
     const normalized = await decoder.rotate().resize({
