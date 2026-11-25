@@ -98,13 +98,22 @@ The mail carries a `?claim=<token>` link to the application root and the raw tok
 
 3. Sign in with the confirmed account. Check that `GET /api/session` includes the granted event in `events`, then open **Manage event results** on the home page. It opens `/organizer`, whose API checks the account's event access on the server before returning organizer data or accepting changes.
 
-### Private runner photo cleanup
+### Private runner photos
 
-| Server-only variable | Value |
-|---|---|
-| `RUNNER_PHOTO_PROCESS_SECRET` | Random bearer secret shared by the scheduler and the photo cleanup endpoint |
+Each claimed registration has three private photo slots. The runner can include any ready photos in their Wrapped gallery. Selected personal photos appear before organizer photos. The downloadable card contains race statistics and no photographs.
 
-Schedule a periodic same-host POST to `/api/internal/runner-photos/process` with the header `Authorization: Bearer <RUNNER_PHOTO_PROCESS_SECRET>`. This schedule is mandatory for abandoned-upload recovery, including when the runner never returns. Each request sweeps expired uploads and processes one batch of due object deletions. Keep the secret out of URLs, logs, and `NEXT_PUBLIC_*` variables.
+#### Rollout
+
+1. Verify the intended project's migration history and apply the outstanding prerequisites in order, then `20261124133324_private_runner_photo_uploads.sql`. This migration provisions the private bucket, metadata, lifecycle functions and cleanup queue. Reconcile the two historical runner-profile migrations with the project's actual history before a clean replay.
+2. Inspect `runner-photos` in Storage. It must be private, limited to 5,242,880 bytes, and allow only JPEG, PNG and WebP. Review existing Storage policies and run database security and performance advisors. Resolve photo-related findings before continuing.
+3. Set the server-only `RUNNER_PHOTO_PROCESS_SECRET` in the deployment and the scheduler's secret store. Use a dedicated random bearer credential and keep it out of URLs, logs and client bundles.
+4. Deploy the app to a restricted environment with the migrated database and Storage. Keep user access restricted during acceptance.
+5. Configure the **mandatory periodic POST** to `/api/internal/runner-photos/process` on the same app host. Send `Authorization: Bearer <RUNNER_PHOTO_PROCESS_SECRET>`. Each call sweeps abandoned uploads and processes a bounded batch. Verify authenticated calls succeed and due jobs drain even when a runner never returns.
+6. Run the disposable HTTP/Storage journey against an isolated project and its matching app. Record mobile, privacy, worker and export evidence. Enable the release for users after acceptance passes. [Acceptance procedure](docs/qa/private-runner-photos.md)
+
+#### Rollback
+
+Disable the dashboard and Wrapped manager links and block new upload reservations first. Keep the private bucket, deletion endpoint, cleanup worker, secret and schedule available. Allow outstanding capabilities and leases to expire. For a full removal, retire photo metadata through the deletion lifecycle so each remaining object has a cleanup job. Continue worker runs through the final expiry and grace period. Verify the outbox is empty and Storage contains no staging or ready objects before retiring the worker or dropping photo tables. Keep the bucket private throughout rollback.
 
 ### Strava configuration
 
