@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { candidate, personalPhoto, photo, ready, registration, runnerId } from "../fixtures/stravaWrapped";
 import { ainaInput } from "../fixtures/runners";
 import { buildWrappedStats } from "@/lib/stats";
-import { organizerId, ownerId, wrappedDatabase, type TestState } from "../fixtures/stravaWrappedDatabase";
+import { organizerId, ownerId, publishedOfficialDatabase, wrappedDatabase, type TestState } from "../fixtures/stravaWrappedDatabase";
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), db: vi.fn(), chip: vi.fn(), runnerSummary: vi.fn(), wrapped: vi.fn(), photoBucket: vi.fn(),
@@ -44,15 +44,9 @@ describe("private Wrapped HTTP boundary", () => {
   );
 
   it.each(["official", "legacy", "Strava"])("merges only this owner's selected ready photos once after %s resolution", async (path) => {
-    const db = wrappedDatabase("ready");
+    const db = path === "official" ? publishedOfficialDatabase() : wrappedDatabase("ready");
     mocks.db.mockReturnValue(db.client);
-    if (path === "official") {
-      db.tables.official_race_results.push({
-        runner_id: runnerId, event_id: 17, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
-        finish_time_ms: 1523000, net_time_ms: null, gender: "F", division: null, gender_rank: null,
-        division_rank: null, overall_rank: null, source_url: null, official_race_checkpoints: [],
-      });
-    } else if (path === "legacy") {
+    if (path === "legacy") {
       mocks.wrapped.mockResolvedValue({ status: "finisher", stats: buildWrappedStats(ainaInput()),
         strava: { state: "disconnected", metrics: null }, photos: [photo], warnings: [] });
     }
@@ -66,12 +60,13 @@ describe("private Wrapped HTTP boundary", () => {
     const response = await call();
     expect(response.status).toBe(200);
     const body = await response.json();
+    const organizerPhoto = path === "official" ? { ...photo, bib_number: null, photographer: null } : photo;
     expect(body.photos).toStrictEqual([personalPhoto,
-      { ...personalPhoto, id: second.id, photo_url: `/api/runners/${runnerId}/photos/${second.id}/content` }, photo]);
+      { ...personalPhoto, id: second.id, photo_url: `/api/runners/${runnerId}/photos/${second.id}/content` }, organizerPhoto]);
     if (path === "Strava") expect(body.snapshot).toEqual(ready.snapshot);
     else {
       expect(body).toMatchObject({ kind: "official", result: { eventId: path === "official" ? 17 : 0 } });
-      expect(body.strava).toStrictEqual(ready);
+      expect(body.strava).toStrictEqual({ ...ready, photos: [organizerPhoto] });
     }
     const queries = db.requests.filter(url => url.pathname.endsWith("/runner_uploaded_photos"));
     expect(queries).toHaveLength(1);

@@ -175,3 +175,16 @@ export function wrappedDatabase(state: TestState = "ready", options: {
   });
   return { client, requests, tables };
 }
+
+export function publishedOfficialDatabase() {
+  const db = wrappedDatabase("ready", { anotherRunnerWithSameBib: true });
+  const [publishedRunnerPhoto] = db.tables.fotoyu_photos;
+  publishedRunnerPhoto.bib_number = null;
+  publishedRunnerPhoto.photographer = null;
+  db.tables.official_race_results.push({
+    runner_id: runnerId, event_id: 17, bib: registration.runner.bibNumber, name: registration.runner.name,
+    distance: "5K", status: "finished", finish_time_ms: 1523000, net_time_ms: null, gender: "F", division: null,
+    gender_rank: null, division_rank: null, overall_rank: null, source_url: null, official_race_checkpoints: [],
+  });
+  return db;
+}

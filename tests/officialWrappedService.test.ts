@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { organizerPhotoRow } from "./fixtures/stravaWrapped";
+import { photo, registration as publishedRegistration, runnerId } from "./fixtures/stravaWrapped";
+import { ownerId, publishedOfficialDatabase } from "./fixtures/stravaWrappedDatabase";
 import { composeOfficialWrapped, getOfficialWrappedForUser, type OfficialRecap } from "@/lib/officialWrappedService";
 
 const mocks = vi.hoisted(() => ({
@@ -62,71 +63,15 @@ describe("composeOfficialWrapped", () => {
     expect(payload.result.overallRank).toBeNull();
   });
 
-  it("loads registration independently when optional Strava storage is unavailable", async () => {
+  it("loads the published registration and only its organizer photo when Strava is unavailable and another runner has the displayed BIB", async () => {
+    const { client } = publishedOfficialDatabase();
+    mocks.from.mockImplementation(client.from.bind(client));
     mocks.getStravaWrappedForUser.mockRejectedValue(new Error("Strava unavailable"));
-    mocks.from.mockImplementation((table: string) => {
-      if (table === "official_race_results") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({
-                data: {
-                  runner_id: result.runnerId,
-                  event_id: result.eventId,
-                  bib: result.bib,
-                  name: result.name,
-                  distance: result.distance,
-                  status: result.status,
-                  finish_time_ms: result.finishTimeMs,
-                  net_time_ms: result.netTimeMs,
-                  overall_rank: result.overallRank,
-                  division: result.division,
-                  division_rank: result.divisionRank,
-                  gender: result.gender,
-                  gender_rank: result.genderRank,
-                  source_url: result.sourceUrl,
-                  official_race_checkpoints: [],
-                },
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-      if (table === "runners") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({
-                data: {
-                  id: registration.runner.id,
-                  name: registration.runner.name,
-                  bib_number: registration.runner.bibNumber,
-                  categories: {
-                    name: registration.event.category,
-                    events: { name: registration.event.name, event_date: registration.event.date },
-                  },
-                },
-                error: null,
-              }),
-            }),
-          }),
-        };
-      }
-      if (table === "fotoyu_photos") {
-        return {
-          select: () => ({
-            eq: async () => ({ data: [{ ...organizerPhotoRow, bib_number: result.bib, photographer: null }], error: null }),
-          }),
-        };
-      }
-      throw new Error(`Unexpected table ${table}`);
-    });
 
-    const payload = await getOfficialWrappedForUser("user-1", result.runnerId, true);
+    const payload = await getOfficialWrappedForUser(ownerId, runnerId);
 
-    expect(payload?.registration).toEqual(registration);
-    expect(payload?.photos).toEqual([{ ...organizerPhotoRow, bib_number: result.bib, photographer: null, source: "organizer" }]);
+    expect(payload?.registration).toEqual(publishedRegistration);
+    expect(payload?.photos).toStrictEqual([{ ...photo, bib_number: null, photographer: null }]);
     expect(payload?.strava).toEqual({ state: "unavailable" });
   });
 
