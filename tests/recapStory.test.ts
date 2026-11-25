@@ -8,7 +8,6 @@ import { ready, registration, runnerId } from "./fixtures/stravaWrapped";
 import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
 vi.mock("next/image", () => ({ default: () => null }));
-vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("@/app/components/SharePreview", () => ({
   default: () => React.createElement("canvas", { "aria-label": "Wrapped preview" }),
 }));
@@ -44,6 +43,13 @@ afterEach(async () => {
 });
 
 describe("Strava-first recap controls", () => {
+  it.each([true, false])("opens this registration's photo manager from the photo scene (populated: %s)", async (populated) => {
+    fetcher.mockResolvedValueOnce(Response.json({ ...ready, photos: populated ? ready.photos : [] }));
+    await renderRecap();
+    await click("Photos");
+    expect(container.querySelector(`main section a[href="/runners/${runnerId}/photos"]`)?.textContent).toBe("Manage my photos");
+  });
+
   it("renders all seven scenes from an official-only result", async () => {
     const official: OfficialWrappedPayload = {
       kind: "official", registration, photos: [], strava: { state: "unavailable" },

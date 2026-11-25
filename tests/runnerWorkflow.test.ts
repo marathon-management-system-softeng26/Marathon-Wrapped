@@ -67,7 +67,8 @@ describe("runner registration desk", () => {
     const card = container.querySelector("main li")!;
     expect(card.querySelector('a[href="/wrapped/runner-a"]')?.textContent).toBe("View Wrapped");
     expect(card.querySelector('a[href="/runners/runner-a/strava"]')?.textContent).toMatch(/Strava/i);
-    expect(card.querySelectorAll("a")).toHaveLength(2);
+    expect(card.querySelector('a[href="/runners/runner-a/photos"]')?.textContent).toBe("Manage photos");
+    expect(card.querySelectorAll("a.button")).toHaveLength(1);
   });
 
   it("presents exactly one next step in each runner's entry", async () => {
@@ -85,7 +86,11 @@ describe("runner registration desk", () => {
       expect(row.textContent).toContain(runner.event);
       expect(row.textContent).toContain(runner.category);
       expect(row.textContent).toContain(runner.bib_number);
-      const actions = row.querySelectorAll("a, button, [role=status]");
+      const photos = row.querySelector(`a[href="/runners/runner-${index}/photos"]`);
+      expect(photos?.textContent).toBe("Manage photos");
+      expect(photos?.classList.contains("button")).toBe(false);
+      expect(document.getElementById(photos?.getAttribute("aria-describedby") ?? "")?.textContent).toContain(runner.name);
+      const actions = row.querySelectorAll("a.button, button, [role=status]");
       expect(actions).toHaveLength(1);
       expect(actions[0].textContent).toBe(label);
       if (kind !== "status") {
@@ -113,7 +118,7 @@ describe("runner registration desk", () => {
     rows.forEach((row) => {
       // No status chip: the action's own label carries the state, so nothing competes with it.
       expect(row.querySelector(".registration-status")).toBeNull();
-      expect(row.querySelectorAll("a, button, [role=status]")).toHaveLength(1);
+      expect(row.querySelectorAll("a.button, button, [role=status]")).toHaveLength(1);
     });
   });
 
