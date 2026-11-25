@@ -22,6 +22,8 @@ function checkWrite(result: { error: unknown }, step: string) {
 const at = (minutes: number) => new Date(Date.now() + minutes * 60_000).toISOString();
 type Account = { id: string; cookie: string; client: SupabaseClient };
 const bucketName = "runner-photos";
+// A scheduled invocation can already hold the job while our own POST claims an empty batch.
+const settlement = { interval: 500, timeout: 60_000 };
 
 describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposable project", () => {
   const run = crypto.randomUUID();
@@ -81,6 +83,20 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
     const result = await admin.from("runner_photo_cleanup").select("object_kind,not_before").eq("object_path", path).maybeSingle();
     checkWrite(result, "inspect cleanup");
     return result.data;
+  }
+  async function persistedPhoto(id: string) {
+    const result = await admin.from("runner_uploaded_photos").select("state,lease_id,lease_expires_at,ready_object_path")
+      .eq("id", id).maybeSingle();
+    checkWrite(result, "inspect persisted photo");
+    const row = result.data;
+    return row && { state: row.state, hasLease: row.lease_id !== null, hasLeaseExpiry: row.lease_expires_at !== null,
+      hasReadyPath: row.ready_object_path !== null };
+  }
+  async function waitForRemoval(path: string) {
+    await expect.poll(async () => {
+      const [present, job] = await Promise.all([exists(path), cleanupJob(path)]);
+      return { present, queued: job !== null };
+    }, settlement).toEqual({ present: false, queued: false });
   }
 
   beforeAll(async () => {
@@ -156,7 +172,8 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
       if (stop === "reserve") {
         checkWrite(await ledger.update({ reservation_expires_at: at(-11) }).eq("id", reserved.photo_id), "age unsigned reservation");
         await worker();
-        expect(await cleanupJob(staging)).toBeNull();
+        await expect.poll(() => persistedPhoto(reserved.photo_id), settlement).toBeNull();
+        await waitForRemoval(staging);
       } else if (stop === "sign" || stop === "activate") {
         // A lost sign/activation response leaves a pending slot that the runner can cancel.
         expect((await slots()).find(s => s.id === reserved.photo_id)?.state).toBe("pending");
@@ -177,9 +194,10 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
           expect((await request(content(reserved.photo_id), owner.cookie)).status).toBe(404);
           checkWrite(await ledger.update({ lease_expires_at: at(-11) }).eq("id", reserved.photo_id), "age interrupted writer");
           await worker();
-          expect((await slots()).find(slot => slot.id === reserved.photo_id)?.state).toBe("pending");
-          expect(await exists(lease.ready_object_path)).toBe(false);
-          expect(await cleanupJob(lease.ready_object_path)).toBeNull();
+          await expect.poll(() => persistedPhoto(reserved.photo_id), settlement).toEqual({
+            state: "pending", hasLease: false, hasLeaseExpiry: false, hasReadyPath: false,
+          });
+          await waitForRemoval(lease.ready_object_path);
           expect((await complete(reserved.photo_id)).state).toBe("ready");
         }
         expect((await request(item(reserved.photo_id), owner.cookie, "DELETE", {})).status).toBe(204);
@@ -253,8 +271,9 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
     for (const id of ids) expect((await request(content(id), owner.cookie)).status).toBe(404);
     expect((await request(collection, owner.cookie)).status).toBe(404);
     await worker();
-    expect(await exists(row.ready_object_path)).toBe(false);
-    expect(await cleanupJob(row.ready_object_path)).toBeNull();
-    expect((await cleanupJob(cap.cap.path))?.object_kind).toBe("staging");
+    await waitForRemoval(row.ready_object_path);
+    const stagingJob = await cleanupJob(cap.cap.path);
+    expect(stagingJob?.object_kind).toBe("staging");
+    expect(Date.parse(stagingJob!.not_before)).toBeGreaterThanOrEqual(Date.parse(cap.cap.expiresAt) + 600_000);
   }, 180_000);
 });

@@ -25,7 +25,7 @@ create function pg_temp.make_photo_owner() returns table(u uuid,r uuid,org uuid)
 declare e bigint; c bigint;
 begin
   u:=gen_random_uuid(); org:=gen_random_uuid();
-  insert into auth.users values (u),(org);
+  insert into auth.users(id) values (u),(org);
   insert into public.events(name,event_date) values ('Photo fixture','2026-01-01') returning id into e;
   insert into public.categories(event_id,name,distance_km,min_age) values(e,'5K',5,12) returning id into c;
   insert into public.runners(category_id,name,date_of_birth,gender,email,phone,id_type,id_number,jersey_size)

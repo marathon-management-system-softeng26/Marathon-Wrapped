@@ -16,6 +16,20 @@
 | Local gates | Full Vitest with bounded workers passed 927 and skipped 23 across three opt-in integration suites. TypeScript, repository ESLint and the production build passed. With both photo database adapters, native passed 37 and skipped three older optional tests. Enabling the older PGlite tests produced 37 passes and three failures creating the already-existing `runner_profiles` relation in official results, publication and Strava lifecycle. |
 | Migration history and advisors | The photo migration appears once at the end of the repository's migration list. CLI 3.3.0 supports `db advisors`. Both the CLI local migration list and advisors failed to connect to 127.0.0.1:54322. The Docker engine was unavailable. Target migration history and advisor findings remain open. The local advisor command was `npx --yes supabase@3.3.0 db advisors --type all --level info --fail-on warn`. |
 
+## Run the transactional SQL gate
+
+Run the SQL gate from the repository root on the isolated, migrated database before creating HTTP fixtures. Use an empty photo queue and a direct or session-mode PostgreSQL connection. The fixture creates session-local helpers, switches to `service_role` for the lifecycle checks, and rolls back its generated data.
+
+Configure a libpq service named `runner_photo_disposable` with the isolated database's host, port, database and test administrator in the operator's service file. Supply its password through the PostgreSQL password file. The account needs permission to create the Auth fixtures and switch to `service_role`. Run the gate with the dedicated opt-in enabled.
+
+```powershell
+if ($env:RUNNER_PHOTO_TEST_DISPOSABLE -ne '1') { throw 'Disposable photo project opt-in required' }
+psql -X --dbname='service=runner_photo_disposable' --set=ON_ERROR_STOP=1 --command='SET plpgsql.check_asserts = on' --file='tests/sql/runner-photo-uploads.sql'
+if ($LASTEXITCODE -ne 0) { throw 'Private runner photo SQL gate failed' }
+```
+
+Record exit code zero and the final `ROLLBACK`. A failed SQL assertion or statement stops the gate. The session closes on exit and PostgreSQL rolls back an open transaction.
+
 ## Run the disposable HTTP/Storage journey
 
 Use an isolated Supabase project or a local Supabase stack with Auth, PostgREST and Storage, the current migrations, and an app instance pointed exclusively at that project. The suite creates two confirmed accounts, an event, category, registration and organizer photo. It invokes the project-wide cleanup worker. Use an environment dedicated to this suite with no unrelated jobs. Supply the following test-only environment variables to the test process.
@@ -45,7 +59,7 @@ Record the date, release commit, project ref, app revision, tester and a redacte
 
 | Pending check | Passing observation | Result / evidence |
 | --- | --- | --- |
-| Migration and permissions | Confirm intended project history first. Apply outstanding prerequisites then `20261124133324_private_runner_photo_uploads.sql`. Verify it appears once. Run `tests/sql/runner-photo-uploads.sql` via the native harness. Its temporary Auth fixture assumes a single-column `auth.users` stub. Inspect RLS, grants, indexes, Storage policies and security/performance advisors. Reconcile duplicate runner-profile migration history before replaying on a new target. | Pending |
+| Migration and permissions | Confirm intended project history first. Apply outstanding prerequisites then `20261124133324_private_runner_photo_uploads.sql`. Verify it appears once. Run the transactional SQL gate above against the migrated disposable database. Inspect RLS, grants, indexes, Storage policies and security/performance advisors. Reconcile duplicate runner-profile migration history before replaying on a new target. | Pending |
 | Real Storage | Bucket is private, limit 5,242,880 bytes, JPEG/PNG/WebP only. Against known-existing staging and ready objects, public URLs and direct anonymous, owner and organizer Storage downloads deny access. Owner-only content loads through the app. | Pending |
 | Slots and gallery | Four simultaneous reservations give three 201s and one 409. Upload generated fixtures, reload while pending, complete all three, deselect one, and see two personal photos before the organizer photo. | Pending |
 | Interrupted requests | Stop after reserve, sign, activate, prepare, write and finalize. Verify unsigned expiry, cancellation with the signed staging deadline preserved, abandoned writer cleanup, retry after an expired lease, and idempotent completion after a lost success response. The suite ages only its own unsigned reservation and interrupted writer leases. | Pending |
