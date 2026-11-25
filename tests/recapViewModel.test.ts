@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildRecapViewModel } from "@/lib/recapViewModel";
 import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
-import { photo, ready, registration, snapshot } from "@/tests/fixtures/stravaWrapped";
+import { personalPhoto, photo, ready, registration, snapshot } from "@/tests/fixtures/stravaWrapped";
 
 const officialResult: OfficialWrappedPayload["result"] = {
   runnerId: registration.runner.id,
@@ -85,7 +85,7 @@ describe("buildRecapViewModel", () => {
   });
 
   it("normalizes a ready Strava-only recap without inventing official placement", () => {
-    const model = buildRecapViewModel(ready);
+    const model = buildRecapViewModel({ ...ready, photos: [personalPhoto, photo] });
 
     expect(model).toMatchObject({
       source: "strava",
@@ -97,8 +97,8 @@ describe("buildRecapViewModel", () => {
         averagePaceSecondsPerKm: 284,
         overallRank: null,
       },
-      strava: ready,
-      photos: [photo],
+      strava: { state: "ready", snapshot },
+      photos: [personalPhoto, photo],
       exportable: true,
     });
   });

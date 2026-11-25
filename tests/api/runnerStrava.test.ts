@@ -236,7 +236,7 @@ describe("runner Strava access and safe states", () => {
     tables.fotoyu_photos = [{ id: "photo", runner_id: runnerId, bib_number: "A1001", photo_url: "/photos/demo-race.jpg" }];
     const result = await getRunnerEnrichment(runnerId, "A1001", new AbortController().signal, "user");
     expect(result.strava).toMatchObject({ state: "connected", metrics: { avg_heartrate: 145.5, max_heartrate: null, elevation_gain_m: 0, calories: null, avg_cadence: 80.5 } });
-    expect(result.photos).toHaveLength(1);
+    expect(result.photos).toMatchObject([{ source: "organizer", id: "photo", bib_number: "A1001" }]);
   });
   it("restores labeled demo metrics after disconnect and ignores unselected live rows", async () => {
     candidate(); selected();

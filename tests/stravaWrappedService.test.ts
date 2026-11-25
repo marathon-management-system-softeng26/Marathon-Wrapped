@@ -31,6 +31,15 @@ describe("stored Strava Wrapped service", () => {
     expect(await getWrapped(ownerId, runnerId)).toStrictEqual(ready);
   });
 
+  it("preserves an unattributed organizer photo without assigning it the registration BIB", async () => {
+    const db = wrappedDatabase("ready");
+    Object.assign(db.tables.fotoyu_photos[0], { bib_number: null, photographer: null });
+    mocks.db.mockReturnValue(db.client);
+    expect(await getWrapped(ownerId, runnerId)).toStrictEqual({
+      ...ready, photos: [{ ...ready.photos[0], bib_number: null, photographer: null }],
+    });
+  });
+
   it("rejects organizer access before reading any Strava or photo data", async () => {
     const db = wrappedDatabase();
     mocks.db.mockReturnValue(db.client);

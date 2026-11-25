@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shareModel } from "@/lib/shareModel";
-import { privateFields, ready, registration, snapshot } from "./fixtures/stravaWrapped";
+import { personalPhoto, privateFields, ready, registration, snapshot } from "./fixtures/stravaWrapped";
 import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
 const official: OfficialWrappedPayload = { kind: "official", registration, photos: [], strava: { state: "unavailable" }, result: {
@@ -18,7 +18,7 @@ describe("share composition", () => {
     expect(shareModel({ ...official, result: { ...official.result, status: "dnf" } })).toMatchObject({ outcome: "dnf", time: "Did not finish", pace: "Pace unavailable", splits: [] });
   });
   it("allowlists registration and formatted Strava distance, moving time, pace and splits", () => {
-    const payload = { ...ready, ...privateFields };
+    const payload = { ...ready, ...privateFields, photos: [personalPhoto, ...ready.photos] };
     expect(shareModel(payload)).toStrictEqual({
       name: "Aina Putri",
       bib: "A1001",

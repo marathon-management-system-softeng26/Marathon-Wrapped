@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { organizerPhotoRow } from "./fixtures/stravaWrapped";
 import { composeOfficialWrapped, getOfficialWrappedForUser, type OfficialRecap } from "@/lib/officialWrappedService";
 
 const mocks = vi.hoisted(() => ({
@@ -115,7 +116,7 @@ describe("composeOfficialWrapped", () => {
       if (table === "fotoyu_photos") {
         return {
           select: () => ({
-            eq: async () => ({ data: [], error: null }),
+            eq: async () => ({ data: [{ ...organizerPhotoRow, bib_number: result.bib, photographer: null }], error: null }),
           }),
         };
       }
@@ -125,6 +126,7 @@ describe("composeOfficialWrapped", () => {
     const payload = await getOfficialWrappedForUser("user-1", result.runnerId, true);
 
     expect(payload?.registration).toEqual(registration);
+    expect(payload?.photos).toEqual([{ ...organizerPhotoRow, bib_number: result.bib, photographer: null, source: "organizer" }]);
     expect(payload?.strava).toEqual({ state: "unavailable" });
   });
 

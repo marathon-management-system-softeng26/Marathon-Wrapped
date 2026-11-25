@@ -1,7 +1,7 @@
 import "server-only";
 import { AccessDeniedError } from "@/lib/auth/access";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import type { OfficialWrappedPayload, Photo, WrappedRegistration } from "@/lib/wrappedPayload";
+import { toOrganizerPhoto, type OfficialWrappedPayload, type Photo, type WrappedRegistration } from "@/lib/wrappedPayload";
 import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
 import { getWrappedForUser } from "@/lib/wrappedService";
 import type { OfficialRecap } from "@/lib/officialResults/types";
@@ -142,5 +142,5 @@ export async function getOfficialWrappedForUser(
   } catch {
     // Official results are the source of truth; optional enrichment must not hide them.
   }
-  return composeOfficialWrapped(registration, result, strava, (photos ?? []) as Photo[]);
+  return composeOfficialWrapped(registration, result, strava, (photos ?? []).map(toOrganizerPhoto));
 }

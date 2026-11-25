@@ -29,9 +29,16 @@ export const snapshot: StravaWrappedSnapshotV1 = {
   averageCadence: 82.12,
 };
 
-export const photo = {
+export const organizerPhotoRow = {
   id: "photo-1", bib_number: "A1001", photo_url: "/photos/finish.jpg",
   photographer: "Race photographer", captured_km: 5, captured_at: null,
+};
+
+export const photo = { ...organizerPhotoRow, source: "organizer" as const };
+export const personalPhoto = {
+  id: "70000000-0000-4000-a000-000000000001", source: "personal" as const,
+  photo_url: `/api/runners/${runnerId}/photos/70000000-0000-4000-a000-000000000001/content`,
+  bib_number: null, photographer: null, captured_km: null, captured_at: null,
 };
 
 export const ready = { state: "ready" as const, registration, snapshot, photos: [photo] };
