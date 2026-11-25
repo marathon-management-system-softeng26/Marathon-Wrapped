@@ -98,6 +98,14 @@ The mail carries a `?claim=<token>` link to the application root and the raw tok
 
 3. Sign in with the confirmed account. Check that `GET /api/session` includes the granted event in `events`, then open **Manage event results** on the home page. It opens `/organizer`, whose API checks the account's event access on the server before returning organizer data or accepting changes.
 
+### Private runner photo cleanup
+
+| Server-only variable | Value |
+|---|---|
+| `RUNNER_PHOTO_PROCESS_SECRET` | Random bearer secret shared by the scheduler and the photo cleanup endpoint |
+
+Schedule a periodic same-host POST to `/api/internal/runner-photos/process` with the header `Authorization: Bearer <RUNNER_PHOTO_PROCESS_SECRET>`. This schedule is mandatory for abandoned-upload recovery, including when the runner never returns. Each request sweeps expired uploads and processes one batch of due object deletions. Keep the secret out of URLs, logs, and `NEXT_PUBLIC_*` variables.
+
 ### Strava configuration
 
 Set these server-only environment variables.
