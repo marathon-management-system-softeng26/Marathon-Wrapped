@@ -1,10 +1,13 @@
 import { privateHeaders } from "@/lib/authHttp";
-import { emptyWriteBody, photoJson, photoRoute, writeBody, type PhotoContext } from "@/lib/runnerPhotos/http";
+import { photoMethods, emptyWriteBody, photoJson, photoRoute, writeBody, type PhotoContext } from "@/lib/runnerPhotos/http";
 import { deleteRunnerPhoto, setRunnerPhotoIncluded } from "@/lib/runnerPhotos/service";
 import { RunnerPhotoError } from "@/lib/runnerPhotos/types";
 import { parseIncluded } from "@/lib/runnerPhotos/validation";
 
 export const dynamic = "force-dynamic";
+
+const { OPTIONS, reject } = photoMethods("DELETE, OPTIONS, PATCH");
+export { OPTIONS, reject as GET, reject as HEAD, reject as PUT, reject as POST };
 
 export function PATCH(request: Request, context: PhotoContext) {
   return photoRoute(context, async (userId, { runnerId, photoId }) => {

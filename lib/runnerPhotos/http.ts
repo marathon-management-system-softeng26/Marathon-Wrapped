@@ -12,6 +12,14 @@ export type PhotoContext = { params: Promise<PhotoParams> };
 export const photoJson = (data: unknown, status = 200) => Response.json(data, { status, headers: privateHeaders });
 const errorStatus = { invalid: 400, not_found: 404, quota: 409, in_progress: 409, unavailable: 503 };
 
+export function photoMethods(allow: string) {
+  const headers = { ...privateHeaders, Allow: allow };
+  return {
+    OPTIONS: () => new Response(null, { status: 204, headers }),
+    reject: () => new Response(null, { status: 405, headers }),
+  };
+}
+
 export async function photoRoute<T extends RunnerParams>(
   context: { params: Promise<T> },
   action: (userId: string, params: T) => Promise<Response>,

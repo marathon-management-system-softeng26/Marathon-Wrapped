@@ -3,10 +3,15 @@ import { AuthenticationError, requireUser } from "@/lib/auth/session";
 import * as store from "@/lib/runnerPhotos/store";
 import * as storage from "@/lib/runnerPhotos/storage";
 import { RunnerPhotoError } from "@/lib/runnerPhotos/types";
-import { GET as list, POST as begin } from "@/app/api/runners/[runnerId]/photos/route";
-import { PATCH as toggle, DELETE as remove } from "@/app/api/runners/[runnerId]/photos/[photoId]/route";
-import { POST as complete } from "@/app/api/runners/[runnerId]/photos/[photoId]/complete/route";
-import { GET as content } from "@/app/api/runners/[runnerId]/photos/[photoId]/content/route";
+import * as collectionRoute from "@/app/api/runners/[runnerId]/photos/route";
+import * as itemRoute from "@/app/api/runners/[runnerId]/photos/[photoId]/route";
+import * as completeRoute from "@/app/api/runners/[runnerId]/photos/[photoId]/complete/route";
+import * as contentRoute from "@/app/api/runners/[runnerId]/photos/[photoId]/content/route";
+
+const { GET: list, POST: begin } = collectionRoute;
+const { PATCH: toggle, DELETE: remove } = itemRoute;
+const { POST: complete } = completeRoute;
+const { GET: content } = contentRoute;
 
 vi.mock("@/lib/auth/session", async original => ({
   ...await original<typeof import("@/lib/auth/session")>(), requireUser: vi.fn(),
@@ -142,19 +147,64 @@ it("serves the exact WebP byte view with private headers and rechecks ownership 
   expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([1, 2, 3]);
   expect(store.requirePhotoOwner).toHaveBeenCalledWith(userId, runnerId);
   expect(store.ownedPhoto).toHaveBeenCalledWith(userId, runnerId, photoId, true);
-  const missing = new RunnerPhotoError("not_found");
-  vi.mocked(store.ownedPhoto).mockRejectedValueOnce(missing); // deleted or foreign photo
-  const deleted = await content(request(), ctx);
-  status(deleted, 404);
-  vi.mocked(store.requirePhotoOwner).mockRejectedValue(missing); // released, organizer-only or foreign runner
-  const released = await content(request(), ctx);
-  const foreign = await list(request(), ctx);
-  const message = await deleted.text();
-  for (const result of [released, foreign]) {
+});
+
+it("revokes the same content URL for another user, after a successful deletion and after release", async () => {
+  const itemUrl = origin + "/api/runners/" + runnerId + "/photos/" + photoId;
+  const getContent = () => content(new Request(itemUrl + "/content"), ctx);
+  const directOwners = new Set([userId + "/" + runnerId]);
+  const rows = new Map([[userId + "/" + runnerId + "/" + photoId, row]]);
+  vi.mocked(store.requirePhotoOwner).mockImplementation(async (user, runner) => {
+    if (!directOwners.has(user + "/" + runner)) throw new RunnerPhotoError("not_found");
+  });
+  vi.mocked(store.ownedPhoto).mockImplementation(async (user, runner, photo, readyOnly) => {
+    const result = rows.get([user, runner, photo].join("/"));
+    if (!result || (readyOnly && result.state !== "ready")) throw new RunnerPhotoError("not_found");
+    return result;
+  });
+  vi.mocked(store.deletePhoto).mockImplementation(async args =>
+    rows.delete([args.p_user_id, args.p_runner_id, args.p_photo_id].join("/")));
+  vi.mocked(storage.downloadReady).mockResolvedValue(Buffer.from([1, 2, 3]));
+  status(await getContent(), 200);
+  vi.mocked(requireUser).mockResolvedValueOnce({
+    id: "00000000-0000-4000-8000-000000000004", email: null, emailConfirmedAt: null,
+  });
+  const foreign = await getContent();
+  status(await remove(new Request(itemUrl, { method: "DELETE", headers: { origin }, body: "{}" }), ctx), 204);
+  const deleted = await getContent();
+  directOwners.clear();
+  const released = await getContent();
+  for (const result of [foreign, deleted, released]) {
     status(result, 404);
-    expect(await result.text()).toBe(message);
+    expect(await result.text()).toBe('{"error":"Photo not found."}');
   }
   expect(storage.downloadReady).toHaveBeenCalledTimes(1);
+});
+
+it.each([2, 4])("reports a generic private 503 when Storage returns %i bytes for a three-byte ready photo", async length => {
+  const realStorage = await vi.importActual<typeof storage>("@/lib/runnerPhotos/storage");
+  vi.mocked(storage.downloadReady).mockImplementation(realStorage.downloadReady);
+  const stream = new Blob([new Uint8Array(length)]).stream();
+  const bucket = { download: () => ({ asStream: async () => ({ data: stream, error: null }) }) };
+  vi.mocked(storage.privatePhotoBucket).mockResolvedValue(bucket as unknown as Awaited<ReturnType<typeof storage.privatePhotoBucket>>);
+  const response = await content(request(), ctx);
+  status(response, 503);
+  expect(await response.json()).toEqual({ error: "Photo service unavailable." });
+});
+
+it.each([
+  { route: collectionRoute, allow: "GET, HEAD, OPTIONS, POST", unsupported: collectionRoute.DELETE },
+  { route: itemRoute, allow: "DELETE, OPTIONS, PATCH", unsupported: itemRoute.HEAD },
+  { route: completeRoute, allow: "OPTIONS, POST", unsupported: completeRoute.GET },
+  { route: contentRoute, allow: "GET, HEAD, OPTIONS", unsupported: contentRoute.POST },
+] as const)("preserves private method responses for $allow", async ({ route, allow, unsupported }) => {
+  const options = route.OPTIONS();
+  status(options, 204);
+  expect(options.headers.get("allow")).toBe(allow);
+  const result = unsupported();
+  status(result, 405);
+  expect(result.headers.get("allow")).toBe(allow);
+  expect(store.requirePhotoOwner).not.toHaveBeenCalled();
 });
 
 it("hides internal error messages from both authentication and photo backends", async () => {
