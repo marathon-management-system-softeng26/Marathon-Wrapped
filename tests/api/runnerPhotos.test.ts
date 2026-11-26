@@ -47,6 +47,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(requireUser).mockResolvedValue({ id: userId, email: null, emailConfirmedAt: null });
   vi.mocked(store.ownedPhoto).mockResolvedValue(row);
+  vi.mocked(storage.removePhotoObject).mockResolvedValue();
 });
 
 const writes = [
@@ -147,6 +148,13 @@ it("serves the exact WebP byte view with private headers and rechecks ownership 
   expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([1, 2, 3]);
   expect(store.requirePhotoOwner).toHaveBeenCalledWith(userId, runnerId);
   expect(store.ownedPhoto).toHaveBeenCalledWith(userId, runnerId, photoId, true);
+});
+
+it("keeps deletion successful when the best-effort ready-object removal is unavailable", async () => {
+  vi.mocked(store.deletePhoto).mockResolvedValue(true);
+  vi.mocked(storage.removePhotoObject).mockRejectedValue(new Error("private storage detail"));
+  status(await remove(request("DELETE", "{}"), ctx), 204);
+  expect(storage.removePhotoObject).toHaveBeenCalledWith(row.ready_object_path);
 });
 
 it("revokes the same content URL for another user, after a successful deletion and after release", async () => {

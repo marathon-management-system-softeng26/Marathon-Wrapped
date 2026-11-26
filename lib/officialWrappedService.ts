@@ -132,7 +132,9 @@ export async function getOfficialWrappedForUser(
     loadRegistration(runnerId),
     db.from("fotoyu_photos")
       .select("id,bib_number,photo_url,photographer,captured_km,captured_at")
-      .eq("runner_id", runnerId),
+      .eq("runner_id", runnerId)
+      .order("captured_at", { ascending: true, nullsFirst: false })
+      .order("id", { ascending: true }),
   ]);
   const { data: photos, error: photoError } = photoResult;
   if (photoError) throw new Error("Official photos are temporarily unavailable.");

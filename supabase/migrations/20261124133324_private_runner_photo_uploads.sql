@@ -1,14 +1,25 @@
 -- Refuse to adopt an existing bucket with a different access or upload contract.
 do $$
 begin
-  insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
-  values ('runner-photos','runner-photos',false,5242880,array['image/jpeg','image/png','image/webp'])
+  insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types,versioning_status)
+  values ('runner-photos','runner-photos',false,5242880,array['image/jpeg','image/png','image/webp'],'DISABLED')
   on conflict (id) do nothing;
   perform 1 from storage.buckets where id='runner-photos' and name='runner-photos'
     and public is false and file_size_limit=5242880
-    and allowed_mime_types=array['image/jpeg','image/png','image/webp'] for update;
+    and versioning_status='DISABLED'
+    and allowed_mime_types @> array['image/jpeg','image/png','image/webp']
+    and allowed_mime_types <@ array['image/jpeg','image/png','image/webp'] for update;
   if not found then raise exception 'Incompatible runner-photos bucket'; end if;
 end $$;
+
+-- Application reads and ordinary browser writes must stay behind the proxy.
+-- Restrictive policies also constrain any permissive project-wide policy that
+-- may already exist. Service-role operations bypass RLS, and signed transfers
+-- use the capability that Storage already authorized when it minted the URL.
+create policy "runner photos require application capabilities"
+on storage.objects as restrictive for all to anon, authenticated
+using (bucket_id <> 'runner-photos')
+with check (bucket_id <> 'runner-photos');
 
 create table public.runner_uploaded_photos (
   id uuid primary key default gen_random_uuid(),
@@ -246,7 +257,17 @@ end $$;
 create function public.ack_runner_photo_cleanup(p_job_id uuid,p_lease_id uuid) returns boolean
 language plpgsql security invoker set search_path='' as $$
 begin
-  delete from public.runner_photo_cleanup where id=p_job_id and lease_id=p_lease_id and lease_expires_at>clock_timestamp();
+  -- Ready keys have no outstanding writer and can retire after one confirmed
+  -- removal. Capability-backed staging/provisional keys retain a permanent,
+  -- low-frequency tombstone: an arbitrarily late in-flight writer is removed
+  -- by a future pass without relying on an undocumented network timeout.
+  delete from public.runner_photo_cleanup where id=p_job_id and object_kind='ready'
+    and lease_id=p_lease_id and lease_expires_at>clock_timestamp();
+  if found then return true; end if;
+  update public.runner_photo_cleanup set lease_id=null,lease_expires_at=null,last_error_code=null,
+    not_before=clock_timestamp()+interval '1 day'
+    where id=p_job_id and object_kind in ('staging','provisional_ready')
+      and lease_id=p_lease_id and lease_expires_at>clock_timestamp();
   return found;
 end $$;
 

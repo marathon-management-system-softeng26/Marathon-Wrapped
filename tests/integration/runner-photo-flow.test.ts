@@ -92,11 +92,11 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
     return row && { state: row.state, hasLease: row.lease_id !== null, hasLeaseExpiry: row.lease_expires_at !== null,
       hasReadyPath: row.ready_object_path !== null };
   }
-  async function waitForRemoval(path: string) {
+  async function waitForRemoval(path: string, retainTombstone = false) {
     await expect.poll(async () => {
       const [present, job] = await Promise.all([exists(path), cleanupJob(path)]);
       return { present, queued: job !== null };
-    }, settlement).toEqual({ present: false, queued: false });
+    }, settlement).toEqual({ present: false, queued: retainTombstone });
   }
 
   beforeAll(async () => {
@@ -116,6 +116,7 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
     guest = createClient(url.origin, setting("PUBLISHABLE_KEY")!, options);
     const bucket = checked(await admin.storage.getBucket(bucketName), "inspect bucket");
     expect(bucket.public).toBe(false);
+    expect(bucket.versioning_status).toBe("DISABLED");
     expect(bucket.file_size_limit).toBe(5242880);
     expect(bucket.allowed_mime_types?.slice().sort()).toEqual(["image/jpeg", "image/png", "image/webp"]);
 
@@ -165,7 +166,9 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
         signedUntil = new Date(JSON.parse(Buffer.from(signed.token.split(".")[1], "base64url").toString()).exp * 1000).toISOString();
         if (stop !== "sign") {
           expect(checked(await admin.rpc("activate_runner_photo_upload", { ...args, p_upload_expires_at: signedUntil }), "activate")).toBe(true);
-          checkWrite(await guest.storage.from(bucketName).uploadToSignedUrl(staging, signed.token, image, { contentType: "image/webp" }), "upload");
+          if (stop !== "activate") {
+            checkWrite(await guest.storage.from(bucketName).uploadToSignedUrl(staging, signed.token, image, { contentType: "image/webp" }), "upload");
+          }
         }
       }
       const ledger = admin.from("runner_uploaded_photos");
@@ -173,14 +176,15 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
         checkWrite(await ledger.update({ reservation_expires_at: at(-11) }).eq("id", reserved.photo_id), "age unsigned reservation");
         await worker();
         await expect.poll(() => persistedPhoto(reserved.photo_id), settlement).toBeNull();
-        await waitForRemoval(staging);
+        await waitForRemoval(staging, true);
       } else if (stop === "sign" || stop === "activate") {
         // A lost sign/activation response leaves a pending slot that the runner can cancel.
         expect((await slots()).find(s => s.id === reserved.photo_id)?.state).toBe("pending");
         expect((await request(item(reserved.photo_id), owner.cookie, "DELETE", {})).status).toBe(204);
         const job = await cleanupJob(staging);
         expect(job?.object_kind).toBe("staging");
-        expect(Date.parse(job!.not_before)).toBeGreaterThanOrEqual(Date.parse(signedUntil) + 600_000);
+        expect(Date.parse(job!.not_before)).toBe(Date.parse(signedUntil) + 600_000);
+        if (stop === "activate") expect(await exists(staging)).toBe(false);
         await worker();
         expect(await cleanupJob(staging)).toEqual(job);
       } else {
@@ -197,7 +201,7 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
           await expect.poll(() => persistedPhoto(reserved.photo_id), settlement).toEqual({
             state: "pending", hasLease: false, hasLeaseExpiry: false, hasReadyPath: false,
           });
-          await waitForRemoval(lease.ready_object_path);
+          await waitForRemoval(lease.ready_object_path, true);
           expect((await complete(reserved.photo_id)).state).toBe("ready");
         }
         expect((await request(item(reserved.photo_id), owner.cookie, "DELETE", {})).status).toBe(204);
@@ -233,6 +237,10 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
       for (const client of [guest, owner.client, organizer.client]) {
         const denied = await client.storage.from(bucketName).download(path);
         expect([400, 401, 403, 404]).toContain(denied.error?.status);
+        const write = await client.storage.from(bucketName).upload(`direct-${crypto.randomUUID()}`, Buffer.from("denied"), {
+          contentType: "image/png", upsert: false,
+        });
+        expect([400, 401, 403, 404]).toContain(write.error?.status);
       }
       const publicUrl = guest.storage.from(bucketName).getPublicUrl(path).data.publicUrl;
       expect([400, 401, 403, 404]).toContain((await fetch(publicUrl, { cache: "no-store", redirect: "error" })).status);
@@ -274,6 +282,15 @@ describe.skipIf(Boolean(skip))("private runner photos on an explicitly disposabl
     await waitForRemoval(row.ready_object_path);
     const stagingJob = await cleanupJob(cap.cap.path);
     expect(stagingJob?.object_kind).toBe("staging");
-    expect(Date.parse(stagingJob!.not_before)).toBeGreaterThanOrEqual(Date.parse(cap.cap.expiresAt) + 600_000);
+    expect(Date.parse(stagingJob!.not_before)).toBe(Date.parse(cap.cap.expiresAt) + 600_000);
+    checkWrite(await admin.from("runner_photo_cleanup").update({ not_before: at(-1) }).eq("object_path", cap.cap.path), "age staging tombstone");
+    await worker();
+    await waitForRemoval(cap.cap.path, true);
+    checkWrite(await guest.storage.from(bucketName).uploadToSignedUrl(cap.cap.path, cap.cap.token, cap.image,
+      { contentType: "image/png" }), "late signed replay");
+    expect(await exists(cap.cap.path)).toBe(true);
+    checkWrite(await admin.from("runner_photo_cleanup").update({ not_before: at(-1) }).eq("object_path", cap.cap.path), "age recurring tombstone");
+    await worker();
+    await waitForRemoval(cap.cap.path, true);
   }, 180_000);
 });

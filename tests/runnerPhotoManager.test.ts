@@ -137,6 +137,14 @@ describe("runner photo contact sheet", () => {
     expect(slots()[1].querySelector('input[type="file"]')).not.toBeNull();
   });
 
+  it("clears a stale completion error when reconciliation confirms the photo is ready", async () => {
+    await render([pending]);
+    fetcher.mockRejectedValueOnce(new TypeError("lost response")).mockResolvedValueOnce(list([ready]));
+    await act(async () => button(0, "Retry completion").click());
+    expect(slots()[0].querySelector("img")?.getAttribute("src")).toBe(item + "/content");
+    expect(slots()[0].querySelector("[role=alert]")).toBeNull();
+  });
+
   it("restores inclusion after a failed save, accepts zero selected, and deletes a ready photo", async () => {
     await render([ready]);
     const toggle = slots()[0].querySelector<HTMLInputElement>('input[type="checkbox"]')!;

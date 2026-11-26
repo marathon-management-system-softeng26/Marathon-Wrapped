@@ -10,10 +10,15 @@ const bootstrap = `
   create table auth.users(id uuid primary key);
   create schema storage;
   create table storage.buckets(id text primary key, name text unique, public boolean,
-    file_size_limit bigint, allowed_mime_types text[]);
+    file_size_limit bigint, allowed_mime_types text[], versioning_status text default 'DISABLED');
+  create table storage.objects(id uuid primary key default gen_random_uuid(), bucket_id text, name text);
   create role anon;
   create role authenticated;
   create role service_role bypassrls;
+  grant usage on schema storage to anon,authenticated;
+  alter table storage.objects enable row level security;
+  grant select,insert,update,delete on storage.objects to anon,authenticated;
+  create policy broad_storage_access on storage.objects for all to anon,authenticated using (true) with check (true);
 `;
 const migrations = "supabase/migrations";
 async function setup(exec: (query: string) => Promise<unknown>) {
@@ -28,6 +33,11 @@ async function setup(exec: (query: string) => Promise<unknown>) {
       await exec("begin");
       try {
         await exec("insert into storage.buckets(id,name,public) values ('runner-photos','runner-photos',true)");
+        await assert.rejects(() => exec(source), /Incompatible runner-photos bucket/);
+      } finally { await exec("rollback"); }
+      await exec("begin");
+      try {
+        await exec("insert into storage.buckets(id,name,public,versioning_status) values ('runner-photos','runner-photos',false,'ENABLED')");
         await assert.rejects(() => exec(source), /Incompatible runner-photos bucket/);
       } finally { await exec("rollback"); }
     }

@@ -31,7 +31,8 @@ function reconcile(current: Position[], photos: RunnerPhotoSlot[]): Position[] {
     incoming.delete(photo.id);
     const { error } = position;
     const selectionConfirmed = typeof error === "object" && photo.included === error.requestedInclusion;
-    return { ...position, photo, error: selectionConfirmed ? "" : error };
+    const completionConfirmed = typeof error === "string" && error !== "" && photo.state === "ready";
+    return { ...position, photo, error: selectionConfirmed || completionConfirmed ? "" : error };
   });
   const newPhotos = incoming.values();
   return positions.map(position => {

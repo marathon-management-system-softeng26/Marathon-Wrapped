@@ -10,6 +10,7 @@ const bucketName = "runner-photos";
 export async function privatePhotoBucket() {
   const bucket = await backendData(() => getSupabaseAdmin().storage.getBucket(bucketName));
   if (!bucket || bucket.id !== bucketName || bucket.name !== bucketName || bucket.public !== false ||
+      bucket.versioning_status !== "DISABLED" ||
       bucket.file_size_limit !== MAX_PHOTO_BYTES || bucket.allowed_mime_types?.length !== PHOTO_MIME_TYPES.length ||
       !PHOTO_MIME_TYPES.every(mime => bucket.allowed_mime_types?.includes(mime))) {
     throw new RunnerPhotoError("unavailable");
@@ -77,7 +78,8 @@ export async function downloadReady(bucket: Bucket, path: string, sizeBytes: num
   return boundedDownload(bucket, path, sizeBytes);
 }
 
-// Call only after a due outbox job has been claimed.
+// Call after a due outbox claim, or as a best-effort fast path after a ready
+// row was deleted and its immediate durable job was committed.
 export async function removePhotoObject(path: string): Promise<void> {
   const bucket = await privatePhotoBucket();
   await backendData(async () => {

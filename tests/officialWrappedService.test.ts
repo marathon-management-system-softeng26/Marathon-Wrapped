@@ -64,7 +64,7 @@ describe("composeOfficialWrapped", () => {
   });
 
   it("loads the published registration and only its organizer photo when Strava is unavailable and another runner has the displayed BIB", async () => {
-    const { client } = publishedOfficialDatabase();
+    const { client, requests } = publishedOfficialDatabase();
     mocks.from.mockImplementation(client.from.bind(client));
     mocks.getStravaWrappedForUser.mockRejectedValue(new Error("Strava unavailable"));
 
@@ -72,6 +72,8 @@ describe("composeOfficialWrapped", () => {
 
     expect(payload?.registration).toEqual(publishedRegistration);
     expect(payload?.photos).toStrictEqual([{ ...photo, bib_number: null, photographer: null }]);
+    expect(requests.find(url => url.pathname.endsWith("/fotoyu_photos"))?.searchParams.get("order"))
+      .toBe("captured_at.asc.nullslast,id.asc");
     expect(payload?.strava).toEqual({ state: "unavailable" });
   });
 

@@ -128,7 +128,7 @@ function network() {
     owned: true, present: true, row, full: false, staged: Buffer.alloc(0) as Buffer,
     stored: Buffer.alloc(0) as Buffer, infoMime: "image/png", infoSize: undefined as number | undefined,
     bucket: { id: "runner-photos", name: "runner-photos", public: false, file_size_limit: max,
-      allowed_mime_types: ["image/webp", "image/png", "image/jpeg"] },
+      versioning_status: "DISABLED", allowed_mime_types: ["image/webp", "image/png", "image/jpeg"] },
     failAt: "", refuse: "", competing: false, removeCode: "", token, calls: [] as string[],
     args: {} as Record<string, Record<string, unknown>>,
   };
@@ -270,7 +270,7 @@ describe("private photo service", () => {
     net.owned = true;
     await deleteRunnerPhoto(owner, runner, id);
     await expect(read()).rejects.toMatchObject(missing);
-    expect(net.calls).not.toContain("remove");
+    expect(net.calls).toContain("remove");
   });
   it("denies all operations for an organizer without direct access", async () => {
     net.owned = false;
@@ -280,9 +280,10 @@ describe("private photo service", () => {
     expect(net.calls).not.toContain("sign");
     expect(net.calls).not.toContain("download");
   });
-  it.each(["public", "mime", "bytes", "absent"])("fails closed for %s bucket", async failure => {
+  it.each(["public", "mime", "versioning", "bytes", "absent"])("fails closed for %s bucket", async failure => {
     if (failure === "public") net.bucket.public = true;
     if (failure === "mime") net.bucket.allowed_mime_types.push("image/gif");
+    if (failure === "versioning") net.bucket.versioning_status = "SUSPENDED";
     if (failure === "bytes") net.bucket.file_size_limit++;
     if (failure === "absent") net.failAt = "bucket";
     await expect(begin()).rejects.toMatchObject(unavailable);

@@ -29,7 +29,8 @@ beforeEach(() => {
   vi.mocked(store.ackCleanup).mockResolvedValue(true);
   vi.mocked(store.failCleanup).mockResolvedValue(true);
   getBucket.mockResolvedValue(ok({ id: "runner-photos", name: "runner-photos", public: false,
-    file_size_limit: 5242880, allowed_mime_types: ["image/jpeg", "image/png", "image/webp"] }));
+    file_size_limit: 5242880, versioning_status: "DISABLED",
+    allowed_mime_types: ["image/jpeg", "image/png", "image/webp"] }));
   remove.mockResolvedValue(ok([]));
   fromTable.mockReturnValue({ select });
   select.mockReturnValue({ eq });

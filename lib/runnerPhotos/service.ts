@@ -174,8 +174,14 @@ export async function setRunnerPhotoIncluded(userId: string, runnerId: string, p
 
 export async function deleteRunnerPhoto(userId: string, runnerId: string, photoId: string): Promise<void> {
   await authorize(userId, runnerId, photoId);
+  const existing = await store.ownedPhoto(userId, runnerId, photoId);
   // Revocation and cleanup enqueue must remain available during a Storage outage.
   if (!await store.deletePhoto(store.photoArgs(userId, runnerId, photoId))) throw new RunnerPhotoError("not_found");
+  // Ready keys are due immediately. This is latency-only: the transactionally
+  // queued cleanup job remains authoritative if Storage is unavailable here.
+  if (existing.state === "ready" && existing.ready_object_path) {
+    await storage.removePhotoObject(existing.ready_object_path).catch(() => undefined);
+  }
 }
 
 export async function readRunnerPhoto(userId: string, runnerId: string, photoId: string): Promise<Uint8Array> {
