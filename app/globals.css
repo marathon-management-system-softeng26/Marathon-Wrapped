@@ -1656,6 +1656,24 @@ body:has(.story-state) {
 .scene-finisher h1 {
   margin-top: 145px;
 }
+.race-rankings {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.race-rankings li {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 246, 236, 0.16);
+  color: #fff6ec;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
 .decoration-finisher-badge {
   right: -25px;
   bottom: -100px;

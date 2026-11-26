@@ -41,6 +41,7 @@ async function renderShareModel(
   ctx.fillText(model.pace.includes("unavailable") ? model.pace : `${model.pace} average pace`, 540, 775, 650);
   ctx.fillText(model.bib ? `${model.name} · BIB ${model.bib}` : model.name, 540, 1025, 650);
   ctx.font = '700 24px "Bricolage", sans-serif';
+  if (model.rankings) ctx.fillText(model.rankings, 540, 810, 650);
   if (model.splitNote) ctx.fillText(model.splitNote, 540, 885, 650);
   const splitRows = model.splits.slice(0, 6);
   const columns = splitRows.length > 3 ? 2 : 1;

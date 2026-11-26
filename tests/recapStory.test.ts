@@ -88,6 +88,8 @@ describe("Strava-first recap controls", () => {
 
     expect(container.querySelectorAll("nav[aria-label='Recap pages'] button")).toHaveLength(7);
     expect(container.textContent).toContain("Hi Aina");
+    await click("Your race");
+    expect(container.querySelector("ul[aria-label='Official rankings']")?.textContent).toBe("#12 overall#4 in F30#9 women");
     await click("Distance");
     expect(container.textContent).toContain("5.0");
     expect(container.textContent).toContain("33:10");

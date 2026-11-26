@@ -29,7 +29,7 @@ export default function SharePreview({ payload }: { payload: RunnerWrappedPayloa
         width={1080}
         height={1350}
         role="img"
-        aria-label={`${model.name}, ${model.distance}, ${model.source === "official" ? "official time" : "moving time"} ${model.time}, ${model.pace.includes("unavailable") ? model.pace : `average pace ${model.pace}`}.`}
+        aria-label={`${model.name}, ${model.distance}, ${model.source === "official" ? "official time" : "moving time"} ${model.time}, ${model.pace.includes("unavailable") ? model.pace : `average pace ${model.pace}`}${model.rankings ? `, ${model.rankings}` : ""}.`}
       />
     </>
   );

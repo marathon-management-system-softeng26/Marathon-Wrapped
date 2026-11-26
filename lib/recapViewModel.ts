@@ -15,6 +15,7 @@ export type RecapPerformance = {
   overallRank: number | null;
   division: string | null;
   divisionRank: number | null;
+  gender: string | null;
   genderRank: number | null;
   splits: Array<{
     label: string;
@@ -47,6 +48,7 @@ function officialPerformance(payload: OfficialWrappedPayload): RecapPerformance 
     overallRank: finished ? result.overallRank : null,
     division: result.division,
     divisionRank: finished ? result.divisionRank : null,
+    gender: result.gender,
     genderRank: finished ? result.genderRank : null,
     splits: finished
       ? result.checkpoints.map((checkpoint) => ({
@@ -99,6 +101,7 @@ export function buildRecapViewModel(payload: RunnerWrappedPayload): RecapViewMod
       overallRank: null,
       division: null,
       divisionRank: null,
+      gender: null,
       genderRank: null,
       splits: payload.snapshot.splits.map((split) => ({
         label: `Km ${split.kilometer}`,

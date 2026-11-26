@@ -28,7 +28,7 @@ describe("Wrapped PNG export", () => {
     } };
     await expect(exportWrapped(official)).rejects.toThrow("Could not create image. Retry");
     const drawn = ctx.fillText.mock.calls.map(([value]) => String(value));
-    expect(drawn).toEqual(expect.arrayContaining(["33:10 official time", "Official race result"]));
+    expect(drawn).toEqual(expect.arrayContaining(["33:10 official time", "#12 overall · #4 in F30 · #9 women", "Official race result"]));
     expect(drawn).not.toContain("Powered by Strava");
   });
   it("draws Strava moving time, pace and splits without chip, provider identity, location or health data", async () => {

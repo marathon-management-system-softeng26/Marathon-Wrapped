@@ -1,4 +1,5 @@
 import { formatMmSs } from "./format";
+import { formatRankings } from "./rankings";
 import { buildRecapViewModel } from "./recapViewModel";
 import { isStravaWrappedSnapshotV1 } from "./strava/projection";
 import type { OfficialWrappedPayload, RunnerWrappedPayload } from "./wrappedPayload";
@@ -21,6 +22,7 @@ export function shareModel(payload: RunnerWrappedPayload) {
     year: registration.event.date.slice(0, 4), distance: `${(performance.distanceMeters / 1000).toFixed(1)} km`,
     time: model.outcome === "finished" && performance.elapsedMs !== null ? formatMmSs(performance.elapsedMs / 1000) : outcomeTime[model.outcome as keyof typeof outcomeTime] ?? "Official result",
     pace, splits, splitNote: splits.length ? null : "No kilometer splits available",
+    rankings: model.source === "official" && model.outcome === "finished" ? formatRankings(performance).join(" · ") || null : null,
     source: model.source, outcome: model.outcome,
     attribution: model.source === "official" ? "Official race result" : "Powered by Strava",
   };
