@@ -2359,3 +2359,179 @@ body:has(.story-state) {
     gap: 20px;
   }
 }
+
+/* ------------------------------------------------------------------
+   Glass layer (Nov 26, 2026)
+   Frosted surfaces over the existing red / cream / lime world.
+   Back: soft colour fields. Middle: frosted panels. Front: the one
+   primary action per screen, the only element with a drop shadow.
+   Surfaces only: no layout, spacing or type changes.
+   ------------------------------------------------------------------ */
+:root {
+  --glass-light: rgba(255, 250, 244, 0.66);
+  --glass-light-strong: rgba(255, 250, 244, 0.82);
+  --glass-light-edge: rgba(255, 255, 255, 0.72);
+  --glass-dark: rgba(255, 246, 236, 0.14);
+  --glass-dark-strong: rgba(255, 246, 236, 0.22);
+  --glass-dark-edge: rgba(255, 246, 236, 0.34);
+  --glass-blur: blur(18px) saturate(150%);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  --cta-shadow: 0 14px 30px -12px rgba(122, 5, 29, 0.55);
+}
+
+/* Back layer for Operate pages: soft race-red and lime fields behind the glass. */
+.workspace {
+  background:
+    radial-gradient(42rem 28rem at 92% -6%, rgba(166, 23, 41, 0.16), transparent 70%),
+    radial-gradient(34rem 26rem at -8% 38%, rgba(200, 240, 46, 0.16), transparent 70%),
+    radial-gradient(30rem 22rem at 70% 104%, rgba(166, 23, 41, 0.1), transparent 70%),
+    var(--cream);
+  background-attachment: fixed;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom-color: rgba(189, 154, 148, 0.45);
+  background: rgba(255, 246, 236, 0.62);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Middle layer: Operate panels. */
+.registration-card,
+.profile-panel,
+.runner-journey-state,
+.runner-feedback,
+.activity-candidate {
+  border-color: var(--glass-light-edge);
+  background: var(--glass-light);
+  box-shadow: var(--glass-shine), 0 0 0 1px rgba(189, 154, 148, 0.28);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.registration-card:focus-within {
+  box-shadow: var(--glass-shine), 0 0 0 2px var(--red);
+}
+.runner-feedback-error {
+  background: rgba(255, 236, 239, 0.74);
+}
+.runner-journey-recovery {
+  background: rgba(255, 241, 243, 0.72);
+}
+
+/* Sign-in and registration: the form floats as one glass card. */
+.auth-panel-stage {
+  background:
+    radial-gradient(28rem 22rem at 100% 0%, rgba(166, 23, 41, 0.16), transparent 70%),
+    radial-gradient(26rem 20rem at 0% 100%, rgba(200, 240, 46, 0.2), transparent 70%),
+    #fffdf8;
+}
+.auth-panel {
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid var(--glass-light-edge);
+  border-radius: 24px;
+  background: var(--glass-light);
+  box-shadow: var(--glass-shine), 0 0 0 1px rgba(189, 154, 148, 0.24);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.auth-masthead-content {
+  padding: clamp(18px, 3vw, 28px);
+  border: 1px solid var(--glass-dark-edge);
+  border-radius: 24px;
+  background: rgba(54, 5, 13, 0.28);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+
+/* Front layer: the primary action carries the only drop shadow. */
+.button:not(.secondary):not(.quiet),
+.auth-panel button[type="submit"],
+.save-button {
+  box-shadow: var(--cta-shadow);
+}
+
+/* Story (Experience mode): frosted cream panels over the red field. */
+.story {
+  background:
+    radial-gradient(circle at 72% 15%, rgba(255, 35, 82, 0.42), transparent 30%),
+    radial-gradient(circle at 8% 78%, rgba(200, 240, 46, 0.14), transparent 34%),
+    linear-gradient(150deg, #dd063b 0%, #b80b32 48%, #76051d 100%);
+}
+.stat-pair > div,
+.split-chart,
+.enrichment {
+  border: 1px solid var(--glass-light-edge);
+  background: var(--glass-light-strong);
+  box-shadow: var(--glass-shine);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+/* Story chrome: glass tabs, header and arrows. */
+.story-controls {
+  border-top: 1px solid rgba(255, 246, 236, 0.16);
+  background: rgba(113, 4, 27, 0.5);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.story-tabs button[aria-current] small {
+  text-shadow: 0 0 14px rgba(200, 240, 46, 0.45);
+}
+.circle {
+  border: 1px solid var(--glass-dark-edge);
+  background: var(--glass-dark-strong);
+  color: var(--cream);
+  box-shadow: var(--glass-shine);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.circle:hover {
+  background: var(--lime);
+  color: var(--deep);
+}
+
+.race-rankings li {
+  border: 1px solid var(--glass-dark-edge);
+  background: var(--glass-dark);
+  box-shadow: var(--glass-shine);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.photo-button span {
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.photo-dialog {
+  border: 1px solid var(--glass-light-edge);
+  background: var(--glass-light-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+.photo-dialog::backdrop {
+  background: rgba(54, 5, 13, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+/* Fallbacks: solid surfaces when blur is unsupported or the reader asks for less transparency. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .app-header { background: var(--cream); }
+  .registration-card, .profile-panel, .runner-journey-state, .runner-feedback,
+  .activity-candidate, .auth-panel, .photo-dialog { background: #fffaf4; }
+  .stat-pair > div, .split-chart, .enrichment { background: var(--cream); }
+  .circle { background: var(--cream); color: var(--deep); }
+  .story-controls { background: linear-gradient(180deg, transparent, rgba(113, 4, 27, 0.96) 34%); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .app-header { background: var(--cream); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .registration-card, .profile-panel, .runner-journey-state, .runner-feedback,
+  .activity-candidate, .auth-panel, .photo-dialog { background: #fffaf4; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .stat-pair > div, .split-chart, .enrichment { background: var(--cream); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .circle { background: var(--cream); color: var(--deep); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .story-controls { background: rgba(113, 4, 27, 0.96); backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .auth-masthead-content { background: rgba(54, 5, 13, 0.72); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

@@ -119,12 +119,12 @@ components:
 
 The existing Figma Make visual world is the authority: an immersive race-red field, cream statistic panels, lime emphasis and expressive Bricolage lettering. The recap uses Experience mode; sign-in, runner selection and organizer management use Operate mode with cream surfaces, readable forms and red actions.
 
-The world is typographic and flat. Large race measurements, a split chart, photographic moments and a final keepsake give the story its rhythm. The reference portrait is not copied; the introduction uses type and color. Existing stock photography remains explicitly simulated and attributed.
+The world is typographic, with frosted glass surfaces. Large race measurements, a split chart, photographic moments and a final keepsake give the story its rhythm. The reference portrait is not copied; the introduction uses type and color. Existing stock photography remains explicitly simulated and attributed.
 
 **Key Characteristics:**
 - Race red, cream and lime carry identity across both modes.
 - Bricolage display type pairs with familiar system sans body text.
-- Flat panels and generous numeric scale create hierarchy.
+- Frosted glass panels and generous numeric scale create hierarchy.
 - Direct progress buttons and visible focus keep the story navigable.
 
 ## Colors
@@ -167,9 +167,15 @@ The keepsake preview uses the same canvas renderer as the download: 1080 by 1350
 
 ## Elevation & Depth
 
-No box-shadow vocabulary exists. Cream panels on red, warm tonal surfaces in Operate, and a dark translucent photo-dialog backdrop supply separation. The dialog backdrop is `#36050dcc`. Story content reveals with a 0.4s clipped/blurred transition; state feedback uses a 0.18s background transition and photo hover uses a 0.2s scale transition. Reduced-motion mode disables authored animation and transitions.
+Since November 26, 2026 the interface uses a **glass layer** over the same red, cream and lime world (see the end of `app/globals.css`). Depth has three layers:
 
-**The Flat Panel Rule.** Use color contrast and spacing to establish depth; existing panels have no box shadows.
+- **Back:** soft colour fields. Operate pages place faint race-red and lime radial fields behind the cream canvas; the story keeps its red gradient with an added low lime glow.
+- **Middle:** frosted panels. Operate cards, the sign-in panel and the sticky header use translucent warm cream (`rgba(255, 250, 244, 0.66)`) with an 18px backdrop blur, a white edge and a 1px top highlight. Story statistic, split and Strava panels use a stronger cream glass (`0.82`) so deep-red values keep their contrast. Story arrows, ranking chips and the bottom control bar use dark cream-tinted glass.
+- **Front:** the one primary action per screen (primary buttons, sign-in submit, Save image) is the only element with a drop shadow: `0 14px 30px -12px rgba(122, 5, 29, 0.55)`.
+
+The photo dialog backdrop is a blurred `rgba(54, 5, 13, 0.6)`. Story content reveals with a 0.4s clipped/blurred transition; state feedback uses a 0.18s background transition and photo hover uses a 0.2s scale transition. Reduced-motion mode disables authored animation and transitions. Browsers without `backdrop-filter`, and readers with `prefers-reduced-transparency: reduce`, get the original solid surfaces.
+
+**The Glass Rule.** Glass changes surfaces only: never layout, spacing or type. Keep panels legible first, with text contrast at or above the solid version. Drop shadows belong to the primary action alone. The exported PNG keepsake stays flat and typographic.
 
 ## Shapes
 
@@ -210,4 +216,4 @@ Race photos appear as 240 by 290px cropped thumbnails. Hover scales the image to
 - Don't replace the established red, cream and lime world with a new identity.
 - Don't copy the source-reference portrait or commit the read-only reference export.
 - Don't invent hydration, missing timing or a live Strava connection.
-- Don't add decorative shadows to the flat panel system.
+- Don't add drop shadows beyond the primary action, or blur that lowers text contrast.
