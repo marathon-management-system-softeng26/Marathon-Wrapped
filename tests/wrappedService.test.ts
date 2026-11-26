@@ -115,7 +115,7 @@ describe("authorized computed payload", () => {
       mocks.enrichment.mockImplementation((_runnerId, _bib, signal: AbortSignal) => new Promise((resolve) => {
         signal.addEventListener("abort", () => setTimeout(() => resolve({
           strava: { state: "unavailable", metrics: null },
-          photos: [{ id: "photo", bib_number: "A1001", photo_url: "/photos/finish.jpg", photographer: null, captured_km: null, captured_at: null }],
+          photos: [{ source: "organizer", id: "photo", bib_number: "A1001", photo_url: "/photos/finish.jpg", photographer: null, captured_km: null, captured_at: null }],
           warnings: ["Extra activity details are unavailable. Your chip recap is ready."],
         }), 1), { once: true });
       }));

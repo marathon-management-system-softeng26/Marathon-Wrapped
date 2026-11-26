@@ -2,7 +2,7 @@ import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getRunnerStravaRoute } from "@/lib/strava/processing";
 import { StravaError } from "@/lib/strava/client";
-import type { Enrichment, Photo, StravaMetrics, WrappedPayloadStrava } from "@/lib/wrappedPayload";
+import { toOrganizerPhoto, type Enrichment, type Photo, type StravaMetrics, type WrappedPayloadStrava } from "@/lib/wrappedPayload";
 
 const fields = "avg_heartrate,max_heartrate,elevation_gain_m,calories,avg_cadence";
 function stopOnAbort<T>(source: PromiseLike<T>, signal: AbortSignal): Promise<T> {
@@ -30,7 +30,7 @@ export async function getRunnerEnrichment(runnerId: string, bib: string | null, 
   const db = getSupabaseAdmin();
   const [demo, photos, live] = await Promise.allSettled([
     stopOnAbort(db.from("strava_metrics").select(`${fields},data_source`).eq("runner_id", runnerId).eq("data_source", "demo").abortSignal(signal).maybeSingle(), signal),
-    stopOnAbort<{ data: Photo[] | null; error: unknown }>(bib === null ? Promise.resolve({ data: [], error: null }) : db.from("fotoyu_photos")
+    stopOnAbort<{ data: Omit<Photo, "source">[] | null; error: unknown }>(bib === null ? Promise.resolve({ data: [], error: null }) : db.from("fotoyu_photos")
       .select("id,bib_number,photo_url,photographer,captured_km,captured_at").eq("runner_id", runnerId).order("captured_at", { ascending: true }).abortSignal(signal), signal),
     stopOnAbort(userId ? getRunnerStravaRoute(userId, runnerId, signal) : Promise.resolve(null), signal),
   ]);
@@ -59,5 +59,6 @@ export async function getRunnerEnrichment(runnerId: string, bib: string | null, 
   if (!route || ownerDenied || !userId) strava.controlsAvailable = false;
   if (demoFailed || liveFailed || strava.state === "unavailable") warnings.push("Extra activity details are unavailable. Your chip recap is ready.");
   if (photoFailed) warnings.push("Photos are unavailable. Try again later.");
-  return { strava, photos: (!photoFailed && photos.status === "fulfilled" ? photos.value.data ?? [] : []) as Photo[], warnings };
+  const organizerPhotos = !photoFailed && photos.status === "fulfilled" ? photos.value.data ?? [] : [];
+  return { strava, photos: organizerPhotos.map(toOrganizerPhoto), warnings };
 }

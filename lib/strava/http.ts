@@ -7,7 +7,7 @@ import { StravaError, stravaCallbackUrl } from "./client";
 export function requireStravaOrigin(request: Request) {
   if (
     !sameOrigin(request) ||
-    new URL(request.url).origin !== stravaCallbackUrl().origin
+    new URL(request.url).origin !== stravaCallbackUrl(request.url).origin
   ) {
     throw new StravaError("invalid_origin", 403);
   }

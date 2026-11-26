@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { candidate, photo, registration, runnerId, snapshot } from "./stravaWrapped";
+import { candidate, organizerPhotoRow, registration, runnerId, snapshot } from "./stravaWrapped";
 
 export const ownerId = "aa000000-0000-4000-a000-000000000001";
 export const organizerId = "aa000000-0000-4000-a000-000000000002";
@@ -54,6 +54,8 @@ export function wrappedDatabase(state: TestState = "ready", options: {
   };
   const tables: Record<string, Record<string, unknown>[]> = {
     runner_access: [{ user_id: ownerId, runner_id: runnerId, runners: registrationRow }],
+    runners: [registrationRow],
+    runner_uploaded_photos: [],
     official_race_results: [],
     organizer_access: [{ user_id: organizerId, event_id: 1 }],
     strava_connections: [connection],
@@ -79,9 +81,9 @@ export function wrappedDatabase(state: TestState = "ready", options: {
       ] : []),
     ],
     fotoyu_photos: options.noPhotos ? [] : [
-      { ...photo, runner_id: runnerId, coordinates: [-6.1, 106.5] },
+      { ...organizerPhotoRow, runner_id: runnerId, coordinates: [-6.1, 106.5] },
       ...(options.anotherRunnerWithSameBib
-        ? [{ ...photo, id: "another-photo", runner_id: organizerId, photo_url: "/photos/other-edition.jpg" }]
+        ? [{ ...organizerPhotoRow, id: "another-photo", runner_id: organizerId, photo_url: "/photos/other-edition.jpg" }]
         : []),
     ],
   };
@@ -162,10 +164,27 @@ export function wrappedDatabase(state: TestState = "ready", options: {
       if (url.searchParams.get("order") === "status.desc") {
         rows = [...rows].sort((left, right) => String(right.status).localeCompare(String(left.status)));
       }
+      if (url.searchParams.get("order") === "created_at.asc,id.asc") {
+        rows = [...rows].sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)) ||
+          String(left.id).localeCompare(String(right.id)));
+      }
       rows = rows.slice(offset, offset + limit);
       const accept = new Headers(init?.headers).get("accept");
       return Response.json(accept?.includes("vnd.pgrst.object") ? rows[0] ?? null : rows);
     } },
   });
-  return { client, requests };
+  return { client, requests, tables };
+}
+
+export function publishedOfficialDatabase() {
+  const db = wrappedDatabase("ready", { anotherRunnerWithSameBib: true });
+  const [publishedRunnerPhoto] = db.tables.fotoyu_photos;
+  publishedRunnerPhoto.bib_number = null;
+  publishedRunnerPhoto.photographer = null;
+  db.tables.official_race_results.push({
+    runner_id: runnerId, event_id: 17, bib: registration.runner.bibNumber, name: registration.runner.name,
+    distance: "5K", status: "finished", finish_time_ms: 1523000, net_time_ms: null, gender: "F", division: null,
+    gender_rank: null, division_rank: null, overall_rank: null, source_url: null, official_race_checkpoints: [],
+  });
+  return db;
 }

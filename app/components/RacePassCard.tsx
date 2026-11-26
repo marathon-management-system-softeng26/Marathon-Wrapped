@@ -29,21 +29,26 @@ export default function RacePassCard({ runner }: { runner: CatalogRunner }) {
           <span>{runner.bib_number ? `BIB ${runner.bib_number}` : "BIB unassigned"}</span>
         </p>
       </div>
-      {action.kind !== "status" ? (
-        <Link
-          className={action.kind === "setup" ? "button strava-action" : "button"}
-          href={action.kind === "wrapped" ? `/wrapped/${encodeURIComponent(runner.id)}` : stravaHref}
-          prefetch={false}
-          aria-describedby={detailsId}
-        >
-          {action.label}
+      <div className="race-pass-actions">
+        {action.kind !== "status" ? (
+          <Link
+            className={action.kind === "setup" ? "button strava-action" : "button"}
+            href={action.kind === "wrapped" ? `/wrapped/${encodeURIComponent(runner.id)}` : stravaHref}
+            prefetch={false}
+            aria-describedby={detailsId}
+          >
+            {action.label}
+          </Link>
+        ) : <p role="status" className="runner-workflow-status">{action.label}</p>}
+        {runner.wrappedAvailable && runner.workflowState !== "ready" && (
+          <Link className="race-pass-enrichment" href={stravaHref} prefetch={false} aria-describedby={detailsId}>
+            Add details from Strava
+          </Link>
+        )}
+        <Link className="race-pass-enrichment" href={`/runners/${encodeURIComponent(runner.id)}/photos`} prefetch={false} aria-describedby={detailsId}>
+          Manage photos
         </Link>
-      ) : <p role="status" className="runner-workflow-status">{action.label}</p>}
-      {runner.wrappedAvailable && runner.workflowState !== "ready" && (
-        <Link className="race-pass-enrichment" href={stravaHref} prefetch={false} aria-describedby={detailsId}>
-          Add details from Strava
-        </Link>
-      )}
+      </div>
     </li>
   );
 }

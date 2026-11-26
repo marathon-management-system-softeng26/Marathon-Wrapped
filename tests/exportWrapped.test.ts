@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { exportWrapped } from "@/lib/exportWrapped";
-import { privateFields, ready, snapshot } from "./fixtures/stravaWrapped";
+import { personalPhoto, privateFields, ready, snapshot } from "./fixtures/stravaWrapped";
 import { registration, runnerId } from "./fixtures/stravaWrapped";
 import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
 function mockCanvas(blob: Blob | null = null) {
-  const ctx = { fillRect: vi.fn(), fillText: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fill: vi.fn() };
+  const ctx = { drawImage: vi.fn(), fillRect: vi.fn(), fillText: vi.fn(), beginPath: vi.fn(), roundRect: vi.fn(), fill: vi.fn() };
   const canvas = { getContext: vi.fn(() => ctx), toBlob: (callback: (value: Blob | null) => void) => callback(blob), width: 0, height: 0 };
   const append = vi.fn();
   const anchor = { href: "", download: "", click: vi.fn(), remove: vi.fn() };
@@ -32,14 +32,23 @@ describe("Wrapped PNG export", () => {
     expect(drawn).not.toContain("Powered by Strava");
   });
   it("draws Strava moving time, pace and splits without chip, provider identity, location or health data", async () => {
-    const { ctx, canvas, anchor } = mockCanvas(new Blob(["png"], { type: "image/png" }));
+    const { ctx, canvas, createElement, anchor } = mockCanvas(new Blob(["png"], { type: "image/png" }));
     vi.stubGlobal("window", { setTimeout: vi.fn() });
     const objectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:wrapped");
-    const payload = { ...ready, ...privateFields };
+    const payload = { ...ready, ...privateFields, photos: [personalPhoto, ...ready.photos] };
+    const fetcher = vi.fn();
+    const image = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("Image", image);
 
     await exportWrapped(payload);
 
     const drawn = ctx.fillText.mock.calls.map(([value]) => String(value));
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(image).not.toHaveBeenCalled();
+    expect(createElement).not.toHaveBeenCalledWith("img");
+    expect(ctx.drawImage).not.toHaveBeenCalled();
+    expect(drawn.join("\n")).not.toContain(personalPhoto.photo_url);
     expect(drawn).toEqual(expect.arrayContaining([
       "24:08 moving time", "4:44 /km average pace", "Km 1 · 4:50 /km", "Km 2 · 4:40 /km",
       "Aina Putri · BIB A1001", "Soekarno Run", "Powered by Strava",

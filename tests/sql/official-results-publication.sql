@@ -174,6 +174,15 @@ declare
   role_name text;
   table_name text;
 begin
+  assert exists(
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    where n.nspname='public'
+      and p.proname='publish_scorenow_import'
+      and 'statement_timeout=10min'=any(coalesce(p.proconfig,array[]::text[]))
+  ), 'Full-catalog publication must override the short PostgREST statement timeout';
+
   foreach role_name in array array['anon','authenticated'] loop
     foreach table_name in array array[
       'scorenow_import_runs','scorenow_import_pages','scorenow_import_rows',

@@ -3,7 +3,7 @@ import { ainaInput } from "./fixtures/runners";
 import { buildWrappedStats } from "@/lib/stats";
 import { mergeWrapped } from "@/lib/merge";
 import type { Photo } from "@/lib/wrappedPayload";
-const photo = (bib: string): Photo => ({ id: bib, bib_number: bib, photo_url: "/photos/demo-race.jpg", photographer: "Demo stock", captured_km: null, captured_at: null });
+const photo = (bib: string): Photo => ({ source: "organizer", id: bib, bib_number: bib, photo_url: "/photos/demo-race.jpg", photographer: "Demo stock", captured_km: null, captured_at: null });
 describe("photo identity isolation", () => {
   it("does not merge another BIB's photo into a runner's recap", () => {
     const payload = mergeWrapped(buildWrappedStats(ainaInput()), { strava: { state: "disconnected", metrics: null }, photos: [photo("A1001"), photo("B1001")], warnings: [] });

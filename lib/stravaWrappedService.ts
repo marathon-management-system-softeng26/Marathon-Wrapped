@@ -4,7 +4,7 @@ import { safeCandidate, type CandidateActivity, type CandidateRow } from "@/lib/
 import { isStravaWrappedSnapshotV1, type StravaWrappedSnapshotV1 } from "@/lib/strava/projection";
 import { loadStravaRunnerAttachment, stravaRpc } from "@/lib/strava/store";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import type { Photo, StravaFirstWrappedPayload, WrappedRegistration } from "@/lib/wrappedPayload";
+import { toOrganizerPhoto, type Photo, type StravaFirstWrappedPayload, type WrappedRegistration } from "@/lib/wrappedPayload";
 
 type Database = ReturnType<typeof getSupabaseAdmin>;
 type SimpleState = Exclude<StravaFirstWrappedPayload["state"], "needs_confirmation" | "ready">;
@@ -100,8 +100,7 @@ async function loadPhotos(db: Database, runnerId: string, bib: string | null): P
     });
     const result = await Promise.race([query, deadline]);
     if (!result || result.error) return [];
-    return result.data.filter((photo) => !photo.runner_id || photo.runner_id === runnerId).map(({ id, bib_number, photo_url, photographer, captured_km, captured_at }) =>
-      ({ id, bib_number: bib_number ?? bib, photo_url, photographer, captured_km, captured_at }));
+    return result.data.filter((photo) => !photo.runner_id || photo.runner_id === runnerId).map(toOrganizerPhoto);
   } catch {
     return [];
   } finally {

@@ -4,11 +4,9 @@ import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RecapStory from "@/app/components/RecapStory";
-import { ready, registration, runnerId } from "./fixtures/stravaWrapped";
+import { personalPhoto, photo, ready, registration, runnerId } from "./fixtures/stravaWrapped";
 import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
 
-vi.mock("next/image", () => ({ default: () => null }));
-vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock("@/app/components/SharePreview", () => ({
   default: () => React.createElement("canvas", { "aria-label": "Wrapped preview" }),
 }));
@@ -44,6 +42,40 @@ afterEach(async () => {
 });
 
 describe("Strava-first recap controls", () => {
+  it("isolates a failed personal image in the gallery and enlarged view", async () => {
+    fetcher.mockResolvedValueOnce(Response.json({ ...ready, photos: [personalPhoto, photo] }));
+    await renderRecap();
+    await click("Photos");
+    const grid = container.querySelector(".photo-grid")!;
+    const [personal, organizer] = grid.querySelectorAll("img");
+    expect(personal.src).toBe(new URL(personalPhoto.photo_url, window.location.href).href);
+    expect(grid.textContent).toMatch(/your photo/i);
+    expect(grid.textContent).toMatch(/organizer photo/i);
+    const dialog = container.querySelector("dialog")!;
+    dialog.showModal = () => { dialog.open = true; };
+    await act(async () => personal.closest("button")!.click());
+    const enlarged = dialog.querySelector("img")!;
+    expect(enlarged.src).toBe(personal.src);
+    await act(async () => enlarged.dispatchEvent(new Event("error")));
+    expect(dialog.textContent).toMatch(/photo could not load/i);
+    await act(async () => { dialog.open = false; dialog.dispatchEvent(new Event("close")); });
+    await act(async () => personal.dispatchEvent(new Event("error")));
+    expect(grid.textContent).toMatch(/photo could not load/i);
+    expect(grid.textContent).not.toContain(personalPhoto.photo_url);
+    expect(organizer.isConnected).toBe(true);
+    expect(organizer.src).toBe(new URL(photo.photo_url, window.location.href).href);
+    await click("Distance");
+    expect(container.textContent).toContain("24:08");
+    expect(container.textContent).toContain("5.1");
+  });
+
+  it.each([true, false])("opens this registration's photo manager from the photo scene (populated: %s)", async (populated) => {
+    fetcher.mockResolvedValueOnce(Response.json({ ...ready, photos: populated ? ready.photos : [] }));
+    await renderRecap();
+    await click("Photos");
+    expect(container.querySelector(`main section a[href="/runners/${runnerId}/photos"]`)?.textContent).toBe("Manage my photos");
+  });
+
   it("renders all seven scenes from an official-only result", async () => {
     const official: OfficialWrappedPayload = {
       kind: "official", registration, photos: [], strava: { state: "unavailable" },

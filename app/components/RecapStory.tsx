@@ -35,9 +35,15 @@ const outcomeCopy = {
 function isOfficial(payload: RunnerWrappedPayload): payload is Extract<RunnerWrappedPayload, { kind: "official" }> {
   return "kind" in payload && payload.kind === "official";
 }
-function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen: () => void }) {
+function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen?: () => void }) {
   const [failed, setFailed] = useState(false);
-  return failed ? <p className="photo-error">This photo could not load. Reopen the recap to retry.</p> : <button className="photo-button" onClick={onOpen} aria-label="Open race photo"><Image unoptimized width={861} height={1148} src={photo.photo_url} alt="Runners at a race" onError={() => setFailed(true)} /><span>View photo</span></button>;
+  if (failed) return <p className="photo-error">This photo could not load.</p>;
+  const label = photo.source === "personal" ? "Your photo" : "Organizer photo";
+  const image = <Image unoptimized width={861} height={1148} src={photo.photo_url}
+    alt={onOpen ? "" : label} onError={() => setFailed(true)} />;
+  return onOpen
+    ? <button className="photo-button" onClick={onOpen}>{image}<span>{label}</span></button>
+    : <>{image}{photo.photographer && <p>{photo.photographer}</p>}</>;
 }
 
 export default function RecapStory({ runnerId }: { runnerId: string }) {
@@ -134,11 +140,17 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       {slide===2&&<div className="story-scene scene-distance"><p className="scene-label">Distance</p><h2 ref={heading} tabIndex={-1}>Your recorded distance.</h2><div className="distance-number">{(performance.distanceMeters/1000).toFixed(1)}<span>km</span></div><div className="stat-pair"><div><strong>{time}</strong><span>{model.source==="official"?"Official time":"Moving time"}</span></div><div><strong>{pace}</strong>{performance.averagePaceSecondsPerKm!==null&&<span>Average pace</span>}</div>{readySnapshot&&<div><strong>{formatMmSs(readySnapshot.elapsedTimeSeconds)}</strong><span>Elapsed time</span></div>}</div></div>}
       {slide===3&&<div className="story-scene scene-splits"><p className="scene-label">Splits</p><h2 ref={heading} tabIndex={-1}>Race splits</h2><StravaSplitChart splits={chartSplits} fastestKilometer={readySnapshot?.fastestKilometer??null} paceTrend={readySnapshot?.paceTrend??null} /></div>}
       {slide===4&&<div className="story-scene scene-context"><p className="scene-label">Race context</p><h2 ref={heading} tabIndex={-1}>{strava?"Your Strava activity":"Official race context"}</h2>{strava?<StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />:<RunnerFeedback kind="empty" title="No Strava activity added."><p>Your official result already powers this Wrapped.</p></RunnerFeedback>}</div>}
-      {slide===5&&<div className="story-scene scene-photos"><h2 ref={heading} tabIndex={-1}>Caught<br /><span>in the moment.</span></h2>{model.photos.length?<><div className="photo-grid">{model.photos.map((photo)=><RacePhoto key={photo.id} photo={photo} onOpen={()=>setSelected(photo)} />)}</div><p className="subtle">{model.photos.length} {model.photos.length===1?"photo":"photos"} mapped to BIB {registration.runner.bibNumber}.</p></>:<RunnerFeedback kind="empty" title="No photos are available for this BIB yet."><p>Your race statistics are still here.</p></RunnerFeedback>}</div>}
+      {slide === 5 && <div className="story-scene scene-photos">
+        <h2 ref={heading} tabIndex={-1}>Caught<br /><span>in the moment.</span></h2>
+        {model.photos.length ? <div className="photo-grid">{model.photos.map(photo =>
+          <RacePhoto key={`${photo.source}-${photo.id}`} photo={photo} onOpen={() => setSelected(photo)} />)}
+        </div> : <RunnerFeedback kind="empty" title="No photos in this recap yet."><p>Your race statistics are still here.</p></RunnerFeedback>}
+        <Link className="story-photo-link" href={`/runners/${encodeURIComponent(runnerId)}/photos`} prefetch={false}>Manage my photos</Link>
+      </div>}
       {slide===6&&<div className="story-scene scene-share"><p className="scene-label">Share</p><span className="share-year" aria-hidden="true">{registration.event.date.slice(0,4)}</span><SharePreview payload={payload} /><button className="save-button" onClick={save} disabled={saving}>{saving?"Preparing image…":"Save image"}</button><Link className="share-back" href="/">Back to my races</Link><p className="subtle">1080 × 1350 PNG</p></div>}
     </section>
     <StoryControls current={slide} count={pages.length} onPrevious={()=>setSlide((s)=>s-1)} onNext={()=>setSlide((s)=>s+1)} />
     <p className="export-notice" role="status">{notice}</p>{model.source==="strava"&&<p className="strava-attribution">Powered by Strava</p>}
-    <dialog ref={dialog} className="photo-dialog" onClose={()=>setSelected(null)} onClick={(e)=>{if(e.target===dialog.current)dialog.current.close();}}><button autoFocus onClick={()=>dialog.current?.close()}>Close photo</button>{selected&&<><Image unoptimized width={861} height={1148} src={selected.photo_url} alt="Runners at a race" />{selected.photographer&&<p>{selected.photographer}</p>}</>}</dialog>
+    <dialog ref={dialog} className="photo-dialog" onClose={()=>setSelected(null)} onClick={(e)=>{if(e.target===dialog.current)dialog.current.close();}}><button autoFocus onClick={()=>dialog.current?.close()}>Close photo</button>{selected && <RacePhoto key={`${selected.source}-${selected.id}`} photo={selected} />}</dialog>
   </main>;
 }

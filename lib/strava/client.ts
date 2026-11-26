@@ -74,11 +74,15 @@ function required(name: string): string {
   return value;
 }
 
-export function stravaCallbackUrl(): URL {
+export function stravaCallbackUrl(requestUrl?: string): URL {
   let url: URL;
 
   try {
-    url = new URL(required("STRAVA_CALLBACK_URL"));
+    const configured = process.env.STRAVA_CALLBACK_URL;
+    if (!configured && !requestUrl) throw new Error();
+    url = configured
+      ? new URL(configured)
+      : new URL("/api/strava/callback", requestUrl);
   } catch {
     throw new StravaError("not_configured");
   }
@@ -101,19 +105,20 @@ export function stravaCallbackUrl(): URL {
   return url;
 }
 
-export function validateStravaConfiguration() {
+export function validateStravaConfiguration(requestUrl?: string) {
   required("STRAVA_CLIENT_ID");
   required("STRAVA_CLIENT_SECRET");
   encryptionKey();
 
-  return stravaCallbackUrl();
+  return stravaCallbackUrl(requestUrl);
 }
 
 export function createStravaAuthorizationUrl(
   callbackUrl: string,
   state: string,
+  requestUrl?: string,
 ): string {
-  if (callbackUrl !== stravaCallbackUrl().href || !/^[a-f0-9]{64}$/.test(state)) {
+  if (callbackUrl !== stravaCallbackUrl(requestUrl).href || !/^[a-f0-9]{64}$/.test(state)) {
     throw new StravaError("invalid_oauth_request", 400);
   }
 

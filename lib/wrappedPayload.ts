@@ -6,9 +6,14 @@ export type StravaMetrics = {
   elevation_gain_m: number | null; calories: number | null; avg_cadence: number | null;
 };
 export type Photo = {
-  id: string; bib_number: string; photo_url: string;
+  id: string; source: "personal" | "organizer"; bib_number: string | null; photo_url: string;
   photographer: string | null; captured_km: number | null; captured_at: string | null;
 };
+
+export function toOrganizerPhoto({ id, bib_number, photo_url, photographer, captured_km, captured_at }: Omit<Photo, "source">): Photo {
+  return { id, source: "organizer", bib_number, photo_url, photographer, captured_km, captured_at };
+}
+
 export type WrappedPayloadStrava = {
   state: "disconnected" | "attachable" | "authorizing" | "importing" | "needs_confirmation" | "no_match" | "building" | "connected" | "unavailable" | "disconnecting" | "reauthorize_required" | "demo";
   metrics: StravaMetrics | null;
