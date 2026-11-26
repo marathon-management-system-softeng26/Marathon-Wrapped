@@ -66,8 +66,8 @@ type RunnerOAuthAttempt = {
   generation: string | null;
 };
 
-function outcome(status: string, returnPath = "/") {
-  const destination = new URL(returnPath, stravaCallbackUrl());
+function outcome(request: NextRequest, status: string, returnPath = "/") {
+  const destination = new URL(returnPath, stravaCallbackUrl(request.url));
 
   destination.searchParams.set("strava", outcomeCodes.has(status) ? status : "authorization_failed");
 
@@ -117,7 +117,7 @@ export async function connectStrava(request: NextRequest) {
   await requireStravaRunnerAccess(user.id, runnerId);
 
   const returnPath = `/wrapped/${runnerId}`;
-  const callback = validateStravaConfiguration();
+  const callback = validateStravaConfiguration(request.url);
   const state = crypto.randomBytes(32).toString("hex");
   const result = await stravaRpc<string>("strava_begin_runner_oauth", {
     p_user: user.id,
@@ -128,13 +128,13 @@ export async function connectStrava(request: NextRequest) {
 
   if (result !== "ready") {
     if (result === "already_connected" && !await enqueueBackfillWithRetry(user.id, runnerId)) {
-      return outcome("import_failed", returnPath);
+      return outcome(request, "import_failed", returnPath);
     }
-    return outcome(result, returnPath);
+    return outcome(request, result, returnPath);
   }
 
   const response = NextResponse.redirect(
-    createStravaAuthorizationUrl(callback.href, state),
+    createStravaAuthorizationUrl(callback.href, state, request.url),
     303,
   );
 
@@ -194,7 +194,7 @@ export async function finishStravaAuthorization(request: NextRequest) {
 
   // Missing/removed access has no trusted recap destination. Never recover it from the URL.
   if (attempt?.status === "invalid_state" && attempt.runner_id === null && attempt.return_path === null) {
-    return outcome("invalid_state");
+    return outcome(request, "invalid_state");
   }
 
   if (
@@ -206,7 +206,7 @@ export async function finishStravaAuthorization(request: NextRequest) {
 
   const returnPath = attempt.return_path;
   const complete = (result: string) => {
-    const response = outcome(result, returnPath);
+    const response = outcome(request, result, returnPath);
     response.cookies.set(cookiePrefix + stateHash, "", { ...cookieOptions, maxAge: 0 });
     return response;
   };
@@ -254,7 +254,7 @@ export async function finishStravaAuthorization(request: NextRequest) {
         p_hash: stateHash,
       });
 
-      return outcome(error instanceof StravaError ? error.code : "authorization_failed", returnPath);
+      return outcome(request, error instanceof StravaError ? error.code : "authorization_failed", returnPath);
     }
 
     try {

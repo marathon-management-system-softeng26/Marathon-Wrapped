@@ -149,8 +149,8 @@ describe("Strava encryption", () => {
 });
 
 describe("Strava OAuth", () => {
-  it.each(["STRAVA_CLIENT_SECRET", "STRAVA_CALLBACK_URL"])("returns a submitted recap form safely when %s is missing", async (key) => {
-    vi.stubEnv(key, "");
+  it("returns a submitted recap form safely when the Strava client secret is missing", async () => {
+    vi.stubEnv("STRAVA_CLIENT_SECRET", "");
     const response = await connect(request("strava/connect", "POST", {
       "Content-Type": "application/x-www-form-urlencoded", Accept: "text/html",
     }, `runnerId=${runnerId}&returnPath=https%3A%2F%2Fevil.example`));
@@ -158,6 +158,31 @@ describe("Strava OAuth", () => {
     expect(response.headers.get("location")).toBe(`${origin}${returnPath}?strava=authorization_failed`);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("infers the callback URL from the request origin when not configured", async () => {
+    vi.stubEnv("STRAVA_CALLBACK_URL", "");
+    const inferredOrigin = "https://recap.example";
+
+    const response = await connect(new NextRequest(`${inferredOrigin}/api/strava/connect`, {
+      method: "POST",
+      headers: { Origin: inferredOrigin, "Content-Type": "application/x-www-form-urlencoded" },
+      body: `runnerId=${runnerId}`,
+    }));
+
+    expect(response.status).toBe(303);
+    expect(new URL(response.headers.get("location")!).searchParams.get("redirect_uri"))
+      .toBe(`${inferredOrigin}/api/strava/callback`);
+  });
+  it("uses the inferred request origin for OAuth completion redirects", async () => {
+    vi.stubEnv("STRAVA_CALLBACK_URL", "");
+    const inferredOrigin = "https://recap.example";
+
+    const response = await callback(new NextRequest(`${inferredOrigin}/api/strava/callback?code=code&scope=read%2Cactivity%3Aread_all&state=${state}`, {
+      headers: { Cookie: `${cookieName(state)}=${state}` },
+    }));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`${inferredOrigin}${returnPath}?strava=connected`);
   });
   it("returns a submitted recap form safely when attempt storage fails", async () => {
     mocks.rpc.mockRejectedValue(new Error("private-storage-detail"));

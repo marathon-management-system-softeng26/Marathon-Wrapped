@@ -99,7 +99,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
       <div className="strava-actions">{model.actions.map((action) => action.id === "connect" ? (
         <form action={action.path} method="post" key={action.id} onSubmit={(event) => {
           if (busy.current) { event.preventDefault(); return; }
-          busy.current = true; setPending(true); setData({ ...data, state: "authorizing", metrics: null }); setFeedback("Opening Strava authorization…");
+          busy.current = true; setPending(true); setFeedback("Opening Strava authorization…");
         }}>
           <input type="hidden" name="runnerId" value={runnerId} />
           <button type="submit" disabled={action.disabled}>{action.label}</button>
