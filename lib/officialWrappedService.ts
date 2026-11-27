@@ -5,6 +5,7 @@ import { toOrganizerPhoto, type OfficialWrappedPayload, type Photo, type Wrapped
 import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
 import { getWrappedForUser } from "@/lib/wrappedService";
 import type { OfficialRecap } from "@/lib/officialResults/types";
+import { toWrappedCheckpointRows } from "@/lib/wrappedCheckpoints";
 export type { OfficialRecap } from "@/lib/officialResults/types";
 
 type OfficialRow = {
@@ -50,14 +51,14 @@ function normalizeRow(row: OfficialRow): OfficialRecap {
     divisionRank: row.division_rank,
     gender: row.gender,
     genderRank: row.gender_rank,
-    checkpoints: (row.official_race_checkpoints ?? []).map((checkpoint) => ({
+    checkpoints: toWrappedCheckpointRows((row.official_race_checkpoints ?? []).map((checkpoint) => ({
       sequence: checkpoint.sequence,
       label: checkpoint.label,
       distanceMeters: checkpoint.distance_meters,
       displayedTimeMs: checkpoint.displayed_time_ms,
       reportedSplitMs: checkpoint.reported_split_ms,
       referenceLabel: checkpoint.reference_label,
-    })),
+    }))),
     sourceUrl: row.source_url,
   };
 }
