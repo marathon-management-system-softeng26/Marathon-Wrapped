@@ -11,7 +11,7 @@ const official: OfficialWrappedPayload = { kind: "official", registration, photo
 
 describe("share composition", () => {
   it("composes an official-only finished result", () => {
-    expect(shareModel(official)).toMatchObject({ source: "official", outcome: "finished", distance: "5.0 km", time: "33:10", pace: "6:38 /km", attribution: "Official race result" });
+    expect(shareModel(official)).toMatchObject({ source: "official", outcome: "finished", distance: "5.0 km", time: "33:10", pace: "6:38 /km", splits: ["5K · 33:10 split"], attribution: "Official race result" });
   });
 
   it("uses outcome copy and withholds finish metrics for a non-finisher", () => {
@@ -26,6 +26,7 @@ describe("share composition", () => {
       year: "2027",
       distance: "5.1 km",
       time: "24:08",
+      timingLabel: "moving time",
       pace: "4:44 /km",
       splits: ["Km 1 · 4:50 /km", "Km 2 · 4:40 /km"],
       splitNote: null,

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AppHeader from "./AppHeader";
+import RunnerPageIntro from "./RunnerPageIntro";
 import { createSupabaseBrowser } from "@/lib/supabaseBrowser";
 import { PHOTO_MIME_TYPES, type RunnerPhotoSlot, type RunnerPhotoUploadCapability } from "@/lib/runnerPhotos/types";
 import { parseUploadDeclaration } from "@/lib/runnerPhotos/validation";
@@ -197,11 +198,13 @@ function PhotoSheet({ collection }: { collection: string }) {
   }
 
   return (
-    <div className="workspace">
+    <div className="workspace runner-experience">
       <AppHeader />
       <main className="content runner-photo-manager">
-        <h1 className="page-title">Your race photos</h1>
-        <p className="photo-intro">Add up to three photos from this race. Choose which ones to include in your Wrapped.</p>
+        <RunnerPageIntro
+          title="Your race photos"
+          description="Add up to three private photos from this race and choose which ones appear in your Wrapped."
+        />
         <p id="photo-formats">JPEG, PNG or WebP · Up to 5 MiB each</p>
         {listError && <div className="dashboard-error"><p role="alert">{listError}</p>
           <button type="button" onClick={() => { if (controller.current) void reload(controller.current.signal); }}>Try again</button>

@@ -85,6 +85,7 @@ export default function StravaCard({ input, runnerId, onRefresh, onLocalDisconne
     : data.state === "connected" ? "success" : "default";
   return (
     <div className="enrichment strava-card" aria-label="Strava activity" aria-busy={pending}>
+      <p className="strava-provider">Strava</p>
       <RunnerJourneyState state={data.state} title={model.title} tone={tone} body={<>
       <p>{stravaFirst && data.state === "importing" ? "Check back for your Strava recap." : model.description}</p>
       {!stravaFirst && <p className="strava-baseline">{model.baselineCopy}</p>}

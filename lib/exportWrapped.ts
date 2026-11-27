@@ -18,45 +18,56 @@ async function renderShareModel(
   canvas.height = 1350;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Image export is unavailable in this browser.");
-  ctx.fillStyle = "#a61729";
+  const burgundy = "#510d23";
+  const red = "#a61729";
+  const cream = "#fff6ec";
+
+  ctx.fillStyle = burgundy;
   ctx.fillRect(0, 0, 1080, 1350);
-  ctx.fillStyle = "rgba(255, 246, 236, 0.1)";
-  ctx.font = '800 220px "Bricolage", sans-serif';
-  ctx.fillText(model.year, 490, 250, 540);
-  ctx.fillStyle = "#fff6ec";
+  ctx.fillStyle = "rgba(255, 246, 236, 0.09)";
+  ctx.font = '800 260px "Bricolage", sans-serif';
+  ctx.fillText(model.year, 442, 258, 572);
+  ctx.fillStyle = cream;
+  ctx.font = '800 32px "Bricolage", sans-serif';
+  ctx.fillText("MARATHON WRAPPED", 72, 117, 680);
+  ctx.font = '800 72px "Bricolage", sans-serif';
+  ctx.fillText(model.event, 72, 214, 936);
+
   ctx.beginPath();
-  ctx.roundRect(145, 285, 790, 790, 34);
+  ctx.roundRect(72, 320, 936, 822, 36);
   ctx.fill();
-  ctx.fillStyle = "#a61729";
-  ctx.textAlign = "center";
-  ctx.font = '800 34px "Bricolage", sans-serif';
-  ctx.fillText("MARATHON WRAPPED", 540, 380, 650);
-  const [distanceValue, distanceUnit = ""] = model.distance.split(" ");
-  ctx.font = '800 170px "Bricolage", sans-serif';
-  ctx.fillText(distanceValue, 540, 535, 650);
-  ctx.font = '800 112px "Bricolage", sans-serif';
-  ctx.fillText(distanceUnit, 540, 645, 650);
-  ctx.font = '700 31px "Bricolage", sans-serif';
-  ctx.fillText(`${model.time}${model.source === "official" ? " official time" : " moving time"}`, 540, 725, 650);
-  ctx.fillText(model.pace.includes("unavailable") ? model.pace : `${model.pace} average pace`, 540, 775, 650);
-  ctx.fillText(model.bib ? `${model.name} · BIB ${model.bib}` : model.name, 540, 1025, 650);
-  ctx.font = '700 24px "Bricolage", sans-serif';
-  if (model.splitNote) ctx.fillText(model.splitNote, 540, 885, 650);
+  ctx.fillStyle = red;
+  ctx.fillRect(122, 392, 72, 6);
+  ctx.font = '700 28px "Bricolage", sans-serif';
+  ctx.fillText("DISTANCE", 122, 452);
+  ctx.fillStyle = burgundy;
+  ctx.font = '800 166px "Bricolage", sans-serif';
+  ctx.fillText(model.distance, 118, 617, 836);
+
+  const time = model.timingLabel ? `${model.time} ${model.timingLabel}` : model.time;
+  ctx.font = '800 38px "Bricolage", sans-serif';
+  ctx.fillText(time, 122, 714, 390);
+  ctx.fillText(model.pace.includes("unavailable") ? model.pace : `${model.pace} average pace`, 554, 714, 390);
+  ctx.fillStyle = "#d9b6b0";
+  ctx.fillRect(122, 759, 836, 2);
+
+  ctx.fillStyle = burgundy;
+  ctx.font = '700 27px "Bricolage", sans-serif';
+  if (model.splitNote) ctx.fillText(model.splitNote, 122, 842, 836);
   const splitRows = model.splits.slice(0, 6);
-  const columns = splitRows.length > 3 ? 2 : 1;
   splitRows.forEach((split, index) => {
-    const x = columns === 1 ? 540 : index % 2 === 0 ? 350 : 730;
-    ctx.fillText(split, x, 845 + Math.floor(index / columns) * 34, 320);
+    const x = index % 2 === 0 ? 122 : 554;
+    ctx.fillText(split, x, 831 + Math.floor(index / 2) * 47, 395);
   });
   if (model.splits.length > splitRows.length) {
-    ctx.fillText(`Showing ${splitRows.length} of ${model.splits.length} splits`, 540, 970, 650);
+    ctx.fillText(`Showing ${splitRows.length} of ${model.splits.length} splits`, 122, 994, 836);
   }
-  ctx.fillStyle = "#fff6ec";
-  ctx.font = '700 28px "Bricolage", sans-serif';
-  ctx.fillText(model.event, 540, 1220, 936);
-  ctx.font = '700 22px "Bricolage", sans-serif';
-  ctx.fillText(model.attribution, 540, 1275, 936);
-  ctx.textAlign = "start";
+  ctx.fillStyle = red;
+  ctx.font = '800 34px "Bricolage", sans-serif';
+  ctx.fillText(model.bib ? `${model.name} · BIB ${model.bib}` : model.name, 122, 1076, 836);
+  ctx.fillStyle = cream;
+  ctx.font = '700 25px "Bricolage", sans-serif';
+  ctx.fillText(model.attribution, 72, 1251, 936);
 }
 export async function exportWrapped(payload: RunnerWrappedPayload, signal?: AbortSignal) {
   signal?.throwIfAborted();

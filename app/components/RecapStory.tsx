@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import OfficialSplits from "./OfficialSplits";
 import SharePreview from "./SharePreview";
 import StravaCard from "./StravaCard";
 import StravaSplitChart from "./StravaSplitChart";
@@ -38,7 +39,8 @@ function isOfficial(payload: RunnerWrappedPayload): payload is Extract<RunnerWra
 function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen?: () => void }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <p className="photo-error">This photo could not load.</p>;
-  const label = photo.source === "personal" ? "Your photo" : "Organizer photo";
+  const sample = photo.source === "organizer" && photo.photo_url.split("?")[0].endsWith("/demo-race.jpg");
+  const label = photo.source === "personal" ? "Your photo" : sample ? "Sample race photo" : "Organizer photo";
   const image = <Image unoptimized width={861} height={1148} src={photo.photo_url}
     alt={onOpen ? "" : label} onError={() => setFailed(true)} />;
   return onOpen
@@ -104,10 +106,10 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
   useEffect(() => () => exportRequest.current?.abort(), []);
   useEffect(() => { if (!payload || isOfficial(payload) || !["authorizing", "importing", "building"].includes(payload.state)) return; const timer = window.setTimeout(refresh, 5000); return () => window.clearTimeout(timer); }, [payload, refresh]);
   useEffect(() => {
-    const key = (event: KeyboardEvent) => { if (dialog.current?.open || event.altKey || event.ctrlKey || event.metaKey || (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,button,a,[contenteditable]"))) return; if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setSlide((s) => Math.max(0, Math.min(6, s + (event.key === "ArrowRight" ? 1 : -1)))); } };
+    const key = (event: KeyboardEvent) => { if (dialog.current?.open || event.altKey || event.ctrlKey || event.metaKey || (event.target instanceof HTMLElement && event.target.closest("input,textarea,select,button,a,[contenteditable]"))) return; if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); setSlide((s) => Math.max(0, Math.min(pages.length - 1, s + (event.key === "ArrowRight" ? 1 : -1)))); } };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
   }, []);
-  useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [slide]);
+  useEffect(() => { heading.current?.focus(); }, [slide]);
   useEffect(() => { if (selected) dialog.current?.showModal(); }, [selected]);
 
   async function save() {
@@ -129,17 +131,57 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
   const time = performance.elapsedMs === null ? "Official time unavailable" : formatMmSs(performance.elapsedMs / 1000);
   const pace = performance.averagePaceSecondsPerKm === null ? "Pace unavailable" : `${formatMmSs(performance.averagePaceSecondsPerKm)} /km`;
   const readySnapshot = !isOfficial(payload) && payload.state === "ready" ? payload.snapshot : null;
-  const chartSplits = readySnapshot?.splits ?? performance.splits.flatMap((item, index) => item.splitMs === null ? [] : [{ kilometer: index + 1, distanceMeters: item.distanceMeters ?? 0, movingSeconds: item.splitMs / 1000, elapsedSeconds: (item.elapsedMs ?? item.splitMs) / 1000, averageSpeedMps: 0, paceSecondsPerKm: item.distanceMeters ? item.splitMs / 1000 / (item.distanceMeters / 1000) : null }]);
-  return <main className={`story story-${slide}`} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={(e) => { if (!touch.current || dialog.current?.open) return; const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.5)setSlide((s)=>Math.max(0,Math.min(6,s+(dx<0?1:-1))));touch.current=null; }}>
+  const racePhoto = model.photos.find((photo) => photo.source === "personal") ?? model.photos[0];
+  const rankings = [
+    { label: "Overall rank", value: performance.overallRank },
+    { label: performance.division ? `${performance.division} division rank` : "Division rank", value: performance.divisionRank },
+    { label: "Gender rank", value: performance.genderRank },
+  ].filter(({ value }) => value !== null);
+  return <main className={`story story-${slide}`} onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }} onTouchEnd={(e) => { if (!touch.current || dialog.current?.open) return; const dx=e.changedTouches[0].clientX-touch.current.x,dy=e.changedTouches[0].clientY-touch.current.y;if(Math.abs(dx)>65&&Math.abs(dx)>Math.abs(dy)*1.5)setSlide((s)=>Math.max(0,Math.min(pages.length - 1,s+(dx<0?1:-1))));touch.current=null; }}>
     <header className="story-header"><Link href="/">← Your races</Link><span>{registration.event.name}</span></header>
     <StoryProgress current={slide} count={pages.length} labels={pages} onSelect={setSlide} />
     {stravaFeedback && <p className="strava-callback" role="status">{stravaFeedback.notice}</p>}
     <section className="story-content" key={slide}>
-      {slide===0&&<div className="story-scene scene-intro"><p className="scene-label">{registration.event.name}</p><h1 ref={heading} tabIndex={-1}>Hi <span>{firstName}</span>,<br />here goes your <span>Fun Wrapped</span></h1><Image className="decoration decoration-intro-shoe" src={decorationUrl(recapDecorations.intro[0])} width={180} height={180} alt="" /><Image className="decoration decoration-intro-runner" src={decorationUrl(recapDecorations.intro[1])} width={430} height={430} alt="" priority /></div>}
-      {slide===1&&<div className="story-scene scene-finisher"><p className="scene-label">Your race</p><h1 ref={heading} tabIndex={-1}><span>{model.source==="strava"?"Recorded activity":model.outcome==="finished"?"Official result":"Race record"}</span></h1><p className="story-intro">{model.source==="strava"?"Your recorded activity, in numbers and photos.":outcomeCopy[model.outcome]}</p><p>{registration.event.category} · BIB {registration.runner.bibNumber??"unassigned"}</p><Image className="decoration decoration-finisher-badge" src={decorationUrl(recapDecorations.finisher[0])} width={360} height={360} alt="" /></div>}
-      {slide===2&&<div className="story-scene scene-distance"><p className="scene-label">Distance</p><h2 ref={heading} tabIndex={-1}>Your recorded distance.</h2><div className="distance-number">{(performance.distanceMeters/1000).toFixed(1)}<span>km</span></div><div className="stat-pair"><div><strong>{time}</strong><span>{model.source==="official"?"Official time":"Moving time"}</span></div><div><strong>{pace}</strong>{performance.averagePaceSecondsPerKm!==null&&<span>Average pace</span>}</div>{readySnapshot&&<div><strong>{formatMmSs(readySnapshot.elapsedTimeSeconds)}</strong><span>Elapsed time</span></div>}</div></div>}
-      {slide===3&&<div className="story-scene scene-splits"><p className="scene-label">Splits</p><h2 ref={heading} tabIndex={-1}>Race splits</h2><StravaSplitChart splits={chartSplits} fastestKilometer={readySnapshot?.fastestKilometer??null} paceTrend={readySnapshot?.paceTrend??null} /></div>}
-      {slide===4&&<div className="story-scene scene-context"><p className="scene-label">Race context</p><h2 ref={heading} tabIndex={-1}>{strava?"Your Strava activity":"Official race context"}</h2>{strava?<StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />:<RunnerFeedback kind="empty" title="No Strava activity added."><p>Your official result already powers this Wrapped.</p></RunnerFeedback>}</div>}
+      {slide === 0 && <div className="story-scene scene-intro">
+        <p className="scene-label">{registration.event.name} · {registration.event.category}</p>
+        <h1 ref={heading} tabIndex={-1}>Hi {firstName},<br />this is your <span>race story.</span></h1>
+        <Image className="decoration decoration-intro-runner" src={decorationUrl(recapDecorations.intro[1])} width={430} height={430} alt="" priority />
+      </div>}
+      {slide === 1 && <div className="story-scene scene-finisher">
+        <div className="story-result-copy">
+          <p className="scene-label">Your race</p>
+          <h1 ref={heading} tabIndex={-1}>{model.source === "strava" ? "Recorded activity" : model.outcome === "finished" ? "Official result" : "Race record"}</h1>
+          <p className="story-intro">{model.source === "strava" ? "Your recorded activity, in numbers and photos." : outcomeCopy[model.outcome]}</p>
+          <p className="story-bib">{registration.event.category} · BIB {registration.runner.bibNumber ?? "unassigned"}</p>
+          {rankings.length > 0 && <dl className="story-rankings">{rankings.map(({ label, value }) => (
+            <div key={label}><dt>{label}</dt><dd>#{value}</dd></div>
+          ))}</dl>}
+        </div>
+        {racePhoto && <div className="story-result-photo">
+          <RacePhoto key={racePhoto.id} photo={racePhoto} onOpen={() => setSelected(racePhoto)} />
+        </div>}
+      </div>}
+      {slide === 2 && <div className="story-scene scene-distance">
+        <h2 ref={heading} tabIndex={-1}>Distance & pace</h2>
+        <div className="distance-number">{(performance.distanceMeters / 1000).toFixed(1)}<span>km</span></div>
+        <div className="stat-pair">
+          <div><strong>{time}</strong>{performance.elapsedMs !== null && <span>{model.source === "official" ? "Official time" : "Moving time"}</span>}</div>
+          <div><strong>{pace}</strong>{performance.averagePaceSecondsPerKm !== null && <span>Average pace</span>}</div>
+          {readySnapshot && <div><strong>{formatMmSs(readySnapshot.elapsedTimeSeconds)}</strong><span>Elapsed time</span></div>}
+        </div>
+      </div>}
+      {slide === 3 && <div className="story-scene scene-splits">
+        <h2 ref={heading} tabIndex={-1}>Race splits</h2>
+        {readySnapshot
+          ? <StravaSplitChart splits={readySnapshot.splits} fastestKilometer={readySnapshot.fastestKilometer} paceTrend={readySnapshot.paceTrend} />
+          : <OfficialSplits splits={performance.splits} />}
+      </div>}
+      {slide === 4 && <div className="story-scene scene-context">
+        <h2 ref={heading} tabIndex={-1}>{strava ? "Activity details" : "Official race context"}</h2>
+        {strava
+          ? <StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />
+          : <RunnerFeedback kind="empty" title="No Strava activity added."><p>Your official result already powers this Wrapped.</p></RunnerFeedback>}
+      </div>}
       {slide === 5 && <div className="story-scene scene-photos">
         <h2 ref={heading} tabIndex={-1}>Caught<br /><span>in the moment.</span></h2>
         {model.photos.length ? <div className="photo-grid">{model.photos.map(photo =>
@@ -147,7 +189,15 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
         </div> : <RunnerFeedback kind="empty" title="No photos in this recap yet."><p>Your race statistics are still here.</p></RunnerFeedback>}
         <Link className="story-photo-link" href={`/runners/${encodeURIComponent(runnerId)}/photos`} prefetch={false}>Manage my photos</Link>
       </div>}
-      {slide===6&&<div className="story-scene scene-share"><p className="scene-label">Share</p><span className="share-year" aria-hidden="true">{registration.event.date.slice(0,4)}</span><SharePreview payload={payload} /><button className="save-button" onClick={save} disabled={saving}>{saving?"Preparing image…":"Save image"}</button><Link className="share-back" href="/">Back to my races</Link><p className="subtle">1080 × 1350 PNG</p></div>}
+      {slide === 6 && <div className="story-scene scene-share">
+        <div className="share-artwork"><SharePreview payload={payload} /></div>
+        <div className="share-download">
+          <h2 ref={heading} tabIndex={-1}>Save your recap.</h2>
+          <p>1080 × 1350 PNG · Race stats only</p>
+          <button className="save-button" onClick={save} disabled={saving}>{saving ? "Preparing image…" : "Save image"}</button>
+          <Link className="share-back" href="/">Back to my races</Link>
+        </div>
+      </div>}
     </section>
     <StoryControls current={slide} count={pages.length} onPrevious={()=>setSlide((s)=>s-1)} onNext={()=>setSlide((s)=>s+1)} />
     <p className="export-notice" role="status">{notice}</p>{model.source==="strava"&&<p className="strava-attribution">Powered by Strava</p>}

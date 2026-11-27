@@ -7,6 +7,7 @@ export default function SharePreview({ payload }: { payload: RunnerWrappedPayloa
   const canvas = useRef<HTMLCanvasElement>(null),
     [error, setError] = useState("");
   const model = shareModel(payload);
+  const timeLabel = model.timingLabel ? `${model.timingLabel} ${model.time}` : model.time;
   useEffect(() => {
     let cancelled = false;
     if (canvas.current)
@@ -29,7 +30,7 @@ export default function SharePreview({ payload }: { payload: RunnerWrappedPayloa
         width={1080}
         height={1350}
         role="img"
-        aria-label={`${model.name}, ${model.distance}, ${model.source === "official" ? "official time" : "moving time"} ${model.time}, ${model.pace.includes("unavailable") ? model.pace : `average pace ${model.pace}`}.`}
+        aria-label={`${model.name}, ${model.distance}, ${timeLabel}, ${model.pace.includes("unavailable") ? model.pace : `average pace ${model.pace}`}.`}
       />
     </>
   );

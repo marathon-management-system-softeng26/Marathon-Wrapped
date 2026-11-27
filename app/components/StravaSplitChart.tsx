@@ -11,14 +11,15 @@ export default function StravaSplitChart({ splits, fastestKilometer, paceTrend }
   const longest = Math.max(1, ...splits.map((split) => split.movingSeconds));
   return (
     <>
-      <div className="split-chart" role="img" aria-label="Kilometer moving times. Taller bars indicate longer times.">
+      <div className="split-chart" role="list" aria-label="Moving time by kilometer">
         {splits.map((split) => (
-          <div key={split.kilometer}>
+          <div key={split.kilometer} role="listitem">
             <span
+              aria-hidden="true"
               style={{ height: `${Math.max(20, (split.movingSeconds / longest) * 145)}px` }}
               className={split.kilometer === fastestKilometer?.kilometer ? "fast" : ""}
             />
-            <b>{split.kilometer}</b>
+            <b>Km {split.kilometer}</b>
             <small>{formatMmSs(split.movingSeconds)}</small>
           </div>
         ))}

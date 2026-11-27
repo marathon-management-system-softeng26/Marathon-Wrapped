@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AppHeader from "./AppHeader";
+import RunnerPageIntro from "./RunnerPageIntro";
 import StravaCard from "./StravaCard";
 import { callbackFeedback, callbackNotice, routeToStrava } from "@/lib/strava/viewModel";
 import type { WrappedPayloadStrava } from "@/lib/wrappedPayload";
@@ -56,14 +57,13 @@ export default function RunnerStravaSetup({ runnerId, feedbackCode = null }: { r
   }, [runnerId, version]);
 
   return (
-    <div className="workspace">
+    <div className="workspace runner-experience">
       <AppHeader />
       <main className="content runner-strava-setup">
-        <h1>Strava for this race</h1>
-        <p className="runner-strava-intro">
-          Choose the activity you ran so your Wrapped uses your own race data. This race is set up on its own, and
-          your other races stay as they are.
-        </p>
+        <RunnerPageIntro
+          title="Strava for this race"
+          description="Connect your account to find the activity you recorded and add its details to your Wrapped."
+        />
         {notice && <RunnerFeedback kind="status" title={notice} />}
         {error && (
           <div className="runner-strava-error">
@@ -77,7 +77,6 @@ export default function RunnerStravaSetup({ runnerId, feedbackCode = null }: { r
           {data?.state === "connected" && (
             <Link className="button" href={`/wrapped/${encodeURIComponent(runnerId)}`} prefetch={false}>View Wrapped</Link>
           )}
-          <Link className="button secondary" href="/" prefetch={false}>Back to your races</Link>
         </div>
       </main>
     </div>

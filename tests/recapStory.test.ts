@@ -81,7 +81,10 @@ describe("Strava-first recap controls", () => {
       kind: "official", registration, photos: [], strava: { state: "unavailable" },
       result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
         finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
-        gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null },
+        gender: "F", genderRank: 9, checkpoints: [
+          { sequence: 1, label: "KM 2.5", distanceMeters: 2500, displayedTimeMs: 970_000, reportedSplitMs: 970_000, referenceLabel: "KM 2.5" },
+          { sequence: 2, label: "Finish", distanceMeters: 5000, displayedTimeMs: 1_990_000, reportedSplitMs: 1_020_000, referenceLabel: "Finish" },
+        ], sourceUrl: null },
     };
     fetcher.mockResolvedValueOnce(Response.json(official));
     await renderRecap();
@@ -91,6 +94,12 @@ describe("Strava-first recap controls", () => {
     await click("Distance");
     expect(container.textContent).toContain("5.0");
     expect(container.textContent).toContain("33:10");
+    await click("Your race");
+    expect(container.querySelector(".story-rankings")?.textContent).toContain("Overall rank#12");
+    expect(container.querySelector(".story-rankings")?.textContent).toContain("F30 division rank#4");
+    await click("Splits");
+    const checkpoints = [...container.querySelectorAll("tbody tr")].map(row => row.textContent);
+    expect(checkpoints).toEqual(["KM 2.516:1016:10", "Finish33:1017:00"]);
   });
 
   it("uses outcome-aware copy for an official DNF", async () => {

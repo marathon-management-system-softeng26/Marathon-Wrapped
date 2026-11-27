@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import AppHeader from "./AppHeader";
 import RunnerClaimForm from "./RunnerClaimForm";
@@ -8,16 +9,20 @@ import { useCatalog } from "./useCatalog";
 export default function RunnerSelection() {
   const { data, error, retry } = useCatalog();
   return (
-    <div className="workspace">
+    <div className="workspace runner-experience">
       <AppHeader showOrganizerLink={!!data?.events.length} />
       <main className="content runner-dashboard">
-        <h1 className="page-title">
-          Your <span>races.</span>
-        </h1>
-        <p className="page-subtitle">
-          Find your finish, revisit the kilometers, and keep a little of race
-          day.
-        </p>
+        <header className="race-hero">
+          <div className="race-hero-copy">
+            <p className="race-hero-brand">Soekarno Run · Marathon Wrapped</p>
+            <h1 className="page-title">Your races.</h1>
+            <p className="page-subtitle">Revisit your results, kilometer splits, and race-day photos.</p>
+          </div>
+          <figure className="race-hero-photo">
+            <Image src="/photos/demo-race.jpg" width={861} height={1148} sizes="(max-width: 700px) 94vw, 520px" alt="Runners in motion at the Prague International Marathon" preload />
+            <figcaption>Sample race photo · Martin Vorel</figcaption>
+          </figure>
+        </header>
         {error && (
           <div className="dashboard-error">
             <RunnerFeedback kind="error" title={error} />

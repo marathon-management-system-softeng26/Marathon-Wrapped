@@ -82,8 +82,8 @@ describe("Strava-only showcase", () => {
     await renderRecap();
     await openSlide(3);
 
-    const chart = container.querySelector("[role=img]");
-    expect(chart?.getAttribute("aria-label")).toMatch(/kilometer/i);
+    const chart = container.querySelector('[role="list"][aria-label="Moving time by kilometer"]');
+    expect(chart?.querySelectorAll('[role="listitem"]')).toHaveLength(2);
     expect(container.textContent).toContain("Fastest kilometer 2");
     expect(container.textContent).toContain("4:40");
     expect(container.textContent).toMatch(/faster/i);

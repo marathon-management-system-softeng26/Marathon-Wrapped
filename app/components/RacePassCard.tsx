@@ -22,12 +22,14 @@ export default function RacePassCard({ runner }: { runner: CatalogRunner }) {
   return (
     <li className="registration-card race-pass-card">
       <div id={detailsId}>
-        <p className="race-pass-event">{runner.event}</p>
-        <h3>{runner.name}</h3>
-        <p className="registration-meta">
-          <span>{runner.category}</span>
-          <span>{runner.bib_number ? `BIB ${runner.bib_number}` : "BIB unassigned"}</span>
-        </p>
+        <div className="race-pass-heading">
+          <h3>{runner.event}</h3>
+          <span className="race-pass-category">{runner.category}</span>
+        </div>
+        <div className="registration-meta">
+          <span>{runner.name}</span>
+          <strong>{runner.bib_number ? `BIB ${runner.bib_number}` : "BIB unassigned"}</strong>
+        </div>
       </div>
       <div className="race-pass-actions">
         {action.kind !== "status" ? (

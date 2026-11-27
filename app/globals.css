@@ -1381,14 +1381,6 @@ td {
   min-width: 0;
   border-top: 8px solid var(--red);
 }
-.race-pass-event {
-  margin: 0 0 10px;
-  color: var(--red);
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 .race-pass-card h3,
 .race-pass-card span {
   overflow-wrap: anywhere;
@@ -1643,15 +1635,6 @@ body:has(.story-state) {
 .decoration-intro-runner {
   bottom: -126px;
   left: -86px;
-}
-.scene-finisher::before {
-  position: absolute;
-  z-index: -1;
-  inset: -70px -22px -104px;
-  content: "";
-  background:
-    linear-gradient(180deg, rgba(170, 0, 38, 0.38), rgba(138, 5, 32, 0.9) 65%, #78051d),
-    url("/photos/demo-race.jpg") center 28% / cover no-repeat;
 }
 .scene-finisher h1 {
   margin-top: 145px;
@@ -2247,11 +2230,6 @@ body:has(.story-state) {
 .runner-photo-manager {
   padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
   overflow-wrap: anywhere;
-}
-.photo-intro {
-  margin: 0 0 6px;
-  max-width: 48ch;
-  font-size: 1.15rem;
 }
 #photo-formats, .photo-expiry {
   margin: 0;
