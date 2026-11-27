@@ -6,6 +6,7 @@ import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
 import { getWrappedForUser } from "@/lib/wrappedService";
 import type { OfficialRecap } from "@/lib/officialResults/types";
 import { toWrappedCheckpointRows } from "@/lib/wrappedCheckpoints";
+import type { MockRaceSplit } from "@/lib/mockRaceSplits";
 export type { OfficialRecap } from "@/lib/officialResults/types";
 
 type OfficialRow = {
@@ -17,6 +18,7 @@ type OfficialRow = {
   finish_time_ms: number | null; net_time_ms: number | null;
   overall_rank: number | null; division_rank: number | null; gender_rank: number | null;
   source_url: string | null;
+  mock_splits?: MockRaceSplit[] | null;
   official_race_checkpoints?: Array<{
     sequence: number;
     label: string;
@@ -24,6 +26,7 @@ type OfficialRow = {
     displayed_time_ms: number | null;
     reported_split_ms: number | null;
     reference_label: string | null;
+    isMock?: boolean;
   }> | null;
 };
 
@@ -37,6 +40,24 @@ export function composeOfficialWrapped(
 }
 
 function normalizeRow(row: OfficialRow): OfficialRecap {
+  const checkpoints = row.mock_splits?.length
+    ? row.mock_splits.map((split) => ({
+      sequence: split.kilometer,
+      label: `Km ${split.kilometer}`,
+      distanceMeters: split.distanceMeters,
+      displayedTimeMs: split.elapsedSeconds * 1_000,
+      reportedSplitMs: split.splitSeconds * 1_000,
+      referenceLabel: "Estimated mock split",
+      isMock: true,
+    }))
+    : (row.official_race_checkpoints ?? []).map((checkpoint) => ({
+      sequence: checkpoint.sequence,
+      label: checkpoint.label,
+      distanceMeters: checkpoint.distance_meters,
+      displayedTimeMs: checkpoint.displayed_time_ms,
+      reportedSplitMs: checkpoint.reported_split_ms,
+      referenceLabel: checkpoint.reference_label,
+    }));
   return {
     runnerId: row.runner_id,
     eventId: row.event_id,
@@ -51,14 +72,7 @@ function normalizeRow(row: OfficialRow): OfficialRecap {
     divisionRank: row.division_rank,
     gender: row.gender,
     genderRank: row.gender_rank,
-    checkpoints: toWrappedCheckpointRows((row.official_race_checkpoints ?? []).map((checkpoint) => ({
-      sequence: checkpoint.sequence,
-      label: checkpoint.label,
-      distanceMeters: checkpoint.distance_meters,
-      displayedTimeMs: checkpoint.displayed_time_ms,
-      reportedSplitMs: checkpoint.reported_split_ms,
-      referenceLabel: checkpoint.reference_label,
-    }))),
+    checkpoints: toWrappedCheckpointRows(checkpoints),
     sourceUrl: row.source_url,
   };
 }
@@ -124,7 +138,7 @@ export async function getOfficialWrappedForUser(
   }
   const { data, error } = await db
     .from("official_race_results")
-    .select("runner_id,event_id,bib,name,distance,status,finish_time_ms,net_time_ms,overall_rank,division,division_rank,gender,gender_rank,source_url,official_race_checkpoints(sequence,label,distance_meters,displayed_time_ms,reported_split_ms,reference_label)")
+    .select("runner_id,event_id,bib,name,distance,status,finish_time_ms,net_time_ms,overall_rank,division,division_rank,gender,gender_rank,source_url,mock_splits,official_race_checkpoints(sequence,label,distance_meters,displayed_time_ms,reported_split_ms,reference_label)")
     .eq("runner_id", runnerId)
     .maybeSingle();
   if (error || !data) return loadLegacyOfficial(userId, runnerId);

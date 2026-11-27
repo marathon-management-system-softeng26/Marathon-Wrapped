@@ -65,6 +65,7 @@ export type OfficialWrappedPayload = {
       displayedTimeMs: number | null;
       reportedSplitMs: number | null;
       referenceLabel: string | null;
+      isMock?: boolean;
     }>;
     sourceUrl: string | null;
   };

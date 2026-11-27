@@ -9,6 +9,7 @@ export type OfficialCheckpoint = {
   displayedTimeMs: number | null;
   reportedSplitMs: number | null;
   referenceLabel: string | null;
+  isMock?: boolean;
 };
 
 export type OfficialResultInput = {

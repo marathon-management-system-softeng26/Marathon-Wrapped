@@ -77,6 +77,24 @@ describe("composeOfficialWrapped", () => {
     expect(payload?.strava).toEqual({ state: "unavailable" });
   });
 
+  it("uses persisted estimated per-kilometer splits when present", async () => {
+    const db = publishedOfficialDatabase();
+    const row = db.tables.official_race_results.at(-1)!;
+    row.mock_splits = [
+      { kilometer: 1, distanceMeters: 1_000, splitSeconds: 300, elapsedSeconds: 300 },
+      { kilometer: 2, distanceMeters: 2_000, splitSeconds: 310, elapsedSeconds: 610 },
+    ];
+    mocks.from.mockImplementation(db.client.from.bind(db.client));
+    mocks.getStravaWrappedForUser.mockRejectedValue(new Error("Strava unavailable"));
+
+    const payload = await getOfficialWrappedForUser(ownerId, runnerId);
+
+    expect(payload?.result.checkpoints).toEqual([
+      { sequence: 1, label: "Km 1", distanceMeters: 1_000, displayedTimeMs: 300_000, reportedSplitMs: 300_000, referenceLabel: "Estimated mock split", isMock: true },
+      { sequence: 2, label: "Km 2", distanceMeters: 2_000, displayedTimeMs: 610_000, reportedSplitMs: 310_000, referenceLabel: "Estimated mock split", isMock: true },
+    ]);
+  });
+
   it("adapts a legacy chip result when official publication tables are unavailable", async () => {
     mocks.getWrappedForUser.mockResolvedValue({ status: "dnf", stats: {
       runner_id: result.runnerId, bib_number: "00123", name: "Runner One", gender: "M", age: 30,

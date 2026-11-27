@@ -21,6 +21,7 @@ export type RecapPerformance = {
     distanceMeters: number | null;
     elapsedMs: number | null;
     splitMs: number | null;
+    isMock?: boolean;
   }>;
 };
 
@@ -53,6 +54,7 @@ function officialPerformance(payload: OfficialWrappedPayload): RecapPerformance 
       distanceMeters: checkpoint.distanceMeters,
       elapsedMs: checkpoint.displayedTimeMs,
       splitMs: checkpoint.reportedSplitMs,
+      ...(checkpoint.isMock ? { isMock: true } : {}),
     })),
   };
 }
