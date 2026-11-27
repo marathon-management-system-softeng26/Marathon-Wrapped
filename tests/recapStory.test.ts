@@ -125,6 +125,21 @@ describe("Strava-first recap controls", () => {
     expect(container.textContent).toContain("did not finish");
     expect(container.textContent).not.toMatch(/finisher|average pace/i);
   });
+
+  it("keeps Strava connection controls outside an official Wrapped", async () => {
+    const official: OfficialWrappedPayload = {
+      kind: "official", registration, photos: [], strava: { state: "unavailable" },
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
+        finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
+        gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null },
+    };
+    await renderRecap(official);
+    await click("Context");
+
+    expect(container.querySelector('form[action="/api/strava/connect"]')).toBeNull();
+    expect(container.querySelector(`a[href="/runners/${runnerId}/strava"]`)?.textContent).toMatch(/strava/i);
+    expect(container.textContent).toContain("official result already powers this Wrapped");
+  });
   it.each([
     ["disconnected", 200, "failed"],
     ["disconnecting", 202, "timeout"],
