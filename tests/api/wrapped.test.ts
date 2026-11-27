@@ -78,7 +78,7 @@ describe("private Wrapped HTTP boundary", () => {
     mocks.photoBucket.mockRejectedValue(new Error("internal storage detail"));
     const response = await call();
     expect(response.status).toBe(200);
-    expect(await response.json()).toStrictEqual(ready);
+    expect(await response.json()).toStrictEqual({ ...ready, photoWarning: "Selected photos could not load. Retry your Wrapped to try again." });
     expect(mocks.photoBucket).toHaveBeenCalledOnce();
   });
 
@@ -95,7 +95,7 @@ describe("private Wrapped HTTP boundary", () => {
       const response = call();
       await lookupStarted;
       await vi.advanceTimersByTimeAsync(1200);
-      expect(await (await response).json()).toStrictEqual(ready);
+      expect(await (await response).json()).toStrictEqual({ ...ready, photoWarning: "Selected photos could not load. Retry your Wrapped to try again." });
     } finally {
       vi.useRealTimers();
     }

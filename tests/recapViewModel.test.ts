@@ -56,7 +56,9 @@ describe("buildRecapViewModel", () => {
     if (!model.performance) throw new Error("Official results must have a performance model.");
     expect(model.performance.elapsedMs).toBeNull();
     expect(model.performance.averagePaceSecondsPerKm).toBeNull();
-    expect(model.performance.splits).toEqual([]);
+    expect(model.performance.splits).toEqual(status === "dnf" || status === "dns" || status === "dq" || status === "unknown"
+      ? [{ label: "5K", distanceMeters: 5_000, elapsedMs: 2_005_213, splitMs: 1_999_000 }]
+      : []);
   });
 
   it("uses official status, net time, distance, and splits over conflicting Strava metrics", () => {

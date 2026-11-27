@@ -31,7 +31,7 @@ describe("share composition", () => {
   });
 
   it("uses outcome copy and withholds finish metrics for a non-finisher", () => {
-    expect(shareModel({ ...official, result: { ...official.result, status: "dnf" } })).toMatchObject({ outcome: "dnf", time: "Did not finish", pace: "Pace unavailable", splits: [] });
+    expect(shareModel({ ...official, result: { ...official.result, status: "dnf" } })).toMatchObject({ outcome: "dnf", time: "Did not finish", pace: "Pace unavailable", splits: ["5K · split 33:10 · elapsed 33:20"] });
   });
   it("allowlists registration and formatted Strava distance, moving time, pace and splits", () => {
     const payload = { ...ready, ...privateFields, photos: [personalPhoto, ...ready.photos] };

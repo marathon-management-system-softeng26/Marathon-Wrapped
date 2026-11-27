@@ -35,7 +35,7 @@ export type WrappedRegistration = Pick<StravaWrappedSnapshotV1, "runner" | "even
 
 type WrappedStatus = "setup_required" | "authorizing" | "importing" | "no_match" | "building" | "failed" | "reauth_required";
 
-export type StravaFirstWrappedPayload = { registration: WrappedRegistration } & (
+export type StravaFirstWrappedPayload = { registration: WrappedRegistration; photoWarning?: string } & (
   | { state: WrappedStatus }
   | { state: "needs_confirmation"; candidates: StravaCandidate[] }
   | { state: "ready"; snapshot: StravaWrappedSnapshotV1; photos: Photo[] }
@@ -70,6 +70,7 @@ export type OfficialWrappedPayload = {
   };
   strava: StravaFirstWrappedPayload | { state: "unavailable" };
   photos: Photo[];
+  photoWarning?: string;
 };
 
 export type RunnerWrappedPayload = OfficialWrappedPayload | StravaFirstWrappedPayload;

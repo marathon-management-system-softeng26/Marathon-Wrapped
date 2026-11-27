@@ -48,14 +48,12 @@ function officialPerformance(payload: OfficialWrappedPayload): RecapPerformance 
     division: result.division,
     divisionRank: finished ? result.divisionRank : null,
     genderRank: finished ? result.genderRank : null,
-    splits: finished
-      ? result.checkpoints.map((checkpoint) => ({
-          label: checkpoint.label,
-          distanceMeters: checkpoint.distanceMeters,
-          elapsedMs: checkpoint.displayedTimeMs,
-          splitMs: checkpoint.reportedSplitMs,
-        }))
-      : [],
+    splits: result.checkpoints.map((checkpoint) => ({
+      label: checkpoint.label,
+      distanceMeters: checkpoint.distanceMeters,
+      elapsedMs: checkpoint.displayedTimeMs,
+      splitMs: checkpoint.reportedSplitMs,
+    })),
   };
 }
 

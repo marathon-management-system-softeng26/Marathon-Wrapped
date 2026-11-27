@@ -97,13 +97,13 @@ describe("Strava-only showcase", () => {
     expect(await wholeStory()).toContain("Powered by Strava");
   });
 
-  it("shows optional health measurements and the photo and export steps", async () => {
+  it("shows the photo and export steps without embedded Strava controls", async () => {
     fetcher.mockImplementationOnce(async () => Response.json(ready));
     await renderRecap();
     const story = await wholeStory();
 
-    expect(story).toContain("147.37");
-    expect(story).toContain("62.81");
+    expect(story).not.toContain("147.37");
+    expect(story).not.toContain("62.81");
     expect(story).toContain("photo");
     expect(story).toContain("1080");
     expect(story).toContain("1350");

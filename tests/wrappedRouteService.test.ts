@@ -46,4 +46,28 @@ describe("wrapped route payload", () => {
 
     await expect(getWrappedPayloadForUser("user-1", runnerId)).resolves.toEqual(ready);
   });
+
+  it("keeps official stats and reports when selected photos cannot be read", async () => {
+    const official = { kind: "official" as const, registration, result: {
+      runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K" as const, status: "finished" as const,
+      finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
+      gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null,
+    }, strava: { state: "unavailable" as const }, photos: [photo] };
+    mocks.getOfficialWrappedForUser.mockResolvedValue(official);
+    mocks.loadPersonalWrappedPhotos.mockResolvedValue(null);
+
+    await expect(getWrappedPayloadForUser("user-1", runnerId)).resolves.toMatchObject({
+      kind: "official",
+      photos: [photo],
+      photoWarning: "Selected photos could not load. Retry your Wrapped to try again.",
+    });
+  });
+
+  it("does not downgrade an official read failure to Strava data", async () => {
+    mocks.getOfficialWrappedForUser.mockRejectedValue(new Error("official database unavailable"));
+    mocks.getStravaWrappedForUser.mockResolvedValue(ready);
+
+    await expect(getWrappedPayloadForUser("user-1", runnerId)).rejects.toThrow("official database unavailable");
+    expect(mocks.getStravaWrappedForUser).not.toHaveBeenCalled();
+  });
 });

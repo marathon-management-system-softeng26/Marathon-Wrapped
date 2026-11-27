@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import RecapStory from "@/app/components/RecapStory";
 import { personalPhoto, photo, ready, registration, runnerId } from "./fixtures/stravaWrapped";
-import type { OfficialWrappedPayload } from "@/lib/wrappedPayload";
+import type { OfficialWrappedPayload, RunnerWrappedPayload } from "@/lib/wrappedPayload";
 
 vi.mock("@/app/components/SharePreview", () => ({
   default: () => React.createElement("canvas", { "aria-label": "Wrapped preview" }),
@@ -15,7 +15,7 @@ let container: HTMLDivElement;
 let root: Root;
 const fetcher = vi.fn<typeof fetch>();
 
-async function renderRecap(initialPayload?: OfficialWrappedPayload) {
+async function renderRecap(initialPayload?: RunnerWrappedPayload) {
   await act(async () => root.render(React.createElement(RecapStory, { runnerId, initialPayload })));
 }
 
@@ -138,7 +138,20 @@ describe("Strava-first recap controls", () => {
 
     expect(container.querySelector('form[action="/api/strava/connect"]')).toBeNull();
     expect(container.querySelector(`a[href="/runners/${runnerId}/strava"]`)?.textContent).toMatch(/strava/i);
-    expect(container.textContent).toContain("official result already powers this Wrapped");
+    expect(container.textContent).toContain("Your official race data powers this Wrapped");
+  });
+
+  it("does not render Strava controls inside Wrapped when an activity is connected", async () => {
+    await renderRecap({
+      kind: "official", registration, photos: [], strava: ready,
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
+        finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
+        gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null },
+    });
+    await click("Context");
+
+    expect(container.querySelector(".strava-card")).toBeNull();
+    expect(container.querySelector(`a[href="/runners/${runnerId}/strava"]`)).not.toBeNull();
   });
 
   it("shows official ScoreNow rankings in the race stats scene", async () => {
@@ -158,37 +171,13 @@ describe("Strava-first recap controls", () => {
     expect(container.textContent).toContain("Gender rank");
     expect(container.textContent).toContain("9");
   });
-  it.each([
-    ["disconnected", 200, "failed"],
-    ["disconnecting", 202, "timeout"],
-    ["reauthorize_to_disconnect", 409, "failed"],
-  ] as const)("clears a ready recap after %s (%i) even if refresh is %s", async (status, code, refreshResult) => {
-    let finishRefresh: ((response: Response) => void) | undefined;
-    fetcher.mockResolvedValueOnce(Response.json(ready))
-      .mockResolvedValueOnce(Response.json({ status }, { status: code }))
-      .mockImplementationOnce(() => new Promise((resolve, reject) => {
-        if (refreshResult === "timeout") {
-          finishRefresh = () => reject(new DOMException("Timed out", "TimeoutError"));
-        } else {
-          finishRefresh = resolve;
-        }
-      }));
-    await renderRecap();
-    await click("Save");
-    expect(container.textContent).toContain("Save image");
-    expect(container.querySelector("canvas")).not.toBeNull();
+  it("keeps Strava management outside a ready Wrapped", async () => {
+    await renderRecap(ready);
     await click("Context");
-    expect(container.textContent).toContain("147.37");
 
-    await click("Disconnect Strava");
-    expect(fetcher.mock.calls[1][0]).toBe("/api/strava/disconnect");
-    expect(finishRefresh).toBeDefined();
-    expect(container.querySelector(".story")).toBeNull();
-
-    await act(async () => finishRefresh!(Response.json({ error: "Unavailable" }, { status: 503 })));
-    expect(container.textContent).not.toContain("147.37");
-    expect(container.textContent).not.toContain("Save image");
-    expect(container.querySelector("canvas")).toBeNull();
+    expect(container.querySelector(".strava-card")).toBeNull();
+    expect(container.querySelector('button')?.textContent).not.toContain("Disconnect Strava");
+    expect(container.querySelector(`a[href="/runners/${runnerId}/strava"]`)).not.toBeNull();
   });
 
   it("shows a failed Wrapped without offering an import retry that cannot run", async () => {
@@ -228,19 +217,4 @@ describe("Strava-first recap controls", () => {
     expect(container.textContent).toContain("Strava authorized. Checking your race activity.");
   });
 
-  it("clears the export scene when a pending disconnect succeeds after leaving the Strava card", async () => {
-    let finishDisconnect: ((response: Response) => void) | undefined;
-    fetcher.mockResolvedValueOnce(Response.json(ready))
-      .mockImplementationOnce(() => new Promise((resolve) => { finishDisconnect = resolve; }))
-      .mockResolvedValueOnce(Response.json({ error: "Unavailable" }, { status: 503 }));
-    await renderRecap();
-    await click("Context");
-    await click("Disconnect Strava");
-    await click("Save");
-    expect(container.querySelector("canvas")).not.toBeNull();
-
-    await act(async () => finishDisconnect!(Response.json({ status: "disconnected" })));
-    expect(container.querySelector(".story")).toBeNull();
-    expect(container.querySelector("canvas")).toBeNull();
-  });
 });
