@@ -2,9 +2,7 @@ import { requireUser, AuthenticationError } from "@/lib/auth/session";
 import { AccessDeniedError } from "@/lib/auth/access";
 import { privateHeaders } from "@/lib/authHttp";
 import { isRunnerId } from "@/lib/runnerValidation";
-import { getStravaWrappedForUser } from "@/lib/stravaWrappedService";
-import { getOfficialWrappedForUser } from "@/lib/officialWrappedService";
-import { hasWrappedGallery, loadPersonalWrappedPhotos, mergePersonalRunnerPhotos } from "@/lib/runnerPhotos/wrapped";
+import { getWrappedPayloadForUser } from "@/lib/wrappedRouteService";
 
 export const dynamic = "force-dynamic";
 const error = (message: string, status: number) => Response.json({ error: message }, { status, headers: privateHeaders });
@@ -19,17 +17,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ run
     const direct = await db.from("runner_access").select("runner_id").eq("user_id", user.id).eq("runner_id", id).maybeSingle();
     if (direct.error) return error("Wrapped is temporarily unavailable. Please retry.", 503);
     if (!direct.data) return error("Runner not found.", 404);
-    let official = null;
-    try {
-      official = await getOfficialWrappedForUser(user.id, id, true);
-    } catch {
-      // Legacy databases may not have the additive official-results tables yet.
-    }
-    let payload = official ?? await getStravaWrappedForUser(user.id, id);
-    if (hasWrappedGallery(payload)) {
-      const photos = await loadPersonalWrappedPhotos(user.id, id);
-      if (photos) payload = mergePersonalRunnerPhotos(payload, photos);
-    }
+    const payload = await getWrappedPayloadForUser(user.id, id);
     return Response.json(payload, { headers: privateHeaders });
   } catch (cause) {
     if (cause instanceof AuthenticationError) return error(cause.message, 401);

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SharePreview from "./SharePreview";
 import StravaCard from "./StravaCard";
 import StravaSplitChart from "./StravaSplitChart";
+import OfficialCheckpointList from "./OfficialCheckpointList";
 import StoryProgress from "./StoryProgress";
 import StoryControls from "./StoryControls";
 import RunnerFeedback from "./RunnerFeedback";
@@ -46,8 +47,8 @@ function RacePhoto({ photo, onOpen }: { photo: Photo; onOpen?: () => void }) {
     : <>{image}{photo.photographer && <p>{photo.photographer}</p>}</>;
 }
 
-export default function RecapStory({ runnerId }: { runnerId: string }) {
-  const [payload, setPayload] = useState<RunnerWrappedPayload | null>(null);
+export default function RecapStory({ runnerId, initialPayload }: { runnerId: string; initialPayload?: RunnerWrappedPayload | null }) {
+  const [payload, setPayload] = useState<RunnerWrappedPayload | null>(initialPayload ?? null);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
   const [slide, setSlide] = useState(0);
@@ -88,6 +89,10 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
     if (stravaFeedback) window.history.replaceState(window.history.state, "", stravaFeedback.path);
   }, [stravaFeedback]);
   useEffect(() => {
+    if (initialPayload && version === 0) {
+      loaded.current = runnerId;
+      return;
+    }
     const controller = new AbortController(); wrappedRequest.current = controller;
     fetch(`/api/runners/${encodeURIComponent(runnerId)}/wrapped`, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12000)]) }).then(async (response) => {
       if (controller.signal.aborted) return; if (response.status === 401) { window.location.replace("/login"); return; }
@@ -100,7 +105,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       }
     });
     return () => controller.abort();
-  }, [runnerId, version]);
+  }, [initialPayload, runnerId, version]);
   useEffect(() => () => exportRequest.current?.abort(), []);
   useEffect(() => { if (!payload || isOfficial(payload) || !["authorizing", "importing", "building"].includes(payload.state)) return; const timer = window.setTimeout(refresh, 5000); return () => window.clearTimeout(timer); }, [payload, refresh]);
   useEffect(() => {
@@ -138,7 +143,7 @@ export default function RecapStory({ runnerId }: { runnerId: string }) {
       {slide===0&&<div className="story-scene scene-intro"><p className="scene-label">{registration.event.name}</p><h1 ref={heading} tabIndex={-1}>Hi <span>{firstName}</span>,<br />here goes your <span>Fun Wrapped</span></h1><Image className="decoration decoration-intro-shoe" src={decorationUrl(recapDecorations.intro[0])} width={180} height={180} alt="" /><Image className="decoration decoration-intro-runner" src={decorationUrl(recapDecorations.intro[1])} width={430} height={430} alt="" priority /></div>}
       {slide===1&&<div className="story-scene scene-finisher"><p className="scene-label">Your race</p><h1 ref={heading} tabIndex={-1}><span>{model.source==="strava"?"Recorded activity":model.outcome==="finished"?"Official result":"Race record"}</span></h1><p className="story-intro">{model.source==="strava"?"Your recorded activity, in numbers and photos.":outcomeCopy[model.outcome]}</p><p>{registration.event.category} · BIB {registration.runner.bibNumber??"unassigned"}</p><Image className="decoration decoration-finisher-badge" src={decorationUrl(recapDecorations.finisher[0])} width={360} height={360} alt="" /></div>}
       {slide===2&&<div className="story-scene scene-distance"><p className="scene-label">Distance</p><h2 ref={heading} tabIndex={-1}>Your recorded distance.</h2><div className="distance-number">{(performance.distanceMeters/1000).toFixed(1)}<span>km</span></div><div className="stat-pair"><div><strong>{time}</strong><span>{model.source==="official"?"Official time":"Moving time"}</span></div><div><strong>{pace}</strong>{performance.averagePaceSecondsPerKm!==null&&<span>Average pace</span>}</div>{readySnapshot&&<div><strong>{formatMmSs(readySnapshot.elapsedTimeSeconds)}</strong><span>Elapsed time</span></div>}</div></div>}
-      {slide===3&&<div className="story-scene scene-splits"><p className="scene-label">Splits</p><h2 ref={heading} tabIndex={-1}>Race splits</h2><StravaSplitChart splits={chartSplits} fastestKilometer={readySnapshot?.fastestKilometer??null} paceTrend={readySnapshot?.paceTrend??null} /></div>}
+      {slide===3&&<div className="story-scene scene-splits"><p className="scene-label">Splits</p><h2 ref={heading} tabIndex={-1}>Race splits</h2>{model.source === "official" ? <OfficialCheckpointList checkpoints={performance.splits} /> : <StravaSplitChart splits={chartSplits} fastestKilometer={readySnapshot?.fastestKilometer??null} paceTrend={readySnapshot?.paceTrend??null} />}</div>}
       {slide===4&&<div className="story-scene scene-context"><p className="scene-label">Race context</p><h2 ref={heading} tabIndex={-1}>{strava?"Your Strava activity":"Official race context"}</h2>{strava?<StravaCard runnerId={runnerId} input={strava} onRefresh={refresh} onLocalDisconnect={invalidateWrapped} stravaFirst />:<RunnerFeedback kind="empty" title="No Strava activity added."><p>Your official result already powers this Wrapped.</p></RunnerFeedback>}</div>}
       {slide === 5 && <div className="story-scene scene-photos">
         <h2 ref={heading} tabIndex={-1}>Caught<br /><span>in the moment.</span></h2>

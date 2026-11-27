@@ -15,8 +15,8 @@ let container: HTMLDivElement;
 let root: Root;
 const fetcher = vi.fn<typeof fetch>();
 
-async function renderRecap() {
-  await act(async () => root.render(React.createElement(RecapStory, { runnerId })));
+async function renderRecap(initialPayload?: OfficialWrappedPayload) {
+  await act(async () => root.render(React.createElement(RecapStory, { runnerId, initialPayload })));
 }
 
 async function click(label: string) {
@@ -91,6 +91,26 @@ describe("Strava-first recap controls", () => {
     await click("Distance");
     expect(container.textContent).toContain("5.0");
     expect(container.textContent).toContain("33:10");
+  });
+
+  it("renders a server-seeded official result without an initial fetch and preserves all checkpoint rows", async () => {
+    const official: OfficialWrappedPayload = {
+      kind: "official", registration, photos: [], strava: { state: "unavailable" },
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "10K", status: "finished",
+        finishTimeMs: 3_100_000, netTimeMs: 3_000_000, overallRank: 12, division: "F30", divisionRank: 4,
+        gender: "F", genderRank: 9, checkpoints: [
+          { sequence: 1, label: "Checkpoint 1 - KM 3.7", distanceMeters: 3700, displayedTimeMs: 1_200_000, reportedSplitMs: 1_200_000, referenceLabel: null },
+          { sequence: 2, label: "Checkpoint 2 - KM 8.3", distanceMeters: 8300, displayedTimeMs: 2_500_000, reportedSplitMs: 1_300_000, referenceLabel: null },
+          { sequence: 3, label: "Finish", distanceMeters: 10000, displayedTimeMs: 3_100_000, reportedSplitMs: 600_000, referenceLabel: "Finish" },
+        ], sourceUrl: null },
+    };
+    await renderRecap(official);
+
+    expect(fetcher).not.toHaveBeenCalled();
+    await click("Splits");
+    expect(container.textContent).toContain("Checkpoint 1 - KM 3.7");
+    expect(container.textContent).toContain("Checkpoint 2 - KM 8.3");
+    expect(container.textContent).toContain("Finish");
   });
 
   it("uses outcome-aware copy for an official DNF", async () => {
