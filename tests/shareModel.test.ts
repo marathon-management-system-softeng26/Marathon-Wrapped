@@ -14,6 +14,22 @@ describe("share composition", () => {
     expect(shareModel(official)).toMatchObject({ source: "official", outcome: "finished", distance: "5.0 km", time: "33:10", pace: "6:38 /km", attribution: "Official race result" });
   });
 
+  it("exports every official checkpoint with its published split and elapsed values", () => {
+    const payload: OfficialWrappedPayload = {
+      ...official,
+      result: { ...official.result, distance: "10K", checkpoints: [
+        { sequence: 1, label: "Checkpoint 1 - KM 3.7", distanceMeters: 3700, displayedTimeMs: 1_200_000, reportedSplitMs: 1_200_000, referenceLabel: null },
+        { sequence: 2, label: "Checkpoint 2 - KM 8.3", distanceMeters: 8300, displayedTimeMs: 2_500_000, reportedSplitMs: 1_300_000, referenceLabel: null },
+        { sequence: 3, label: "Finish", distanceMeters: 10000, displayedTimeMs: 3_100_000, reportedSplitMs: null, referenceLabel: "Finish" },
+      ] },
+    };
+    expect(shareModel(payload).splits).toEqual([
+      "Checkpoint 1 - KM 3.7 · split 20:00 · elapsed 20:00",
+      "Checkpoint 2 - KM 8.3 · split 21:40 · elapsed 41:40",
+      "Finish · split unavailable · elapsed 51:40",
+    ]);
+  });
+
   it("uses outcome copy and withholds finish metrics for a non-finisher", () => {
     expect(shareModel({ ...official, result: { ...official.result, status: "dnf" } })).toMatchObject({ outcome: "dnf", time: "Did not finish", pace: "Pace unavailable", splits: [] });
   });

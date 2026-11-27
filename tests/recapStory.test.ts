@@ -140,6 +140,24 @@ describe("Strava-first recap controls", () => {
     expect(container.querySelector(`a[href="/runners/${runnerId}/strava"]`)?.textContent).toMatch(/strava/i);
     expect(container.textContent).toContain("official result already powers this Wrapped");
   });
+
+  it("shows official ScoreNow rankings in the race stats scene", async () => {
+    const official: OfficialWrappedPayload = {
+      kind: "official", registration, photos: [], strava: { state: "unavailable" },
+      result: { runnerId, eventId: 1, bib: "A1001", name: "Aina Putri", distance: "5K", status: "finished",
+        finishTimeMs: 1_999_000, netTimeMs: 1_990_000, overallRank: 12, division: "F30", divisionRank: 4,
+        gender: "F", genderRank: 9, checkpoints: [], sourceUrl: null },
+    };
+    await renderRecap(official);
+    await click("Distance");
+
+    expect(container.textContent).toContain("Overall rank");
+    expect(container.textContent).toContain("12");
+    expect(container.textContent).toContain("Category rank");
+    expect(container.textContent).toContain("4");
+    expect(container.textContent).toContain("Gender rank");
+    expect(container.textContent).toContain("9");
+  });
   it.each([
     ["disconnected", 200, "failed"],
     ["disconnecting", 202, "timeout"],
