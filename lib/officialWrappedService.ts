@@ -16,6 +16,7 @@ type OfficialRow = {
   status: OfficialRecap["status"];
   gender: string | null; division: string | null;
   finish_time_ms: number | null; net_time_ms: number | null;
+  mock_finish_time_ms?: number | null; mock_net_time_ms?: number | null;
   overall_rank: number | null; division_rank: number | null; gender_rank: number | null;
   source_url: string | null;
   mock_splits?: MockRaceSplit[] | null;
@@ -67,6 +68,8 @@ function normalizeRow(row: OfficialRow): OfficialRecap {
     status: row.status,
     finishTimeMs: row.finish_time_ms,
     netTimeMs: row.net_time_ms,
+    mockFinishTimeMs: row.mock_finish_time_ms ?? null,
+    mockNetTimeMs: row.mock_net_time_ms ?? null,
     overallRank: row.overall_rank,
     division: row.division,
     divisionRank: row.division_rank,
@@ -93,6 +96,7 @@ async function loadLegacyOfficial(userId: string, runnerId: string): Promise<Off
     runnerId, eventId: 0, bib: stats.bib_number ?? "", name: stats.name, distance: stats.category,
     status: ({ finisher: "finished", dnf: "dnf", dns: "dns" } as const)[legacy.status], finishTimeMs: finished && stats.elapsed_seconds !== null ? stats.elapsed_seconds * 1_000 : null,
     netTimeMs: finished && stats.elapsed_seconds !== null ? stats.elapsed_seconds * 1_000 : null,
+    mockFinishTimeMs: null, mockNetTimeMs: null,
     overallRank: finished ? stats.overall_rank : null, division: stats.category,
     divisionRank: finished ? stats.category_rank : null, gender: stats.gender, genderRank: null,
     checkpoints: finished ? checkpoints : [], sourceUrl: null,
@@ -138,7 +142,7 @@ export async function getOfficialWrappedForUser(
   }
   const { data, error } = await db
     .from("official_race_results")
-    .select("runner_id,event_id,bib,name,distance,status,finish_time_ms,net_time_ms,overall_rank,division,division_rank,gender,gender_rank,source_url,mock_splits,official_race_checkpoints(sequence,label,distance_meters,displayed_time_ms,reported_split_ms,reference_label)")
+    .select("runner_id,event_id,bib,name,distance,status,finish_time_ms,net_time_ms,mock_finish_time_ms,mock_net_time_ms,overall_rank,division,division_rank,gender,gender_rank,source_url,mock_splits,official_race_checkpoints(sequence,label,distance_meters,displayed_time_ms,reported_split_ms,reference_label)")
     .eq("runner_id", runnerId)
     .maybeSingle();
   if (error || !data) return loadLegacyOfficial(userId, runnerId);

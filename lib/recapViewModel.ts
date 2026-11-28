@@ -11,6 +11,7 @@ export type RecapOutcome = OfficialWrappedPayload["result"]["status"];
 export type RecapPerformance = {
   distanceMeters: number;
   elapsedMs: number | null;
+  estimatedElapsedMs: number | null;
   averagePaceSecondsPerKm: number | null;
   overallRank: number | null;
   division: string | null;
@@ -43,6 +44,7 @@ function officialPerformance(payload: OfficialWrappedPayload): RecapPerformance 
   return {
     distanceMeters,
     elapsedMs,
+    estimatedElapsedMs: result.mockNetTimeMs ?? result.mockFinishTimeMs ?? null,
     averagePaceSecondsPerKm:
       elapsedMs === null ? null : elapsedMs / 1_000 / (distanceMeters / 1_000),
     overallRank: finished ? result.overallRank : null,
@@ -95,6 +97,7 @@ export function buildRecapViewModel(payload: RunnerWrappedPayload): RecapViewMod
     performance: {
       distanceMeters: payload.snapshot.distanceMeters,
       elapsedMs: payload.snapshot.movingTimeSeconds * 1_000,
+      estimatedElapsedMs: null,
       averagePaceSecondsPerKm: payload.snapshot.averagePaceSecondsPerKm,
       overallRank: null,
       division: null,

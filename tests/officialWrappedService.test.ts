@@ -95,6 +95,32 @@ describe("composeOfficialWrapped", () => {
     ]);
   });
 
+  it("uses persisted demo timing for a non-finisher without replacing the official status", async () => {
+    const db = publishedOfficialDatabase();
+    const row = db.tables.official_race_results.at(-1)!;
+    row.status = "dnf";
+    row.finish_time_ms = null;
+    row.net_time_ms = null;
+    row.mock_finish_time_ms = 1_800_000;
+    row.mock_net_time_ms = 1_800_000;
+    row.mock_splits = [
+      { kilometer: 1, distanceMeters: 1_000, splitSeconds: 360, elapsedSeconds: 360 },
+      { kilometer: 2, distanceMeters: 2_000, splitSeconds: 360, elapsedSeconds: 720 },
+    ];
+    mocks.from.mockImplementation(db.client.from.bind(db.client));
+    mocks.getStravaWrappedForUser.mockRejectedValue(new Error("Strava unavailable"));
+
+    const payload = await getOfficialWrappedForUser(ownerId, runnerId);
+
+    expect(payload?.result).toMatchObject({
+      status: "dnf",
+      finishTimeMs: null,
+      mockFinishTimeMs: 1_800_000,
+      mockNetTimeMs: 1_800_000,
+    });
+    expect(payload?.result.checkpoints[0].isMock).toBe(true);
+  });
+
   it("adapts a legacy chip result when official publication tables are unavailable", async () => {
     mocks.getWrappedForUser.mockResolvedValue({ status: "dnf", stats: {
       runner_id: result.runnerId, bib_number: "00123", name: "Runner One", gender: "M", age: 30,

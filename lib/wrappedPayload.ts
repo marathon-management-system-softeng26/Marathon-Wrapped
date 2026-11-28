@@ -53,6 +53,8 @@ export type OfficialWrappedPayload = {
     status: "finished" | "dnf" | "dns" | "dq" | "unknown";
     finishTimeMs: number | null;
     netTimeMs: number | null;
+    mockFinishTimeMs?: number | null;
+    mockNetTimeMs?: number | null;
     overallRank: number | null;
     division: string | null;
     divisionRank: number | null;

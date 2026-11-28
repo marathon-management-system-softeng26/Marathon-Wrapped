@@ -23,6 +23,8 @@ export type OfficialResultInput = {
   status: OfficialResultStatus;
   finishTimeMs: number | null;
   netTimeMs: number | null;
+  mockFinishTimeMs?: number | null;
+  mockNetTimeMs?: number | null;
   overallRank: number | null;
   divisionRank: number | null;
   genderRank: number | null;
