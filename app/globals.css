@@ -603,6 +603,10 @@ td small {
   color: var(--deep);
   border-radius: 16px;
   padding: 24px;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .stat-pair strong {
   display: block;
@@ -614,6 +618,106 @@ td small {
 .stat-pair span {
   display: block;
   margin-top: 8px;
+  color: var(--red);
+  font-weight: 700;
+}
+.official-rankings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 760px;
+  margin: 18px 0 0;
+}
+.official-rankings > div {
+  padding: 14px 16px 12px;
+  border-top: 2px solid rgba(255, 246, 236, 0.5);
+  border-radius: 12px;
+  background: rgba(255, 246, 236, 0.1);
+}
+.official-rankings dt {
+  color: rgba(255, 246, 236, 0.72);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.official-rankings dd {
+  margin: 4px 0 0;
+  color: var(--lime);
+  font-family: Bricolage, sans-serif;
+  font-size: 1.7rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.official-checkpoint-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 900px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.official-checkpoint-list > li {
+  min-width: 0;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--cream);
+  color: var(--deep);
+}
+.checkpoint-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checkpoint-heading strong {
+  font-family: Bricolage, sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+}
+.checkpoint-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  color: var(--red);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.checkpoint-badge {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--deep);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.checkpoint-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0 0;
+}
+.checkpoint-times > div {
+  padding-top: 9px;
+  border-top: 1px solid rgba(122, 5, 29, 0.22);
+}
+.checkpoint-times dt {
+  color: var(--red);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.checkpoint-times dd {
+  margin: 3px 0 0;
+  font-family: Bricolage, sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 .story-controls {
   position: fixed;
@@ -1040,6 +1144,43 @@ td {
   }
   .stat-pair span {
     font-size: 0.85rem;
+  }
+  .official-rankings {
+    gap: 8px;
+  }
+  .official-rankings > div {
+    padding: 11px 10px 10px;
+  }
+  .official-rankings dt {
+    font-size: 0.6rem;
+  }
+  .official-rankings dd {
+    font-size: 1.45rem;
+  }
+  .official-checkpoint-list {
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .official-checkpoint-list > li {
+    padding: 14px;
+  }
+  .checkpoint-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .checkpoint-meta {
+    justify-content: flex-start;
+    font-size: 0.7rem;
+  }
+  .checkpoint-heading strong {
+    font-size: 1.15rem;
+  }
+  .checkpoint-times {
+    margin-top: 14px;
+  }
+  .checkpoint-times dd {
+    font-size: 1.1rem;
   }
   .split-chart {
     padding: 22px 8px;
@@ -1729,6 +1870,12 @@ body:has(.story-state) {
   z-index: 3;
   margin-top: 58px;
   padding-bottom: 64px;
+}
+.scene-splits > .subtle {
+  max-width: 52ch;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
 }
 .scene-splits .insights {
   display: none;

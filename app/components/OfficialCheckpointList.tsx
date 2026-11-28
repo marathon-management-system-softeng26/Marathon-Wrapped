@@ -10,10 +10,14 @@ export default function OfficialCheckpointList({ checkpoints }: { checkpoints: R
       <ol className="official-checkpoint-list" aria-label="Official race checkpoints">
         {checkpoints.map((checkpoint) => (
           <li key={`${checkpoint.label}-${checkpoint.distanceMeters ?? "unknown"}`}>
-            <strong>{checkpoint.label}</strong>
-            {checkpoint.isMock && <span>Estimated split</span>}
-            {checkpoint.distanceMeters !== null && <span>{(checkpoint.distanceMeters / 1000).toFixed(1)} km</span>}
-            <dl>
+            <div className="checkpoint-heading">
+              <strong>{checkpoint.label}</strong>
+              <div className="checkpoint-meta">
+                {checkpoint.isMock && <span className="checkpoint-badge">Estimated</span>}
+                {checkpoint.distanceMeters !== null && <span>{(checkpoint.distanceMeters / 1000).toFixed(1)} km</span>}
+              </div>
+            </div>
+            <dl className="checkpoint-times">
               <div><dt>Elapsed</dt><dd>{checkpoint.elapsedMs === null ? "Unavailable" : formatMmSs(checkpoint.elapsedMs / 1000)}</dd></div>
               <div><dt>Split</dt><dd>{checkpoint.splitMs === null ? "Unavailable" : formatMmSs(checkpoint.splitMs / 1000)}</dd></div>
             </dl>
