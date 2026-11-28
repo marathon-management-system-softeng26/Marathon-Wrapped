@@ -1730,10 +1730,6 @@ body:has(.story-state) {
   margin-top: 58px;
   padding-bottom: 64px;
 }
-.scene-splits .split-chart b,
-.scene-splits .split-chart small {
-  display: none;
-}
 .scene-splits .insights {
   display: none;
 }
